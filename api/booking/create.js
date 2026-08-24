@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Atomic Serverless Double Booking Prevention & Booking Endpoint */
+﻿/* EZO STİLE v2 - Atomic Serverless Double Booking Prevention & Suspension Guard Endpoint */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -13,7 +13,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Eksik randevu bilgileri' });
     }
 
-    // 1. BACKEND DOUBLE BOOKING TRANSACTIONAL CHECK
+    // 1. SALON SUSPENSION GUARD CHECK
+    const bizRes = await fetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`);
+    const biz = bizRes.ok ? await bizRes.json() : null;
+
+    if (biz && biz.status === 'suspended') {
+      console.warn(`[BOOKING BLOCKED] Attempted booking on suspended businessId: ${businessId}`);
+      return res.status(403).json({ error: 'Bu salon şu anda askıya alınmıştır. Yeni randevu oluşturulamaz.' });
+    }
+
+    // 2. BACKEND DOUBLE BOOKING TRANSACTIONAL CHECK
     const allAptsRes = await fetch(`${FIREBASE_DB_URL}/appointments.json`);
     const allApts = allAptsRes.ok ? await allAptsRes.json() : null;
 
@@ -37,7 +46,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 2. SAVE NEW APPOINTMENT
+    // 3. SAVE NEW APPOINTMENT
     const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const appointmentRecord = {
       aptId,
@@ -50,7 +59,7 @@ export default async function handler(req, res) {
       serviceName: serviceName || 'Hizmet',
       date,
       time,
-      status: 'pending', // Always starts as pending
+      status: 'pending',
       createdAt: new Date().toISOString()
     };
 

@@ -34,6 +34,10 @@
         ".read": "auth != null && (data.child('customerUid').val() === auth.uid || root.child('users').child(auth.uid).child('businessId').val() === data.child('businessId').val() || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
         ".write": "auth != null && (newData.child('customerUid').val() === auth.uid || root.child('users').child(auth.uid).child('businessId').val() === data.child('businessId').val() || root.child('users').child(auth.uid).child('role').val() === 'super_admin')"
       }
+    },
+    "audit_logs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
     }
   }
 }
