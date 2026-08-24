@@ -6,7 +6,8 @@
   "scripts": {
     "start": "npx serve .",
     "test": "node test_v2_syntax.cjs",
-    "test:security": "node test_v2_security.cjs"
+    "test:security": "node test_v2_security.cjs",
+    "test:booking": "node test_v2_booking.cjs"
   },
   "keywords": [
     "barber",

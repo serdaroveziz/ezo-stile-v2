@@ -86,3 +86,48 @@ export async function approveSalonApplication(appId) {
 
   return { success: true, businessId };
 }
+
+/* --- PHASE 2: MULTI-TENANT BOOKING & SALON DATA SERVICES --- */
+
+export async function getBusinessRecord(businessId) {
+  if (!businessId) return null;
+  return await fetchRecord(`businesses/${businessId}`);
+}
+
+export async function getServices(businessId) {
+  const data = await fetchRecord(`businesses/${businessId}/services`);
+  if (!data) return [];
+  return Object.values(data);
+}
+
+export async function saveService(businessId, serviceData) {
+  const serviceId = serviceData.id || 'svc_' + Date.now();
+  const record = { id: serviceId, active: true, ...serviceData };
+  const ok = await saveRecord(`businesses/${businessId}/services/${serviceId}`, record);
+  return ok ? record : null;
+}
+
+export async function getStaffList(businessId) {
+  const data = await fetchRecord(`businesses/${businessId}/staff`);
+  if (!data) return [];
+  return Object.values(data);
+}
+
+export async function saveStaff(businessId, staffData) {
+  const staffId = staffData.id || 'stf_' + Date.now();
+  const record = { id: staffId, active: true, ...staffData };
+  const ok = await saveRecord(`businesses/${businessId}/staff/${staffId}`, record);
+  return ok ? record : null;
+}
+
+export async function getAppointmentsForBusiness(businessId) {
+  const data = await fetchRecord('appointments');
+  if (!data) return [];
+  return Object.values(data).filter(apt => apt && apt.businessId === businessId);
+}
+
+export async function getAppointmentsForCustomer(customerUid) {
+  const data = await fetchRecord('appointments');
+  if (!data) return [];
+  return Object.values(data).filter(apt => apt && apt.customerUid === customerUid);
+}

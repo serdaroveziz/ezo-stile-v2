@@ -27,6 +27,7 @@
     import { restoreSession, getCurrentUser } from './src/auth.js';
     import { renderPortalScreen } from './src/ui/portal.js';
     import { renderCustomerScreen } from './src/ui/customer.js';
+    import { renderOwnerScreen } from './src/ui/owner.js';
     import { renderSuperAdminScreen } from './src/ui/super-admin.js';
 
     async function initApp() {
@@ -51,6 +52,8 @@
 
       if (user.role === 'super_admin') {
         renderSuperAdminScreen();
+      } else if (user.role === 'owner' || user.role === 'manager' || user.role === 'barber' || user.role === 'receptionist') {
+        renderOwnerScreen();
       } else {
         renderCustomerScreen(() => handleUserRouting(getCurrentUser()));
       }
