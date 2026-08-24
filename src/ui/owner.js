@@ -1,7 +1,8 @@
-﻿/* EZO STİLE v2 - Owner Onboarding & Salon Management Dashboard */
+﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & RBAC System */
 import { getBusinessRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getAppointmentsForBusiness } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 
+let activeOwnerTab = 'home';
 let onboardingStep = 1;
 
 export async function renderOwnerScreen() {
@@ -120,60 +121,220 @@ async function renderSalonDashboard(container, user, business) {
   const appointments = await getAppointmentsForBusiness(user.businessId);
   const pendingApts = appointments.filter(a => a.status === 'pending');
   const approvedApts = appointments.filter(a => a.status === 'approved');
+  const rescheduleApts = appointments.filter(a => a.status === 'reschedule_requested');
 
-  let pendingHtml = '';
-  if (pendingApts.length === 0) {
-    pendingHtml = `<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px;">Bekleyen randevu talebi bulunmuyor.</div>`;
-  } else {
-    pendingHtml = pendingApts.map(apt => `
-      <div class="card card-gold" style="padding: 14px; margin-bottom: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-size: 14px; font-weight: 800; color: #fff;">👤 ${apt.customerName} (${apt.customerPhone})</div>
-            <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700; margin-top: 2px;">✂️ ${apt.serviceName} • 📅 ${apt.date} @ ${apt.time}</div>
-          </div>
-          <span class="badge badge-pending">BEKLEYEN</span>
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayApts = appointments.filter(a => a.date === todayStr);
+  const todayRevenue = todayApts.filter(a => a.status === 'approved').reduce((acc, a) => acc + (a.price || 350), 0);
+
+  let mainContent = '';
+
+  if (activeOwnerTab === 'home') {
+    mainContent = `
+      <!-- SUMMARY METRIC CARDS -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
+        <div class="card" style="padding: 14px; text-align: center;">
+          <div style="font-size: 20px; font-weight: 900; color: var(--gold-primary);">${todayApts.length}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Bugünkü Randevu</div>
         </div>
-
-        <div style="display: flex; gap: 8px; margin-top: 10px;">
-          <button onclick="window.updateAptStatus('${apt.aptId}', 'approved')" class="btn btn-gold" style="flex: 1; min-height: 36px; font-size: 11px;">
-            ✅ Onayla
-          </button>
-          <button onclick="window.updateAptStatus('${apt.aptId}', 'rejected')" class="btn btn-secondary" style="flex: 1; min-height: 36px; font-size: 11px;">
-            ❌ Reddet
-          </button>
+        <div class="card" style="padding: 14px; text-align: center;">
+          <div style="font-size: 20px; font-weight: 900; color: var(--danger);">${pendingApts.length + rescheduleApts.length}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Bekleyen Talepler</div>
+        </div>
+        <div class="card" style="padding: 14px; text-align: center;">
+          <div style="font-size: 20px; font-weight: 900; color: var(--success);">${todayApts.length}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Bugünkü Müşteri</div>
+        </div>
+        <div class="card" style="padding: 14px; text-align: center;">
+          <div style="font-size: 20px; font-weight: 900; color: var(--gold-primary);">${todayRevenue} TL</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Tahmini Ciro</div>
         </div>
       </div>
-    `).join('');
+
+      <!-- QUICK ACTIONS GRID -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+        <button onclick="window.openStaffInviteModal()" class="btn btn-outline-gold" style="flex-direction: column; padding: 10px; font-size: 11px;">
+          <span style="font-size: 20px;">👥</span> Personel Davet
+        </button>
+        <button onclick="window.openManualBookingModal()" class="btn btn-outline-gold" style="flex-direction: column; padding: 10px; font-size: 11px;">
+          <span style="font-size: 20px;">✂️</span> Manuel Randevu
+        </button>
+        <button onclick="window.openStaffScheduleModal()" class="btn btn-outline-gold" style="flex-direction: column; padding: 10px; font-size: 11px;">
+          <span style="font-size: 20px;">⏰</span> Çalışma Saatleri
+        </button>
+      </div>
+
+      <!-- PENDING REQUESTS -->
+      <div class="card animate-fade" style="padding: 18px;">
+        <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">
+          📅 Bekleyen Randevu Talepleri
+        </h3>
+        ${pendingApts.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px;">Bekleyen talep bulunmuyor.</div>' : 
+          pendingApts.map(apt => `
+            <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between;">
+                <div>
+                  <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName}</div>
+                  <div style="font-size: 11px; color: var(--gold-primary);">✂️ ${apt.serviceName} • 📅 ${apt.date} @ ${apt.time}</div>
+                </div>
+                <span class="badge badge-pending">BEKLEYEN</span>
+              </div>
+              <div style="display: flex; gap: 6px; margin-top: 8px;">
+                <button onclick="window.updateAptStatus('${apt.aptId}', 'approved')" class="btn btn-gold" style="flex: 1; min-height: 32px; font-size: 10px;">✅ Onayla</button>
+                <button onclick="window.updateAptStatus('${apt.aptId}', 'rejected')" class="btn btn-secondary" style="flex: 1; min-height: 32px; font-size: 10px;">❌ Reddet</button>
+              </div>
+            </div>
+          `).join('')
+        }
+      </div>
+    `;
+  } else if (activeOwnerTab === 'appointments') {
+    mainContent = `
+      <div class="card animate-fade" style="padding: 18px;">
+        <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 Tüm Salon Randevuları</h3>
+        ${appointments.map(apt => `
+          <div class="card" style="padding: 12px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between;">
+              <div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName} (${apt.customerPhone})</div>
+                <div style="font-size: 11px; color: var(--gold-primary);">✂️ ${apt.serviceName} • 📅 ${apt.date} @ ${apt.time}</div>
+              </div>
+              <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
   container.innerHTML = `
     <!-- HEADER BAR -->
     <div class="header-bar">
-      <div class="brand-title">💈 ${business.name}</div>
-      <span class="badge badge-approved">AKTİF SALON</span>
+      <div>
+        <div class="brand-title">💈 ${business.name}</div>
+        <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">👑 Patron • VIP Plan</div>
+      </div>
+      <span class="badge badge-approved">AKTİF</span>
     </div>
 
-    <!-- METRICS SUMMARY -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
-      <div class="card" style="padding: 14px; text-align: center;">
-        <div style="font-size: 20px; font-weight: 900; color: var(--gold-primary);">${pendingApts.length}</div>
-        <div style="font-size: 11px; color: var(--text-muted);">Bekleyen Talep</div>
-      </div>
-      <div class="card" style="padding: 14px; text-align: center;">
-        <div style="font-size: 20px; font-weight: 900; color: var(--success);">${approvedApts.length}</div>
-        <div style="font-size: 11px; color: var(--text-muted);">Onaylı Randevu</div>
-      </div>
-    </div>
+    <!-- MAIN CONTENT -->
+    ${mainContent}
 
-    <!-- PENDING APPOINTMENTS MODULE -->
-    <div class="card animate-fade" style="padding: 18px;">
-      <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">
-        📅 Bekleyen Randevu Talepleri
-      </h3>
-      ${pendingHtml}
-    </div>
+    <!-- 5-TAB OWNER BOTTOM NAVIGATION BAR -->
+    <nav class="bottom-nav">
+      <button onclick="window.switchOwnerTab('home')" class="nav-item ${activeOwnerTab === 'home' ? 'active' : ''}">
+        <span class="icon">🏠</span>
+        <span>Ana Sayfa</span>
+      </button>
+      <button onclick="window.switchOwnerTab('calendar')" class="nav-item ${activeOwnerTab === 'calendar' ? 'active' : ''}">
+        <span class="icon">📅</span>
+        <span>Takvim</span>
+      </button>
+      <button onclick="window.switchOwnerTab('appointments')" class="nav-item ${activeOwnerTab === 'appointments' ? 'active' : ''}">
+        <span class="icon">📋</span>
+        <span>Randevular</span>
+      </button>
+      <button onclick="window.switchOwnerTab('management')" class="nav-item ${activeOwnerTab === 'management' ? 'active' : ''}">
+        <span class="icon">⚙️</span>
+        <span>Yönetim</span>
+      </button>
+      <button onclick="window.switchOwnerTab('profile')" class="nav-item ${activeOwnerTab === 'profile' ? 'active' : ''}">
+        <span class="icon">👑</span>
+        <span>Profil</span>
+      </button>
+    </nav>
   `;
+
+  window.switchOwnerTab = (tabKey) => {
+    activeOwnerTab = tabKey;
+    renderSalonDashboard(container, user, business);
+  };
+
+  // STAFF INVITE MODAL HANDLER
+  window.openStaffInviteModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary);">👥 Personel Davet Et</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
+            Çalışanınıza güvenli 24 saatlik tek kullanımlık davet linki gönderin. Çalışan kendi şifresini belirleyecektir.
+          </p>
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Ad Soyad *</label>
+          <input type="text" id="inv-name" class="input-field" placeholder="Örn: Caner Usta" value="Caner Berber">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Telefon *</label>
+          <input type="tel" id="inv-phone" class="input-field" placeholder="05XXXXXXXXX" value="05329990011">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Rol *</label>
+          <select id="inv-role" class="input-field">
+            <option value="barber">💈 Berber Uzmanı / Barber</option>
+            <option value="manager">🧑‍💼 Yönetici / Manager</option>
+            <option value="receptionist">🛎️ Resepsiyonist</option>
+          </select>
+
+          <button onclick="window.submitCreateStaffInvite()" class="btn btn-gold" style="width: 100%; min-height: 44px; margin-top: 8px;">
+            ⚡ Davet Bağlantısı Oluştur
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitCreateStaffInvite = async () => {
+    const displayName = document.getElementById('inv-name').value;
+    const phone = document.getElementById('inv-phone').value;
+    const role = document.getElementById('inv-role').value;
+
+    const res = await fetch('/api/staff/create-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ownerUid: user.uid,
+        displayName,
+        phone,
+        role,
+        services: ['all'],
+        permissions: role === 'manager' ? { 'appointments.manage': true, 'schedule.manage': true } : {}
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      const root = document.getElementById('modal-root');
+      root.innerHTML = `
+        <div class="modal-overlay" onclick="window.closeModal()">
+          <div class="modal-card" onclick="event.stopPropagation()">
+            <h3 style="font-size: 16px; font-weight: 800; color: var(--success); margin-bottom: 8px;">✅ Davet Oluşturuldu!</h3>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Davet bağlantısı 24 saat geçerlidir ve tek kullanımlıktır.</p>
+
+            <input type="text" readonly class="input-field" value="${data.inviteUrl}">
+
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+              <a href="https://wa.me/?text=${encodeURIComponent('EZO STİLE Personel Davetiniz: ' + data.inviteUrl)}" target="_blank" class="btn btn-gold" style="text-decoration: none; text-align: center;">
+                💬 WhatsApp ile Gönder
+              </a>
+              <a href="sms:?body=${encodeURIComponent('EZO STİLE Personel Davetiniz: ' + data.inviteUrl)}" class="btn btn-secondary" style="text-decoration: none; text-align: center;">
+                📱 SMS ile Gönder
+              </a>
+              <button onclick="navigator.clipboard.writeText('${data.inviteUrl}'); alert('Bağlantı kopyalandı!');" class="btn btn-outline-gold">
+                📋 Bağlantıyı Kopyala
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      alert('⚠️ Davet oluşturulurken hata: ' + (data.error || 'Bilinmeyen hata'));
+    }
+  };
 
   window.updateAptStatus = async (aptId, newStatus) => {
     const res = await fetch('/api/booking/update-status', {
@@ -184,9 +345,9 @@ async function renderSalonDashboard(container, user, business) {
 
     if (res.ok) {
       alert(`✅ Randevu durumu '${newStatus}' olarak güncellendi!`);
-      renderOwnerScreen();
+      renderSalonDashboard(container, user, business);
     } else {
-      alert('⚠️ Güncelleme hatası oluştu.');
+      alert('⚠️ Güncelleme hatası.');
     }
   };
 }
