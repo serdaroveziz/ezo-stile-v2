@@ -1,11 +1,12 @@
-{
+﻿{
   "name": "ezo-stile-v2",
   "version": "2.0.0",
   "description": "EZO STİLE v2 - Modern, Secure, Multi-Tenant Barber & Beauty SaaS Platform",
   "main": "index.html",
   "scripts": {
     "start": "npx serve .",
-    "test": "node test_v2_syntax.cjs"
+    "test": "node test_v2_syntax.cjs",
+    "test:security": "node test_v2_security.cjs"
   },
   "keywords": [
     "barber",

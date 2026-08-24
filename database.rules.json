@@ -1,0 +1,32 @@
+﻿{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        "role": {
+          ".validate": "newData.val() === 'customer' || root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
+        },
+        "businessId": {
+          ".validate": "!newData.exists() || root.child('users').child(auth.uid).child('role').val() === 'super_admin' || root.child('users').child(auth.uid).child('role').val() === 'owner'"
+        }
+      }
+    },
+    "businesses": {
+      "$businessId": {
+        ".read": "true",
+        ".write": "auth != null && (data.child('ownerUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin' || (!data.exists() && root.child('users').child(auth.uid).child('role').val() === 'super_admin'))"
+      }
+    },
+    "salon_applications": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'",
+      "$appId": {
+        ".read": "auth != null && (data.child('applicantUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        ".write": "auth != null && (!data.exists() || data.child('applicantUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        "status": {
+          ".validate": "newData.val() === 'pending' || root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
+        }
+      }
+    }
+  }
+}
