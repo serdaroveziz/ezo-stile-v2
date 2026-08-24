@@ -9,7 +9,8 @@
     "test:security": "node test_v2_security.cjs",
     "test:booking": "node test_v2_booking.cjs",
     "test:phase3": "node test_v2_phase3.cjs",
-    "test:phase4": "node test_v2_phase4.cjs"
+    "test:phase4": "node test_v2_phase4.cjs",
+    "test:phase5": "node test_v2_phase5.cjs"
   },
   "keywords": [
     "barber",

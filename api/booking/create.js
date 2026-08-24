@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Atomic Serverless Double Booking Prevention & Suspension Guard Endpoint */
+﻿/* EZO STİLE v2 - Atomic Serverless Double Booking Prevention & Source Attribution Endpoint */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { businessId, customerUid, customerName, customerPhone, staffId, serviceId, serviceName, date, time } = req.body || {};
+    const { businessId, customerUid, customerName, customerPhone, staffId, serviceId, serviceName, date, time, source } = req.body || {};
 
     if (!businessId || !customerUid || !staffId || !serviceId || !date || !time) {
       return res.status(400).json({ error: 'Eksik randevu bilgileri' });
@@ -24,29 +24,39 @@ export default async function handler(req, res) {
 
     // 2. BACKEND DOUBLE BOOKING TRANSACTIONAL CHECK
     const allAptsRes = await fetch(`${FIREBASE_DB_URL}/appointments.json`);
-    const allApts = allAptsRes.ok ? await allAptsRes.json() : null;
+    const allAptsData = allAptsRes.ok ? await allAptsRes.json() : null;
+    const allApts = allAptsData ? Object.values(allAptsData) : [];
 
-    if (allApts) {
-      const existingConflict = Object.values(allApts).find(apt => 
-        apt &&
-        apt.businessId === businessId &&
-        (apt.staffId === staffId || staffId === 'staff-any') &&
-        apt.date === date &&
-        apt.time === time &&
-        apt.status !== 'cancelled' &&
-        apt.status !== 'rejected'
-      );
+    const existingConflict = allApts.find(apt => 
+      apt &&
+      apt.businessId === businessId &&
+      (apt.staffId === staffId || staffId === 'staff-any') &&
+      apt.date === date &&
+      apt.time === time &&
+      apt.status !== 'cancelled' &&
+      apt.status !== 'rejected'
+    );
 
-      if (existingConflict) {
-        console.warn(`[DOUBLE BOOKING PREVENTED] Conflict detected for Business: ${businessId}, Staff: ${staffId}, Date: ${date}, Time: ${time}`);
-        return res.status(409).json({
-          error: 'Bu tarih ve saatte seçili personel doludur. Lütfen başka bir saat seçiniz.',
-          conflictAptId: existingConflict.aptId
-        });
-      }
+    if (existingConflict) {
+      console.warn(`[DOUBLE BOOKING PREVENTED] Conflict detected for Business: ${businessId}, Staff: ${staffId}, Date: ${date}, Time: ${time}`);
+      return res.status(409).json({
+        error: 'Bu tarih ve saatte seçili personel doludur. Lütfen başka bir saat seçiniz.',
+        conflictAptId: existingConflict.aptId
+      });
     }
 
-    // 3. SAVE NEW APPOINTMENT
+    // 3. NEW CUSTOMER ATTRIBUTION CHECK
+    const priorCompletedApt = allApts.find(apt => 
+      apt &&
+      apt.customerUid === customerUid &&
+      apt.businessId === businessId &&
+      (apt.status === 'approved' || apt.status === 'completed')
+    );
+
+    const isNewCustomerForBusiness = !priorCompletedApt;
+    const bookingSource = source || 'ezo_discovery';
+
+    // 4. SAVE NEW APPOINTMENT WITH SOURCE ATTRIBUTION
     const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const appointmentRecord = {
       aptId,
@@ -60,6 +70,8 @@ export default async function handler(req, res) {
       date,
       time,
       status: 'pending',
+      source: bookingSource,
+      isNewCustomerForBusiness,
       createdAt: new Date().toISOString()
     };
 

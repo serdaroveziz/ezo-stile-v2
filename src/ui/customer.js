@@ -1,9 +1,13 @@
-﻿/* EZO STİLE v2 - Customer Main View & Booking Engine */
+﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine */
 import { getCurrentUser } from '../auth.js';
 import { openSalonApplicationWizard } from './salon-application.js';
-import { fetchRecord, getAppointmentsForCustomer, getServices, getStaffList } from '../db.js';
+import { fetchRecord, getAppointmentsForCustomer, getServices, getStaffList, saveRecord } from '../db.js';
 
 let activeCustomerTab = 'home';
+let userCoords = null; // { latitude, longitude }
+let searchQuery = '';
+let filterCity = '';
+
 let bookingState = {
   businessId: 'biz_merkez_salon',
   serviceId: null,
@@ -13,6 +17,19 @@ let bookingState = {
   date: new Date().toISOString().split('T')[0],
   time: null
 };
+
+// Haversine Distance Formula in Kilometers
+function calcDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return parseFloat((R * c).toFixed(1));
+}
 
 export async function renderCustomerScreen(onTabChange) {
   const container = document.getElementById('app-container');
@@ -56,6 +73,79 @@ export async function renderCustomerScreen(onTabChange) {
         </div>
       </div>
     `;
+  } else if (activeCustomerTab === 'salons') {
+    const rawBiz = await fetchRecord('businesses') || {};
+    const favs = await fetchRecord(`users/${user.uid}/favorites`) || {};
+
+    let salons = Object.values(rawBiz).filter(b => 
+      b &&
+      b.status !== 'suspended' &&
+      b.bookingEnabled !== false &&
+      b.hiddenFromDiscovery !== true
+    );
+
+    // Apply Search & City Filter
+    if (searchQuery) {
+      salons = salons.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()) || (b.district && b.district.toLowerCase().includes(searchQuery.toLowerCase())));
+    }
+    if (filterCity) {
+      salons = salons.filter(b => b.city && b.city.toLowerCase() === filterCity.toLowerCase());
+    }
+
+    // Compute Distances if userCoords available
+    salons.forEach(b => {
+      if (userCoords && b.latitude && b.longitude) {
+        b.distanceKm = calcDistance(userCoords.latitude, userCoords.longitude, b.latitude, b.longitude);
+      } else {
+        b.distanceKm = null;
+      }
+    });
+
+    // Sort: Nearest first, then rating
+    salons.sort((a, b) => {
+      if (a.distanceKm !== null && b.distanceKm !== null) return a.distanceKm - b.distanceKm;
+      return (b.averageRating || 5) - (a.averageRating || 5);
+    });
+
+    const salonCardsHtml = salons.map(b => {
+      const isFav = Boolean(favs[b.businessId]);
+      return `
+        <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 12px; cursor: pointer;" onclick="window.openSalonProfileModal('${b.businessId}')">
+          <div style="position: relative; height: 130px; border-radius: 12px; overflow: hidden; margin-bottom: 10px;">
+            <img src="${b.photoUrl || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=500'}" style="width: 100%; height: 100%; object-fit: cover;" alt="Salon">
+            <button onclick="event.stopPropagation(); window.toggleFavoriteSalon('${b.businessId}')" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 34px; height: 34px; font-size: 18px; cursor: pointer; color: #fff;">
+              ${isFav ? '❤️' : '🤍'}
+            </button>
+            <span class="badge badge-approved" style="position: absolute; bottom: 8px; left: 8px;">
+              ✨ Bugün Müsait
+            </span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">💈 ${b.name}</h4>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                📍 ${b.district || 'Şişli'} / ${b.city || 'İstanbul'} ${b.distanceKm !== null ? `• ${b.distanceKm} km` : ''}
+              </div>
+            </div>
+            <span class="badge badge-approved" style="font-size: 11px;">⭐ ${b.averageRating || '4.9'} (${b.ratingCount || 12})</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    mainHtml = `
+      <div class="card animate-fade">
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">💈 VIP Salon Keşfet</h3>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" placeholder="Salon adı veya semt ara..." value="${searchQuery}" oninput="window.setDiscoverySearch(this.value)" class="input-field" style="margin-bottom: 0;">
+          <button onclick="window.requestGeolocation()" class="btn btn-outline-gold" style="white-space: nowrap; font-size: 11px;">📍 Yakındakiler</button>
+        </div>
+
+        ${salons.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">Kriterlere uygun salon bulunamadı.</div>' : salonCardsHtml}
+      </div>
+    `;
   } else if (activeCustomerTab === 'booking') {
     const services = await getServices(bookingState.businessId);
     const staffList = await getStaffList(bookingState.businessId);
@@ -88,7 +178,6 @@ export async function renderCustomerScreen(onTabChange) {
       <div class="card card-gold animate-fade" style="padding: 18px;">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">✂️ Randevu Al</h3>
 
-        <!-- STEP 1: HİZMET SEÇİMİ -->
         <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">1. Hizmet Seçin</label>
         <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; margin-top: 4px;">
           ${(services.length > 0 ? services : [{ id: 'svc_1', name: 'Saç Kesimi & Sakal', price: 350 }]).map(s => `
@@ -101,7 +190,6 @@ export async function renderCustomerScreen(onTabChange) {
           `).join('')}
         </div>
 
-        <!-- STEP 2: BERBER SEÇİMİ -->
         <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">2. Berber Uzmanı Seçin</label>
         <div style="display: flex; gap: 6px; margin-bottom: 14px; margin-top: 4px; overflow-x: auto;">
           <button onclick="window.selectBookingStaff('staff-any', 'Fark Etmez')" class="btn ${bookingState.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="padding: 6px 12px; font-size: 11px;">
@@ -114,7 +202,6 @@ export async function renderCustomerScreen(onTabChange) {
           `).join('')}
         </div>
 
-        <!-- STEP 3: TARİH VE MÜSAİT SAAT SEÇİMİ -->
         <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">3. Tarih ve Müsait Saat</label>
         <input type="date" value="${bookingState.date}" onchange="window.selectBookingDate(this.value)" class="input-field" style="margin-top: 4px; margin-bottom: 10px;">
 
@@ -122,7 +209,6 @@ export async function renderCustomerScreen(onTabChange) {
           ${slotsHtml}
         </div>
 
-        <!-- SUBMIT BOOKING BUTTON -->
         <button onclick="window.submitCustomerBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${!bookingState.serviceId || !bookingState.time ? 'disabled' : ''}>
           ⚡ Randevuyu Onayla ve Gönder
         </button>
@@ -141,22 +227,15 @@ export async function renderCustomerScreen(onTabChange) {
             <div>
               <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
               <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time}</div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">💈 Berber: ${apt.staffId === 'staff-any' ? 'Fark Etmez' : 'Atanan Berber'}</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Kaynak: ${apt.source || 'ezo_discovery'} ${apt.isNewCustomerForBusiness ? '• ✨ Yeni Müşteri' : ''}</div>
             </div>
-            <span class="badge ${apt.status === 'approved' ? 'badge-approved' : (apt.status === 'pending' ? 'badge-pending' : 'badge-rejected')}">
-              ${apt.status.toUpperCase()}
-            </span>
+            <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
           </div>
 
-          ${apt.status !== 'cancelled' && apt.status !== 'rejected' ? `
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-              <button onclick="window.requestCustomerAptUpdate('${apt.aptId}', 'cancelled')" class="btn btn-secondary" style="flex: 1; min-height: 32px; font-size: 10px; color: var(--danger);">
-                ❌ İptal Et
-              </button>
-              <button onclick="window.requestCustomerAptUpdate('${apt.aptId}', 'reschedule_requested')" class="btn btn-outline-gold" style="flex: 1; min-height: 32px; font-size: 10px;">
-                🔄 Tarih Değiştir
-              </button>
-            </div>
+          ${(apt.status === 'approved' || apt.status === 'completed') ? `
+            <button onclick="window.openReviewModal('${apt.aptId}')" class="btn btn-outline-gold" style="width: 100%; margin-top: 8px; min-height: 32px; font-size: 11px;">
+              ⭐ Yorum Yap & Puan Ver
+            </button>
           ` : ''}
         </div>
       `).join('');
@@ -168,55 +247,28 @@ export async function renderCustomerScreen(onTabChange) {
         ${aptsListHtml}
       </div>
     `;
-  } else if (activeCustomerTab === 'profile') {
-    mainHtml = `
-      <div class="card card-gold animate-fade" style="padding: 20px;">
-        <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;">
-          <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 24px; color: #000; font-weight: 800;">
-            ${(user.name || 'M')[0]}
-          </div>
-          <div>
-            <h3 style="font-size: 16px; font-weight: 800; color: #fff;">${user.name}</h3>
-            <p style="font-size: 11px; color: var(--text-muted);">${user.phone}</p>
-            <span class="badge badge-pending" style="margin-top: 4px;">Rol: ${user.role}</span>
-          </div>
-        </div>
-
-        <hr style="border: none; border-top: 1px solid var(--border-color); margin: 16px 0;">
-
-        <div style="font-size: 13px; font-weight: 700; color: var(--gold-primary); margin-bottom: 10px;">🏢 İşletme İşlemleri</div>
-        
-        <button onclick="window.triggerSalonApplication()" class="btn btn-outline-gold" style="width: 100%; justify-content: space-between; min-height: 44px;">
-          <span>💈 Salonumu EZO STİLE'a Ekle</span>
-          <span>→</span>
-        </button>
-      </div>
-    `;
   }
 
   container.innerHTML = `
-    <!-- HEADER BAR -->
     <div class="header-bar">
       <div class="brand-title">💈 EZO STİLE v2</div>
       <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
     </div>
 
-    <!-- MAIN CONTENT AREA -->
     ${mainHtml}
 
-    <!-- 5-TAB BOTTOM NAVIGATION BAR -->
     <nav class="bottom-nav">
       <button onclick="window.switchCustomerTab('home')" class="nav-item ${activeCustomerTab === 'home' ? 'active' : ''}">
         <span class="icon">🏠</span>
         <span>Ana Sayfa</span>
       </button>
+      <button onclick="window.switchCustomerTab('salons')" class="nav-item ${activeCustomerTab === 'salons' ? 'active' : ''}">
+        <span class="icon">💈</span>
+        <span>Salonlar</span>
+      </button>
       <button onclick="window.switchCustomerTab('booking')" class="nav-item ${activeCustomerTab === 'booking' ? 'active' : ''}">
         <span class="icon">✂️</span>
         <span>Randevu Al</span>
-      </button>
-      <button onclick="window.switchCustomerTab('ai')" class="nav-item ${activeCustomerTab === 'ai' ? 'active' : ''}">
-        <span class="icon">🤖</span>
-        <span>AI Danışman</span>
       </button>
       <button onclick="window.switchCustomerTab('appointments')" class="nav-item ${activeCustomerTab === 'appointments' ? 'active' : ''}">
         <span class="icon">📅</span>
@@ -232,6 +284,84 @@ export async function renderCustomerScreen(onTabChange) {
   window.switchCustomerTab = (tabKey) => {
     activeCustomerTab = tabKey;
     renderCustomerScreen(onTabChange);
+  };
+
+  window.setDiscoverySearch = (q) => {
+    searchQuery = q;
+    renderCustomerScreen(onTabChange);
+  };
+
+  window.requestGeolocation = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          alert('📍 Konumunuz alındı! Yakındaki salonlar mesafeye göre sıralandı.');
+          renderCustomerScreen(onTabChange);
+        },
+        () => alert('⚠️ Konum izni alınamadı. Şehir araması kullanabilirsiniz.')
+      );
+    }
+  };
+
+  window.toggleFavoriteSalon = async (bizId) => {
+    const favs = await fetchRecord(`users/${user.uid}/favorites`) || {};
+    const isFav = Boolean(favs[bizId]);
+    if (isFav) {
+      delete favs[bizId];
+    } else {
+      favs[bizId] = true;
+    }
+    await saveRecord(`users/${user.uid}/favorites`, favs);
+    renderCustomerScreen(onTabChange);
+  };
+
+  window.openReviewModal = (aptId) => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+          <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">⭐ Değerlendirme Yap</h3>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Aldığınız hizmeti 1-5 yıldız arasında puanlayıp yorum yapabilirsiniz.</p>
+
+          <select id="rev-rating" class="input-field">
+            <option value="5">⭐⭐⭐⭐⭐ (5/5 Mükemmel)</option>
+            <option value="4">⭐⭐⭐⭐ (4/5 Çok İyi)</option>
+            <option value="3">⭐⭐⭐ (3/5 Orta)</option>
+            <option value="2">⭐⭐ (2/5 Zayıf)</option>
+            <option value="1">⭐ (1/5 Kötü)</option>
+          </select>
+
+          <textarea id="rev-comment" class="input-field" rows="3" placeholder="Yorumunuz..."></textarea>
+
+          <button onclick="window.submitReviewForm('${aptId}')" class="btn btn-gold" style="width: 100%; min-height: 40px;">
+            🚀 Yorumu Gönder
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitReviewForm = async (aptId) => {
+    const rating = document.getElementById('rev-rating').value;
+    const comment = document.getElementById('rev-comment').value;
+
+    const res = await fetch('/api/reviews/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appointmentId: aptId, customerUid: user.uid, rating, comment })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert('✅ Değerlendirmeniz başarıyla kaydedildi!');
+      window.closeModal();
+      renderCustomerScreen(onTabChange);
+    } else {
+      alert('⚠️ Yorum kaydedilemedi: ' + (data.error || 'Hata'));
+    }
   };
 
   window.selectBookingService = (svcId, svcName) => {
@@ -275,7 +405,8 @@ export async function renderCustomerScreen(onTabChange) {
         serviceId: bookingState.serviceId,
         serviceName: bookingState.serviceName,
         date: bookingState.date,
-        time: bookingState.time
+        time: bookingState.time,
+        source: activeCustomerTab === 'ai' ? 'ezo_ai' : 'ezo_discovery'
       })
     });
 
@@ -287,21 +418,6 @@ export async function renderCustomerScreen(onTabChange) {
       alert('⚠️ Seçtiğiniz tarih ve saatte berber doludur. Lütfen başka bir saat seçiniz.');
     } else {
       alert('⚠️ Randevu oluşturulurken bir hata oluştu.');
-    }
-  };
-
-  window.requestCustomerAptUpdate = async (aptId, newStatus) => {
-    const res = await fetch('/api/booking/update-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
-    });
-
-    if (res.ok) {
-      alert(`✅ Randevu güncelleme talebiniz gönderildi: ${newStatus}`);
-      renderCustomerScreen(onTabChange);
-    } else {
-      alert('⚠️ Güncelleme talebi iletilemedi.');
     }
   };
 

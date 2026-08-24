@@ -15,7 +15,10 @@
     "businesses": {
       "$businessId": {
         ".read": "true",
-        ".write": "auth != null && (data.child('ownerUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin' || (!data.exists() && root.child('users').child(auth.uid).child('role').val() === 'super_admin'))"
+        ".write": "auth != null && (data.child('ownerUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin' || (!data.exists() && root.child('users').child(auth.uid).child('role').val() === 'super_admin'))",
+        "averageRating": {
+          ".validate": "root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
+        }
       }
     },
     "salon_applications": {
@@ -33,6 +36,12 @@
       "$aptId": {
         ".read": "auth != null && (data.child('customerUid').val() === auth.uid || root.child('users').child(auth.uid).child('businessId').val() === data.child('businessId').val() || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
         ".write": "auth != null && (newData.child('customerUid').val() === auth.uid || root.child('users').child(auth.uid).child('businessId').val() === data.child('businessId').val() || root.child('users').child(auth.uid).child('role').val() === 'super_admin')"
+      }
+    },
+    "reviews": {
+      ".read": "true",
+      "$reviewId": {
+        ".write": "auth != null && (newData.child('customerUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')"
       }
     },
     "audit_logs": {

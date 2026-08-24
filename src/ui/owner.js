@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & RBAC System */
+﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics */
 import { getBusinessRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getAppointmentsForBusiness } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 
@@ -121,33 +121,37 @@ async function renderSalonDashboard(container, user, business) {
   const appointments = await getAppointmentsForBusiness(user.businessId);
   const pendingApts = appointments.filter(a => a.status === 'pending');
   const approvedApts = appointments.filter(a => a.status === 'approved');
-  const rescheduleApts = appointments.filter(a => a.status === 'reschedule_requested');
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayApts = appointments.filter(a => a.date === todayStr);
-  const todayRevenue = todayApts.filter(a => a.status === 'approved').reduce((acc, a) => acc + (a.price || 350), 0);
+  // PHASE 5: ACQUISITION ANALYTICS CALCULATIONS
+  const ezoApts = appointments.filter(a => a && (a.source === 'ezo_discovery' || a.source === 'ezo_ai'));
+  const newCustomers = appointments.filter(a => a && a.isNewCustomerForBusiness);
+  const ezoApproved = ezoApts.filter(a => a.status === 'approved');
+  const ezoEstimatedRevenue = ezoApproved.reduce((acc, a) => acc + (a.price || 350), 0);
 
   let mainContent = '';
 
   if (activeOwnerTab === 'home') {
     mainContent = `
-      <!-- SUMMARY METRIC CARDS -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
-        <div class="card" style="padding: 14px; text-align: center;">
-          <div style="font-size: 20px; font-weight: 900; color: var(--gold-primary);">${todayApts.length}</div>
-          <div style="font-size: 11px; color: var(--text-muted);">Bugünkü Randevu</div>
-        </div>
-        <div class="card" style="padding: 14px; text-align: center;">
-          <div style="font-size: 20px; font-weight: 900; color: var(--danger);">${pendingApts.length + rescheduleApts.length}</div>
-          <div style="font-size: 11px; color: var(--text-muted);">Bekleyen Talepler</div>
-        </div>
-        <div class="card" style="padding: 14px; text-align: center;">
-          <div style="font-size: 20px; font-weight: 900; color: var(--success);">${todayApts.length}</div>
-          <div style="font-size: 11px; color: var(--text-muted);">Bugünkü Müşteri</div>
-        </div>
-        <div class="card" style="padding: 14px; text-align: center;">
-          <div style="font-size: 20px; font-weight: 900; color: var(--gold-primary);">${todayRevenue} TL</div>
-          <div style="font-size: 11px; color: var(--text-muted);">Tahmini Ciro</div>
+      <!-- ACQUISITION METRIC CARD -->
+      <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 16px;">
+        <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700; text-transform: uppercase;">🚀 EZO STİLE Müşteri Kazanımı</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+          <div>
+            <div style="font-size: 18px; font-weight: 900; color: var(--success);">${newCustomers.length}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Yeni EZO Müşterisi</div>
+          </div>
+          <div>
+            <div style="font-size: 18px; font-weight: 900; color: var(--gold-primary);">${ezoApts.length}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">EZO Kaynaklı Randevu</div>
+          </div>
+          <div>
+            <div style="font-size: 18px; font-weight: 900; color: #fff;">${ezoApproved.length}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Onaylı EZO Randevusu</div>
+          </div>
+          <div>
+            <div style="font-size: 18px; font-weight: 900; color: var(--gold-primary);">${ezoEstimatedRevenue} TL</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Tahmini EZO Ciro</div>
+          </div>
         </div>
       </div>
 
@@ -174,8 +178,9 @@ async function renderSalonDashboard(container, user, business) {
             <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between;">
                 <div>
-                  <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName}</div>
+                  <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName} ${apt.isNewCustomerForBusiness ? '• ✨ Yeni Müşteri' : ''}</div>
                   <div style="font-size: 11px; color: var(--gold-primary);">✂️ ${apt.serviceName} • 📅 ${apt.date} @ ${apt.time}</div>
+                  <div style="font-size: 10px; color: var(--text-muted);">Kaynak: ${apt.source || 'ezo_discovery'}</div>
                 </div>
                 <span class="badge badge-pending">BEKLEYEN</span>
               </div>
@@ -198,6 +203,7 @@ async function renderSalonDashboard(container, user, business) {
               <div>
                 <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName} (${apt.customerPhone})</div>
                 <div style="font-size: 11px; color: var(--gold-primary);">✂️ ${apt.serviceName} • 📅 ${apt.date} @ ${apt.time}</div>
+                <div style="font-size: 10px; color: var(--text-muted);">Kaynak: ${apt.source || 'ezo_discovery'}</div>
               </div>
               <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status}</span>
             </div>
@@ -212,7 +218,7 @@ async function renderSalonDashboard(container, user, business) {
     <div class="header-bar">
       <div>
         <div class="brand-title">💈 ${business.name}</div>
-        <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">👑 Patron • VIP Plan</div>
+        <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">👑 Patron • ⭐ ${business.averageRating || '4.9'}</div>
       </div>
       <span class="badge badge-approved">AKTİF</span>
     </div>
@@ -250,7 +256,6 @@ async function renderSalonDashboard(container, user, business) {
     renderSalonDashboard(container, user, business);
   };
 
-  // STAFF INVITE MODAL HANDLER
   window.openStaffInviteModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -264,7 +269,7 @@ async function renderSalonDashboard(container, user, business) {
           </div>
 
           <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-            Çalışanınıza güvenli 24 saatlik tek kullanımlık davet linki gönderin. Çalışan kendi şifresini belirleyecektir.
+            Çalışanınıza güvenli 24 saatlik tek kullanımlık davet linki gönderin.
           </p>
 
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Ad Soyad *</label>
@@ -313,7 +318,7 @@ async function renderSalonDashboard(container, user, business) {
         <div class="modal-overlay" onclick="window.closeModal()">
           <div class="modal-card" onclick="event.stopPropagation()">
             <h3 style="font-size: 16px; font-weight: 800; color: var(--success); margin-bottom: 8px;">✅ Davet Oluşturuldu!</h3>
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Davet bağlantısı 24 saat geçerlidir ve tek kullanımlıktır.</p>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Davet bağlantısı 24 saat geçerlidir.</p>
 
             <input type="text" readonly class="input-field" value="${data.inviteUrl}">
 
@@ -332,7 +337,7 @@ async function renderSalonDashboard(container, user, business) {
         </div>
       `;
     } else {
-      alert('⚠️ Davet oluşturulurken hata: ' + (data.error || 'Bilinmeyen hata'));
+      alert('⚠️ Davet oluşturulurken hata.');
     }
   };
 
