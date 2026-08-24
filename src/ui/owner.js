@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics */
+﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics (Completed Status Filtered) */
 import { getBusinessRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getAppointmentsForBusiness } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 
@@ -122,35 +122,35 @@ async function renderSalonDashboard(container, user, business) {
   const pendingApts = appointments.filter(a => a.status === 'pending');
   const approvedApts = appointments.filter(a => a.status === 'approved');
 
-  // PHASE 5: ACQUISITION ANALYTICS CALCULATIONS
+  // PHASE 6 METRIC REFINEMENT: ONLY COMPLETED APPOINTMENTS COUNT FOR ACQUISITION REVENUE & NEW CUSTOMERS
   const ezoApts = appointments.filter(a => a && (a.source === 'ezo_discovery' || a.source === 'ezo_ai'));
-  const newCustomers = appointments.filter(a => a && a.isNewCustomerForBusiness);
-  const ezoApproved = ezoApts.filter(a => a.status === 'approved');
-  const ezoEstimatedRevenue = ezoApproved.reduce((acc, a) => acc + (a.price || 350), 0);
+  const completedEzoApts = ezoApts.filter(a => a.status === 'completed');
+  const newCompletedCustomers = appointments.filter(a => a && a.isNewCustomerForBusiness && a.status === 'completed');
+  const ezoCompletedRevenue = completedEzoApts.reduce((acc, a) => acc + (a.price || 350), 0);
 
   let mainContent = '';
 
   if (activeOwnerTab === 'home') {
     mainContent = `
-      <!-- ACQUISITION METRIC CARD -->
+      <!-- ACQUISITION METRIC CARD (PHASE 6 REFINED FOR COMPLETED ONLY) -->
       <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 16px;">
         <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700; text-transform: uppercase;">🚀 EZO STİLE Müşteri Kazanımı</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
           <div>
-            <div style="font-size: 18px; font-weight: 900; color: var(--success);">${newCustomers.length}</div>
-            <div style="font-size: 10px; color: var(--text-muted);">Yeni EZO Müşterisi</div>
+            <div style="font-size: 18px; font-weight: 900; color: var(--success);">${newCompletedCustomers.length}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Tamamlanan Yeni Müşteri</div>
           </div>
           <div>
             <div style="font-size: 18px; font-weight: 900; color: var(--gold-primary);">${ezoApts.length}</div>
             <div style="font-size: 10px; color: var(--text-muted);">EZO Kaynaklı Randevu</div>
           </div>
           <div>
-            <div style="font-size: 18px; font-weight: 900; color: #fff;">${ezoApproved.length}</div>
-            <div style="font-size: 10px; color: var(--text-muted);">Onaylı EZO Randevusu</div>
+            <div style="font-size: 18px; font-weight: 900; color: #fff;">${completedEzoApts.length}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Tamamlanan EZO Randevusu</div>
           </div>
           <div>
-            <div style="font-size: 18px; font-weight: 900; color: var(--gold-primary);">${ezoEstimatedRevenue} TL</div>
-            <div style="font-size: 10px; color: var(--text-muted);">Tahmini EZO Ciro</div>
+            <div style="font-size: 18px; font-weight: 900; color: var(--gold-primary);">${ezoCompletedRevenue} TL</div>
+            <div style="font-size: 10px; color: var(--text-muted);">Tamamlanan EZO Ciro</div>
           </div>
         </div>
       </div>
@@ -168,25 +168,33 @@ async function renderSalonDashboard(container, user, business) {
         </button>
       </div>
 
-      <!-- PENDING REQUESTS -->
+      <!-- PENDING & APPROVED REQUESTS -->
       <div class="card animate-fade" style="padding: 18px;">
         <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">
-          📅 Bekleyen Randevu Talepleri
+          📅 Bekleyen & Aktif Randevular
         </h3>
-        ${pendingApts.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px;">Bekleyen talep bulunmuyor.</div>' : 
-          pendingApts.map(apt => `
+        ${(pendingApts.length === 0 && approvedApts.length === 0) ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px;">Aktif randevu bulunmuyor.</div>' : 
+          [...pendingApts, ...approvedApts].map(apt => `
             <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
               <div style="display: flex; justify-content: space-between;">
                 <div>
-                  <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName} ${apt.isNewCustomerForBusiness ? '• ✨ Yeni Müşteri' : ''}</div>
+                  <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName} (${apt.customerPhone || ''})</div>
                   <div style="font-size: 11px; color: var(--gold-primary);">✂️ ${apt.serviceName} • 📅 ${apt.date} @ ${apt.time}</div>
                   <div style="font-size: 10px; color: var(--text-muted);">Kaynak: ${apt.source || 'ezo_discovery'}</div>
                 </div>
-                <span class="badge badge-pending">BEKLEYEN</span>
+                <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
               </div>
-              <div style="display: flex; gap: 6px; margin-top: 8px;">
-                <button onclick="window.updateAptStatus('${apt.aptId}', 'approved')" class="btn btn-gold" style="flex: 1; min-height: 32px; font-size: 10px;">✅ Onayla</button>
-                <button onclick="window.updateAptStatus('${apt.aptId}', 'rejected')" class="btn btn-secondary" style="flex: 1; min-height: 32px; font-size: 10px;">❌ Reddet</button>
+              <div style="display: flex; gap: 4px; margin-top: 8px;">
+                ${apt.status === 'pending' ? `
+                  <button onclick="window.updateAptStatus('${apt.aptId}', 'approved')" class="btn btn-gold" style="flex: 1; min-height: 30px; font-size: 10px;">✅ Onayla</button>
+                  <button onclick="window.updateAptStatus('${apt.aptId}', 'rejected')" class="btn btn-secondary" style="flex: 1; min-height: 30px; font-size: 10px;">❌ Reddet</button>
+                ` : `
+                  <button onclick="window.updateAptStatus('${apt.aptId}', 'completed')" class="btn btn-gold" style="flex: 1; min-height: 30px; font-size: 10px;">🎉 Tamamlandı</button>
+                  <button onclick="window.updateAptStatus('${apt.aptId}', 'no_show')" class="btn btn-secondary" style="flex: 1; min-height: 30px; font-size: 10px; color: var(--danger);">🚫 Gelmedi</button>
+                `}
+                <a href="https://wa.me/90${(apt.customerPhone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Merhaba ${apt.customerName}, ${business.name} randevunuz onaylandı. 📅 ${apt.date} ⏰ ${apt.time} ✂️ ${apt.serviceName}`)}" target="_blank" class="btn btn-outline-gold" style="min-height: 30px; font-size: 10px; text-decoration: none; padding: 4px 8px;">
+                  💬 WhatsApp
+                </a>
               </div>
             </div>
           `).join('')
@@ -205,7 +213,7 @@ async function renderSalonDashboard(container, user, business) {
                 <div style="font-size: 11px; color: var(--gold-primary);">✂️ ${apt.serviceName} • 📅 ${apt.date} @ ${apt.time}</div>
                 <div style="font-size: 10px; color: var(--text-muted);">Kaynak: ${apt.source || 'ezo_discovery'}</div>
               </div>
-              <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status}</span>
+              <span class="badge ${apt.status === 'completed' ? 'badge-approved' : 'badge-pending'}">${apt.status}</span>
             </div>
           </div>
         `).join('')}

@@ -44,6 +44,12 @@
         ".write": "auth != null && (newData.child('customerUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')"
       }
     },
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        ".write": "auth != null"
+      }
+    },
     "audit_logs": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'"

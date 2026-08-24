@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Atomic Review Submission & Server-Side Rating Calculator */
+﻿/* EZO STİLE v2 - Atomic Review Submission & Completed Status Check */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Puan 1 ile 5 arasında olmalıdır' });
     }
 
-    // 1. FETCH APPOINTMENT & VERIFY ELIGIBILITY
+    // 1. FETCH APPOINTMENT & VERIFY COMPLETED STATUS STRICTLY
     const aptRes = await fetch(`${FIREBASE_DB_URL}/appointments/${appointmentId}.json`);
     const apt = aptRes.ok ? await aptRes.json() : null;
 
@@ -30,8 +30,8 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Sadece kendi randevunuz için yorum yapabilirsiniz' });
     }
 
-    if (apt.status !== 'approved' && apt.status !== 'completed') {
-      return res.status(400).json({ error: 'Yalnızca tamamlanmış randevular için yorum yapılabilir.' });
+    if (apt.status !== 'completed') {
+      return res.status(400).json({ error: 'Yalnızca completed (tamamlanmış) randevular için yorum yapılabilir. Onaylanmış ama gerçekleşmemiş randevulara yorum yazılamaz.' });
     }
 
     // 2. VERIFY SINGLE REVIEW PER APPOINTMENT
