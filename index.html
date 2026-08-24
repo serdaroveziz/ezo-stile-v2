@@ -1,0 +1,67 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>EZO STİLE v2 - VIP Berber & Güzellik Platformu</title>
+  <link rel="stylesheet" href="./src/styles/app.css">
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#040711">
+</head>
+<body>
+
+  <!-- MAIN APP CONTAINER -->
+  <main id="app-container">
+    <div style="text-align: center; padding: 40px 20px;">
+      <div style="font-size: 32px; margin-bottom: 8px;">💈</div>
+      <h3 style="font-size: 16px; color: var(--gold-primary); font-weight: 700;">EZO STİLE v2 Yükleniyor...</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Güvenli oturum ve rol doğrulanıyor</p>
+    </div>
+  </main>
+
+  <!-- MODAL ROOT -->
+  <div id="modal-root"></div>
+
+  <!-- APPLICATION ENTRY MODULE -->
+  <script type="module">
+    import { restoreSession, getCurrentUser } from './src/auth.js';
+    import { renderPortalScreen } from './src/ui/portal.js';
+    import { renderCustomerScreen } from './src/ui/customer.js';
+    import { renderSuperAdminScreen } from './src/ui/super-admin.js';
+
+    async function initApp() {
+      const user = await restoreSession();
+
+      if (!user) {
+        renderPortalScreen((authenticatedUser) => {
+          handleUserRouting(authenticatedUser);
+        });
+      } else {
+        handleUserRouting(user);
+      }
+    }
+
+    function handleUserRouting(user) {
+      if (!user) {
+        renderPortalScreen(handleUserRouting);
+        return;
+      }
+
+      console.log('⚡ [EZO v2] Resolved User & Role:', user);
+
+      if (user.role === 'super_admin') {
+        renderSuperAdminScreen();
+      } else {
+        renderCustomerScreen(() => handleUserRouting(getCurrentUser()));
+      }
+    }
+
+    // Register PWA Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(e => console.log('SW Load:', e));
+    }
+
+    document.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

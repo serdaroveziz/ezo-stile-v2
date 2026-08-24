@@ -1,0 +1,9 @@
+﻿{
+  "name": "EZO STİLE v2 VIP",
+  "short_name": "EZO STİLE v2",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#040711",
+  "theme_color": "#040711",
+  "description": "EZO STİLE v2 VIP Barber & Beauty SaaS Platform"
+}
