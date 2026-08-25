@@ -9,6 +9,9 @@
         },
         "businessId": {
           ".validate": "!newData.exists() || root.child('users').child(auth.uid).child('role').val() === 'super_admin' || root.child('users').child(auth.uid).child('role').val() === 'owner'"
+        },
+        "aiCredits": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
         }
       }
     },
@@ -47,6 +50,12 @@
     "notifications": {
       "$uid": {
         ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
+        ".write": "auth != null"
+      }
+    },
+    "ai_generations": {
+      ".read": "auth != null",
+      "$genId": {
         ".write": "auth != null"
       }
     },

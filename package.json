@@ -11,7 +11,8 @@
     "test:phase3": "node test_v2_phase3.cjs",
     "test:phase4": "node test_v2_phase4.cjs",
     "test:phase5": "node test_v2_phase5.cjs",
-    "test:phase6": "node test_v2_phase6.cjs"
+    "test:phase6": "node test_v2_phase6.cjs",
+    "test:phase7": "node test_v2_phase7.cjs"
   },
   "keywords": [
     "barber",

@@ -1,10 +1,11 @@
-﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine */
+﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with AI Integration */
 import { getCurrentUser } from '../auth.js';
 import { openSalonApplicationWizard } from './salon-application.js';
 import { fetchRecord, getAppointmentsForCustomer, getServices, getStaffList, saveRecord } from '../db.js';
+import { renderAiConsultantScreen } from './ai-consultant.js';
 
 let activeCustomerTab = 'home';
-let userCoords = null; // { latitude, longitude }
+let userCoords = null;
 let searchQuery = '';
 let filterCity = '';
 
@@ -18,10 +19,9 @@ let bookingState = {
   time: null
 };
 
-// Haversine Distance Formula in Kilometers
 function calcDistance(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-  const R = 6371; // Earth radius in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -36,6 +36,45 @@ export async function renderCustomerScreen(onTabChange) {
   if (!container) return;
 
   const user = getCurrentUser() || { uid: 'usr_demo', name: 'Müşteri', phone: '05550000000', role: 'customer' };
+
+  if (activeCustomerTab === 'ai') {
+    container.innerHTML = `
+      <div class="header-bar">
+        <div class="brand-title">💈 EZO STİLE v2</div>
+        <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
+      </div>
+      <div id="ai-tab-container"></div>
+      <nav class="bottom-nav">
+        <button onclick="window.switchCustomerTab('home')" class="nav-item ${activeCustomerTab === 'home' ? 'active' : ''}">
+          <span class="icon">🏠</span>
+          <span>Ana Sayfa</span>
+        </button>
+        <button onclick="window.switchCustomerTab('salons')" class="nav-item ${activeCustomerTab === 'salons' ? 'active' : ''}">
+          <span class="icon">💈</span>
+          <span>Salonlar</span>
+        </button>
+        <button onclick="window.switchCustomerTab('booking')" class="nav-item ${activeCustomerTab === 'booking' ? 'active' : ''}">
+          <span class="icon">✂️</span>
+          <span>Randevu Al</span>
+        </button>
+        <button onclick="window.switchCustomerTab('ai')" class="nav-item ${activeCustomerTab === 'ai' ? 'active' : ''}">
+          <span class="icon">🤖</span>
+          <span>AI Danışman</span>
+        </button>
+        <button onclick="window.switchCustomerTab('appointments')" class="nav-item ${activeCustomerTab === 'appointments' ? 'active' : ''}">
+          <span class="icon">📅</span>
+          <span>Randevularım</span>
+        </button>
+      </nav>
+    `;
+    renderAiConsultantScreen(document.getElementById('ai-tab-container'));
+
+    window.switchCustomerTab = (tabKey) => {
+      activeCustomerTab = tabKey;
+      renderCustomerScreen(onTabChange);
+    };
+    return;
+  }
 
   let mainHtml = '';
 
@@ -84,7 +123,6 @@ export async function renderCustomerScreen(onTabChange) {
       b.hiddenFromDiscovery !== true
     );
 
-    // Apply Search & City Filter
     if (searchQuery) {
       salons = salons.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()) || (b.district && b.district.toLowerCase().includes(searchQuery.toLowerCase())));
     }
@@ -92,7 +130,6 @@ export async function renderCustomerScreen(onTabChange) {
       salons = salons.filter(b => b.city && b.city.toLowerCase() === filterCity.toLowerCase());
     }
 
-    // Compute Distances if userCoords available
     salons.forEach(b => {
       if (userCoords && b.latitude && b.longitude) {
         b.distanceKm = calcDistance(userCoords.latitude, userCoords.longitude, b.latitude, b.longitude);
@@ -101,7 +138,6 @@ export async function renderCustomerScreen(onTabChange) {
       }
     });
 
-    // Sort: Nearest first, then rating
     salons.sort((a, b) => {
       if (a.distanceKm !== null && b.distanceKm !== null) return a.distanceKm - b.distanceKm;
       return (b.averageRating || 5) - (a.averageRating || 5);
@@ -229,10 +265,10 @@ export async function renderCustomerScreen(onTabChange) {
               <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time}</div>
               <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Kaynak: ${apt.source || 'ezo_discovery'} ${apt.isNewCustomerForBusiness ? '• ✨ Yeni Müşteri' : ''}</div>
             </div>
-            <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
+            <span class="badge ${apt.status === 'completed' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
           </div>
 
-          ${(apt.status === 'approved' || apt.status === 'completed') ? `
+          ${apt.status === 'completed' ? `
             <button onclick="window.openReviewModal('${apt.aptId}')" class="btn btn-outline-gold" style="width: 100%; margin-top: 8px; min-height: 32px; font-size: 11px;">
               ⭐ Yorum Yap & Puan Ver
             </button>
@@ -270,13 +306,13 @@ export async function renderCustomerScreen(onTabChange) {
         <span class="icon">✂️</span>
         <span>Randevu Al</span>
       </button>
+      <button onclick="window.switchCustomerTab('ai')" class="nav-item ${activeCustomerTab === 'ai' ? 'active' : ''}">
+        <span class="icon">🤖</span>
+        <span>AI Danışman</span>
+      </button>
       <button onclick="window.switchCustomerTab('appointments')" class="nav-item ${activeCustomerTab === 'appointments' ? 'active' : ''}">
         <span class="icon">📅</span>
         <span>Randevularım</span>
-      </button>
-      <button onclick="window.switchCustomerTab('profile')" class="nav-item ${activeCustomerTab === 'profile' ? 'active' : ''}">
-        <span class="icon">👤</span>
-        <span>Profil</span>
       </button>
     </nav>
   `;
