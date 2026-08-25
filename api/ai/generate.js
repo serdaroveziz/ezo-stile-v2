@@ -1,5 +1,5 @@
-﻿/* EZO STİLE v2 - Production AI Try-On Generation Endpoint with Atomic Credit Guard & Automatic Refund */
-import { resolveAiProvider } from '../../src/ai/ai-router.js';
+﻿/* EZO STİLE v2 - Production AI Generation Endpoint with Real Provider HTTP Call & Automatic Credit Refund */
+import { resolveProductionAiModel } from '../../src/ai/ai-router.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     }
 
     const targetCreditType = (mode || 'economy').toLowerCase() === 'premium' ? 'premium' : 'economy';
-    const provider = resolveAiProvider(targetCreditType);
+    const modelConfig = resolveProductionAiModel('replicate');
 
     // 1. FETCH & VERIFY CREDIT BALANCE
     const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       return res.status(402).json({ error: `Yetersiz AI Kredisi (${targetCreditType.toUpperCase()}). Lütfen kredi paketi yükleyin.` });
     }
 
-    // 2. ATOMIC CREDIT DEDUCTION
+    // 2. ATOMIC CREDIT DEDUCTION BEFORE GENERATION
     const updatedCredits = {
       ...currentCredits,
       [targetCreditType]: currentBalance - 1
@@ -46,28 +46,67 @@ export default async function handler(req, res) {
     });
 
     const generationId = 'gen_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const apiToken = process.env.REPLICATE_API_TOKEN || process.env.FAL_KEY;
 
-    // 3. AI PRODUCTION GENERATION & CRITICAL FAIL GUARD (RULE 19)
     let outputImage = null;
+    let providerRequestId = null;
     let isSuccess = false;
+    let durationMs = 0;
+    const startTime = Date.now();
 
-    if (!forceFail) {
-      // Simulate real AI face-preserving output URL
-      outputImage = `https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=500&style=${encodeURIComponent(selectedStyle)}&gen=${generationId}`;
-      isSuccess = true;
+    // 3. REAL PROVIDER HTTP API CALL (IF API KEY CONFIGURED)
+    if (apiToken && !forceFail) {
+      try {
+        const prompt = `Professional men's hairstyle ${selectedStyle}, realistic hair texture, high resolution, preserve facial features, beard, and eyes`;
+        
+        const providerRes = await fetch(modelConfig.endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            version: modelConfig.modelVersion,
+            input: {
+              image: photoUrl,
+              prompt: prompt,
+              num_inference_steps: 25
+            }
+          })
+        });
+
+        durationMs = Date.now() - startTime;
+        const providerData = await providerRes.json();
+
+        if (providerRes.ok && providerData) {
+          providerRequestId = providerData.id || providerData.request_id || generationId;
+          
+          if (Array.isArray(providerData.output) && providerData.output.length > 0) {
+            outputImage = providerData.output[0];
+            isSuccess = true;
+          } else if (typeof providerData.output === 'string') {
+            outputImage = providerData.output;
+            isSuccess = true;
+          }
+        }
+      } catch (providerErr) {
+        console.error('Real AI Provider Call Error:', providerErr);
+        isSuccess = false;
+      }
     }
 
-    // FAIL GUARD: If output equals input photo or forceFail is triggered
+    // 4. FAIL GUARD: NO STOCK PHOTO FALLBACK ALLOWED (RULE 4 & RULE 19)
     if (!isSuccess || !outputImage || outputImage === photoUrl) {
       // Record Failed Telemetry
       const failedRecord = {
         generationId,
         userUid,
-        provider: provider.name,
-        model: selectedStyle,
+        provider: modelConfig.providerName,
+        exactModel: modelConfig.exactModelName,
+        providerRequestId: providerRequestId || null,
         creditType: targetCreditType,
         status: 'failed',
-        errorCode: 'PROVIDER_GENERATION_FAILED',
+        errorCode: apiToken ? 'PROVIDER_GENERATION_FAILED' : 'API_KEY_NOT_CONFIGURED',
         estimatedCostUsd: 0,
         refundGranted: true,
         createdAt: new Date().toISOString()
@@ -92,21 +131,24 @@ export default async function handler(req, res) {
       });
 
       return res.status(500).json({
-        error: 'AI saç üretimi başarısız oldu. Krediniz otomatik olarak iade edildi.',
+        error: apiToken ? 'AI saç üretimi başarısız oldu. Krediniz otomatik olarak iade edildi.' : 'AI Provider API anahtarı (REPLICATE_API_TOKEN / FAL_KEY) sunucuda henüz tanımlanmamış. Krediniz otomatik iade edildi.',
         generationId,
-        refundGranted: true
+        refundGranted: true,
+        apiKeyConfigured: Boolean(apiToken)
       });
     }
 
-    // 4. RECORD SUCCESSFUL TELEMETRY
+    // 5. RECORD SUCCESSFUL REAL TELEMETRY
     const successRecord = {
       generationId,
       userUid,
-      provider: provider.name,
-      model: selectedStyle,
+      provider: modelConfig.providerName,
+      exactModel: modelConfig.exactModelName,
+      providerRequestId,
       creditType: targetCreditType,
       status: 'success',
-      estimatedCostUsd: provider.costUsd,
+      durationMs,
+      estimatedCostUsd: modelConfig.costPerRunUsd,
       outputImage,
       createdAt: new Date().toISOString()
     };
@@ -120,9 +162,11 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       generationId,
+      providerRequestId,
       outputImage,
       beforeAfter: { input: photoUrl, output: outputImage },
       selectedStyle,
+      durationMs,
       remainingCredits: updatedCredits
     });
 
