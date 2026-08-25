@@ -1,5 +1,6 @@
-﻿/* EZO STİLE v2 - Standalone AI Hair & Style Consultant Module */
+﻿/* EZO STİLE v2 - Standalone AI Hair & Style Consultant Module with AI Wallet & Products Catalog */
 import { getCurrentUser } from '../auth.js';
+import { AI_CREDIT_CATALOG } from '../config/products.js';
 
 let aiState = {
   photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500',
@@ -17,6 +18,8 @@ export async function renderAiConsultantScreen(container) {
 
   const user = getCurrentUser() || { uid: 'usr_demo', name: 'Müşteri', aiCredits: { economy: 3, premium: 1 } };
   const credits = user.aiCredits || { economy: 3, premium: 1 };
+  const bonusEarned = user.bonusEarnedCredits || 0;
+  const usedCredits = user.usedCreditsCount || 0;
 
   let contentHtml = '';
 
@@ -94,26 +97,47 @@ export async function renderAiConsultantScreen(container) {
       </div>
     `;
   } else {
-    // UPLOAD & PREFERENCE SELECTION VIEW
+    // UPLOAD & WALLET VIEW
     contentHtml = `
-      <div class="card card-gold animate-fade" style="padding: 18px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary);">🤖 AI Saç Danışmanı</h3>
-          <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">
-            Kredi: ⚡ ${credits.economy || 0} Eco • 👑 ${credits.premium || 0} Prem
+      <!-- AI WALLET & ENTITLEMENTS CARD -->
+      <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary);">💳 AI Haklarım & Cüzdanım</h3>
+          <span class="badge badge-approved" style="font-size: 10px;">GÜVENLİ BAKIYE</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 12px;">
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 16px; font-weight: 800; color: var(--gold-primary);">⚡ ${credits.economy || 0}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Economy</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 16px; font-weight: 800; color: #e5a93b;">👑 ${credits.premium || 0}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Premium</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 16px; font-weight: 800; color: #4cd964;">🎁 ${bonusEarned}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Bonus</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 16px; font-weight: 800; color: #fff;">📊 ${usedCredits}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Kullanılan</div>
           </div>
         </div>
 
-        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-          Fotoğrafınızı yükleyin veya selfie çekin. AI yüz şeklinizi analiz edip size en uygun saç modellerini önersin.
-        </p>
+        <button onclick="window.watchRewardedAdSandbox()" class="btn btn-outline-gold" style="width: 100%; min-height: 36px; font-size: 11px;">
+          🎬 Reklam İzle → +1 Economy AI Hakkı (TEST / SANDBOX)
+        </button>
+      </div>
 
-        <!-- PHOTO UPLOAD PREVIEW -->
+      <!-- AI CONSULTANT INPUT CARD -->
+      <div class="card card-gold animate-fade" style="padding: 18px; margin-bottom: 14px;">
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">🤖 AI Saç Danışmanı</h3>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">Fotoğrafınızı yükleyin, AI yüz hatlarınıza uygun modelleri çıkarsın.</p>
+
+        <!-- PHOTO PREVIEW -->
         <div style="text-align: center; margin-bottom: 14px;">
           <img src="${aiState.photoUrl}" style="width: 100%; height: 160px; object-fit: cover; border-radius: 12px; border: 1px dashed var(--gold-primary);" alt="Yüklenen Fotoğraf">
-          <button onclick="alert('Kamera / Galeriden fotoğraf seçildi!')" class="btn btn-secondary" style="width: 100%; margin-top: 8px; font-size: 11px;">
-            📷 Fotoğraf Değiştir
-          </button>
         </div>
 
         <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Tarz Tercihi</label>
@@ -124,21 +148,52 @@ export async function renderAiConsultantScreen(container) {
           <option value="Dokulu">Dokulu (Textured)</option>
         </select>
 
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">İstenen Saç Uzunluğu</label>
-        <select id="ai-len-pref" class="input-field" onchange="aiState.hairLength = this.value">
-          <option value="Orta">Orta Uzunluk</option>
-          <option value="Kısa">Kısa / Fade</option>
-          <option value="Uzun">Uzun / Sakallı</option>
-        </select>
-
         <button onclick="window.startAiAnalysis()" class="btn btn-gold" style="width: 100%; min-height: 44px; margin-top: 8px;" ${aiState.isGenerating ? 'disabled' : ''}>
           ${aiState.isGenerating ? 'Yüz Analiz Ediliyor...' : '⚡ Yüzümü Analiz Et & Modelleri Getir'}
         </button>
+      </div>
+
+      <!-- AI PACKAGES PRODUCT CATALOG -->
+      <div class="card animate-fade" style="padding: 16px;">
+        <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">🛍️ AI Hak Paketleri Katalog</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${Object.values(AI_CREDIT_CATALOG).map(pkg => `
+            <div class="card" style="padding: 10px; margin: 0; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 12px; font-weight: 800; color: #fff;">${pkg.name}</div>
+                <div style="font-size: 10px; color: var(--text-muted);">${pkg.description}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 13px; font-weight: 800; color: var(--gold-primary);">${pkg.priceTry} TL</div>
+                <button onclick="alert('💳 Ödeme sistemi (PayTR / StoreKit) yakında aktif olacak. Henüz bakiye yüklenemez.')" class="btn btn-secondary" style="font-size: 9px; padding: 4px 8px; margin-top: 4px;">
+                  Ödeme sistemi yakında aktif olacak
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `;
   }
 
   container.innerHTML = contentHtml;
+
+  window.watchRewardedAdSandbox = async () => {
+    const user = getCurrentUser() || { uid: 'usr_demo' };
+    const res = await fetch('/api/ai/rewarded-ad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userUid: user.uid, isSandboxSimulation: true })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(`🎉 [${data.mode}] ${data.reward}`);
+      renderAiConsultantScreen(container);
+    } else {
+      alert('⚠️ ' + (data.error || 'Reklam ödülü alınamadı.'));
+    }
+  };
 
   window.startAiAnalysis = async () => {
     const user = getCurrentUser() || { uid: 'usr_demo' };

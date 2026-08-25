@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Super Admin Platform Command Center */
+﻿/* EZO STİLE v2 - Super Admin Platform Command Center with Revenue & Entitlements Telemetry */
 import { getSalonApplications, approveSalonApplication, fetchRecord } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 import { renderOwnerScreen } from './owner.js';
@@ -27,7 +27,6 @@ export async function renderSuperAdminScreen() {
   if (viewingBusinessId) {
     const tempUser = { ...user, businessId: viewingBusinessId, role: 'owner' };
     
-    // Inject Banner at top of page
     const bannerHtml = `
       <div style="background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); color: #000; padding: 10px 16px; text-align: center; font-size: 12px; font-weight: 800; display: flex; justify-content: space-between; align-items: center; border-radius: 12px; margin-bottom: 12px;">
         <span>🛡️ Süper Admin olarak [${viewingBusinessId}] salonu görüntüleniyor</span>
@@ -50,24 +49,69 @@ export async function renderSuperAdminScreen() {
   // 2. FETCH SYSTEM METRICS & DATA
   const applications = await getSalonApplications();
   const pendingApps = applications.filter(a => a.status === 'pending');
-  const approvedApps = applications.filter(a => a.status === 'approved');
 
   const rawBusinesses = await fetchRecord('businesses') || {};
   const businesses = Object.values(rawBusinesses);
   const activeSalons = businesses.filter(b => b && b.status !== 'suspended');
 
+  const freeSalons = businesses.filter(b => (!b.plan || b.plan === 'FREE'));
+  const proSalons = businesses.filter(b => b.plan === 'PRO');
+  const premiumSalons = businesses.filter(b => b.plan === 'PREMIUM');
+
   const rawUsers = await fetchRecord('users') || {};
   const usersList = Object.values(rawUsers);
+  let totalBonusEarned = 0;
+  usersList.forEach(u => { if (u.bonusEarnedCredits) totalBonusEarned += u.bonusEarnedCredits; });
+
+  const rawAiGens = await fetchRecord('ai_generations') || {};
+  const aiGens = Object.values(rawAiGens);
+  const ecoGens = aiGens.filter(g => g.creditType === 'economy');
+  const premGens = aiGens.filter(g => g.creditType === 'premium');
 
   const rawApts = await fetchRecord('appointments') || {};
   const aptsList = Object.values(rawApts);
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayApts = aptsList.filter(a => a && a.date === todayStr);
 
   let mainContent = '';
 
   if (activeSuperAdminTab === 'home') {
     mainContent = `
+      <!-- REVENUE & ENTITLEMENT TELEMETRY BANNER -->
+      <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="font-size: 14px; font-weight: 800; color: var(--gold-primary);">📊 Platform Gelir & Abonelik Telemetrisi</h3>
+          <span class="badge badge-pending" style="font-size: 9px;">SANDBOX MODU</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 10px;">
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 14px; font-weight: 800; color: #fff;">${freeSalons.length}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Free Salon</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 14px; font-weight: 800; color: var(--gold-primary);">${proSalons.length}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Pro Salon</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 14px; font-weight: 800; color: #e5a93b;">${premiumSalons.length}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Premium Salon</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="font-size: 14px; font-weight: 800; color: #4cd964;">${totalBonusEarned}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">Dağıtılan Bonus</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="color: var(--text-muted);">AI Kullanımı:</div>
+            <div style="color: #fff; font-weight: 700; margin-top: 2px;">⚡ ${ecoGens.length} Eco • 👑 ${premGens.length} Prem</div>
+          </div>
+          <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
+            <div style="color: var(--text-muted);">Gerçek Para Tahsilatı:</div>
+            <div style="color: var(--gold-primary); font-weight: 800; margin-top: 2px;">0.00 TL (Ödeme Öncesi)</div>
+          </div>
+        </div>
+      </div>
+
       <!-- OPERATIONAL METRIC GRID -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
         <div class="card" style="padding: 12px; text-align: center;">
@@ -81,18 +125,6 @@ export async function renderSuperAdminScreen() {
         <div class="card" style="padding: 12px; text-align: center;">
           <div style="font-size: 18px; font-weight: 900; color: var(--danger);">${pendingApps.length}</div>
           <div style="font-size: 10px; color: var(--text-muted);">Bekleyen Başvuru</div>
-        </div>
-        <div class="card" style="padding: 12px; text-align: center;">
-          <div style="font-size: 18px; font-weight: 900; color: #fff;">${usersList.length}</div>
-          <div style="font-size: 10px; color: var(--text-muted);">Kullanıcı</div>
-        </div>
-        <div class="card" style="padding: 12px; text-align: center;">
-          <div style="font-size: 18px; font-weight: 900; color: var(--gold-primary);">${todayApts.length}</div>
-          <div style="font-size: 10px; color: var(--text-muted);">Bugünkü Randevu</div>
-        </div>
-        <div class="card" style="padding: 12px; text-align: center;">
-          <div style="font-size: 18px; font-weight: 900; color: var(--success);">${aptsList.length}</div>
-          <div style="font-size: 10px; color: var(--text-muted);">Toplam Randevu</div>
         </div>
       </div>
 
@@ -118,18 +150,18 @@ export async function renderSuperAdminScreen() {
   } else if (activeSuperAdminTab === 'salons') {
     mainContent = `
       <div class="card animate-fade" style="padding: 16px;">
-        <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">💈 Tüm Salonlar</h3>
+        <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">💈 Tüm Salonlar & Abonelik Paketleri</h3>
         ${businesses.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center;">Kayıtlı salon bulunmuyor.</div>' :
           businesses.map(b => `
             <div class="card ${b.status === 'suspended' ? '' : 'card-gold'}" style="padding: 12px; margin-bottom: 10px;">
               <div style="display: flex; justify-content: space-between;">
                 <div>
                   <div style="font-size: 14px; font-weight: 800; color: #fff;">💈 ${b.name}</div>
-                  <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">ID: ${b.businessId} • 📍 ${b.city || 'Şehir'}</div>
-                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Durum: ${b.status === 'suspended' ? '🚫 ASKIDA' : '✅ AKTİF'}</div>
+                  <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">Paket: <b>${b.plan || 'FREE'}</b> (${b.planStatus || 'active'})</div>
+                  <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Personel Limiti: ${b.staffLimit || 1} • Durum: ${b.status === 'suspended' ? '🚫 ASKIDA' : '✅ AKTİF'}</div>
                 </div>
                 <span class="badge ${b.status === 'suspended' ? 'badge-rejected' : 'badge-approved'}">
-                  ${b.status === 'suspended' ? 'ASKIDA' : 'AKTİF'}
+                  ${b.plan || 'FREE'}
                 </span>
               </div>
 
@@ -181,7 +213,7 @@ export async function renderSuperAdminScreen() {
     <!-- MAIN CONTENT AREA -->
     ${mainContent}
 
-    <!-- 5-TAB BOTTOM NAVIGATION BAR -->
+    <!-- 4-TAB BOTTOM NAVIGATION BAR -->
     <nav class="bottom-nav">
       <button onclick="window.switchSuperAdminTab('home')" class="nav-item ${activeSuperAdminTab === 'home' ? 'active' : ''}">
         <span class="icon">🏠</span>

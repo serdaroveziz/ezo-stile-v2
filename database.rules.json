@@ -12,6 +12,9 @@
         },
         "aiCredits": {
           ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
+        },
+        "welcomeAiBonusGranted": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
         }
       }
     },
@@ -19,6 +22,15 @@
       "$businessId": {
         ".read": "true",
         ".write": "auth != null && (data.child('ownerUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin' || (!data.exists() && root.child('users').child(auth.uid).child('role').val() === 'super_admin'))",
+        "plan": {
+          ".validate": "root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
+        },
+        "planStatus": {
+          ".validate": "root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
+        },
+        "staffLimit": {
+          ".validate": "root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
+        },
         "averageRating": {
           ".validate": "root.child('users').child(auth.uid).child('role').val() === 'super_admin'"
         }
