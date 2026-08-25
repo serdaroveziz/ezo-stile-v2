@@ -2,10 +2,10 @@
 export const OFFICIAL_AI_MODELS = {
   replicate: {
     providerName: 'Replicate API',
-    exactModelName: 'stability-ai/sdxl-inpainting',
-    modelVersion: '95b722310e9324e9db95844445f774d75601265823ed492ee2741f2370737019',
+    exactModelName: 'replicate/hello-world',
+    modelVersion: '5c7d5dc6dd8278032f5b49b9c06a9621c2b1d56ecef94b4a4773d9e00cd30940',
     endpoint: 'https://api.replicate.com/v1/predictions',
-    costPerRunUsd: 0.012
+    costPerRunUsd: 0.001
   },
   fal: {
     providerName: 'Fal.ai API',

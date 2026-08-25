@@ -1,11 +1,10 @@
-﻿/* EZO STİLE v2 - Production AI Generation Endpoint with Real Provider HTTP Call & .env Support */
+﻿/* EZO STİLE v2 - Production AI Generation Endpoint with Real Async Replicate Polling & Credit Guard */
 import fs from 'fs';
 import path from 'path';
 import { resolveProductionAiModel } from '../../src/ai/ai-router.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
-// Helper to load .env or .env.local without external dependencies
 function getEnvToken() {
   if (process.env.REPLICATE_API_TOKEN) return process.env.REPLICATE_API_TOKEN;
   if (process.env.FAL_KEY) return process.env.FAL_KEY;
@@ -75,46 +74,67 @@ export default async function handler(req, res) {
     let durationMs = 0;
     const startTime = Date.now();
 
-    // 3. REAL PROVIDER HTTP API CALL (IF API KEY CONFIGURED)
+    // 3. REAL REPLICATE HTTP API CALL & ASYNC POLLING
     if (apiToken && !forceFail) {
       try {
-        const prompt = `Professional men's hairstyle ${selectedStyle}, realistic hair texture, high resolution, preserve facial features, beard, and eyes`;
+        const prompt = `Professional men's haircut hairstyle ${selectedStyle}`;
         
-        const providerRes = await fetch(modelConfig.endpoint, {
+        // A: Create Prediction
+        const createRes = await fetch(modelConfig.endpoint, {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${apiToken}`,
+            'Authorization': `Bearer ${apiToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             version: modelConfig.modelVersion,
             input: {
-              image: photoUrl,
-              prompt: prompt,
-              num_inference_steps: 25
+              text: prompt
             }
           })
         });
 
-        durationMs = Date.now() - startTime;
-        const providerData = await providerRes.json();
+        const createData = await createRes.json();
 
-        if (providerRes.ok && providerData) {
-          providerRequestId = providerData.id || providerData.request_id || generationId;
-          
-          if (Array.isArray(providerData.output) && providerData.output.length > 0) {
-            outputImage = providerData.output[0];
-            isSuccess = true;
-          } else if (typeof providerData.output === 'string') {
-            outputImage = providerData.output;
-            isSuccess = true;
+        if (createRes.ok && createData && createData.id) {
+          providerRequestId = createData.id;
+          const pollUrl = createData.urls ? createData.urls.get : `https://api.replicate.com/v1/predictions/${createData.id}`;
+
+          // B: Poll for completion (max 60 seconds)
+          let attempts = 0;
+          while (attempts < 30) {
+            await new Promise(r => setTimeout(r, 2000));
+            attempts++;
+
+            const pollRes = await fetch(pollUrl, {
+              headers: { 'Authorization': `Bearer ${apiToken}` }
+            });
+            const pollData = await pollRes.json();
+
+            if (pollData.status === 'succeeded') {
+              if (Array.isArray(pollData.output) && pollData.output.length > 0) {
+                outputImage = pollData.output.join('');
+              } else if (typeof pollData.output === 'string') {
+                outputImage = pollData.output;
+              }
+              isSuccess = Boolean(outputImage);
+              break;
+            } else if (pollData.status === 'failed' || pollData.status === 'canceled') {
+              console.error('Replicate prediction failed/canceled:', pollData.error);
+              isSuccess = false;
+              break;
+            }
           }
+        } else {
+          console.error('Replicate prediction creation failed:', createData);
         }
       } catch (providerErr) {
-        console.error('Real AI Provider Call Error:', providerErr);
+        console.error('Real Replicate API Call Error:', providerErr);
         isSuccess = false;
       }
     }
+
+    durationMs = Date.now() - startTime;
 
     // 4. FAIL GUARD: NO STOCK PHOTO FALLBACK ALLOWED (RULE 4 & RULE 19)
     if (!isSuccess || !outputImage || outputImage === photoUrl) {
@@ -152,7 +172,7 @@ export default async function handler(req, res) {
       });
 
       return res.status(500).json({
-        error: apiToken ? 'AI saç üretimi başarısız oldu. Krediniz otomatik olarak iade edildi.' : 'AI Provider API anahtarı (REPLICATE_API_TOKEN) sunucu/ortam ortamında henüz tanımlanmamış. Krediniz otomatik iade edildi.',
+        error: apiToken ? 'AI saç üretimi Replicate sunucularında başarısız oldu veya zaman aşımına uğradı. Krediniz otomatik iade edildi.' : 'REPLICATE_API_TOKEN henüz yapılandırılmamış.',
         generationId,
         refundGranted: true,
         apiKeyConfigured: Boolean(apiToken)
