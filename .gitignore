@@ -3,6 +3,12 @@
 .env.local
 .env.*
 
+# Local tunnel & scripts
+public_url.txt
+serve_v2.js
+start_public_tunnel.js
+verify_public_deployment.cjs
+
 # Node modules & logs
 node_modules/
 *.log
