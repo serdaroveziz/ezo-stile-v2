@@ -1,7 +1,28 @@
-﻿/* EZO STİLE v2 - Production AI Generation Endpoint with Real Provider HTTP Call & Automatic Credit Refund */
+﻿/* EZO STİLE v2 - Production AI Generation Endpoint with Real Provider HTTP Call & .env Support */
+import fs from 'fs';
+import path from 'path';
 import { resolveProductionAiModel } from '../../src/ai/ai-router.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+
+// Helper to load .env or .env.local without external dependencies
+function getEnvToken() {
+  if (process.env.REPLICATE_API_TOKEN) return process.env.REPLICATE_API_TOKEN;
+  if (process.env.FAL_KEY) return process.env.FAL_KEY;
+
+  const envPaths = ['.env', '.env.local'];
+  for (const envFile of envPaths) {
+    const fullPath = path.resolve(process.cwd(), envFile);
+    if (fs.existsSync(fullPath)) {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const match = content.match(/REPLICATE_API_TOKEN\s*=\s*(.+)/) || content.match(/FAL_KEY\s*=\s*(.+)/);
+      if (match && match[1]) {
+        return match[1].trim().replace(/^["']|["']$/g, '');
+      }
+    }
+  }
+  return null;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -46,7 +67,7 @@ export default async function handler(req, res) {
     });
 
     const generationId = 'gen_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    const apiToken = process.env.REPLICATE_API_TOKEN || process.env.FAL_KEY;
+    const apiToken = getEnvToken();
 
     let outputImage = null;
     let providerRequestId = null;
@@ -62,7 +83,7 @@ export default async function handler(req, res) {
         const providerRes = await fetch(modelConfig.endpoint, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiToken}`,
+            'Authorization': `Token ${apiToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -131,7 +152,7 @@ export default async function handler(req, res) {
       });
 
       return res.status(500).json({
-        error: apiToken ? 'AI saç üretimi başarısız oldu. Krediniz otomatik olarak iade edildi.' : 'AI Provider API anahtarı (REPLICATE_API_TOKEN / FAL_KEY) sunucuda henüz tanımlanmamış. Krediniz otomatik iade edildi.',
+        error: apiToken ? 'AI saç üretimi başarısız oldu. Krediniz otomatik olarak iade edildi.' : 'AI Provider API anahtarı (REPLICATE_API_TOKEN) sunucu/ortam ortamında henüz tanımlanmamış. Krediniz otomatik iade edildi.',
         generationId,
         refundGranted: true,
         apiKeyConfigured: Boolean(apiToken)
