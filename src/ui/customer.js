@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with Official Logo */
+﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with Official Logo & Deployment Fallback */
 import { getCurrentUser } from '../auth.js';
 import { openSalonApplicationWizard } from './salon-application.js';
 import { fetchRecord, getAppointmentsForCustomer, getServices, getStaffList, saveRecord } from '../db.js';
@@ -397,16 +397,28 @@ export async function renderCustomerScreen(onTabChange) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ appointmentId: aptId, customerUid: user.uid, rating, comment })
-    });
+    }).catch(() => null);
 
-    const data = await res.json();
-    if (res.ok && data.success) {
+    if (res && res.ok) {
       alert('✅ Değerlendirmeniz başarıyla kaydedildi!');
       window.closeModal();
       renderCustomerScreen(onTabChange);
-    } else {
-      alert('⚠️ Yorum kaydedilemedi: ' + (data.error || 'Hata'));
+      return;
     }
+
+    // Direct Firebase Realtime DB Fallback for purely static hosting
+    const revId = 'rev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    await saveRecord(`reviews/${revId}`, {
+      reviewId: revId,
+      appointmentId: aptId,
+      customerUid: user.uid,
+      rating: parseInt(rating) || 5,
+      comment: comment || '',
+      createdAt: new Date().toISOString()
+    });
+    alert('✅ Değerlendirmeniz başarıyla kaydedildi!');
+    window.closeModal();
+    renderCustomerScreen(onTabChange);
   };
 
   window.selectBookingService = (svcId, svcName) => {
@@ -438,32 +450,76 @@ export async function renderCustomerScreen(onTabChange) {
       return;
     }
 
-    const res = await fetch('/api/booking/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        businessId: bookingState.businessId,
-        customerUid: user.uid,
-        customerName: user.name,
-        customerPhone: user.phone,
-        staffId: bookingState.staffId,
-        serviceId: bookingState.serviceId,
-        serviceName: bookingState.serviceName,
-        date: bookingState.date,
-        time: bookingState.time,
-        source: activeCustomerTab === 'ai' ? 'ezo_ai' : 'ezo_discovery'
-      })
-    });
+    try {
+      const res = await fetch('/api/booking/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: bookingState.businessId,
+          customerUid: user.uid,
+          customerName: user.name,
+          customerPhone: user.phone,
+          staffId: bookingState.staffId,
+          serviceId: bookingState.serviceId,
+          serviceName: bookingState.serviceName,
+          date: bookingState.date,
+          time: bookingState.time,
+          source: activeCustomerTab === 'ai' ? 'ezo_ai' : 'ezo_discovery'
+        })
+      });
 
-    if (res.ok) {
-      alert('✅ Randevu talebiniz alındı! Bekleyen randevularınızda takip edebilirsiniz.');
-      activeCustomerTab = 'appointments';
-      renderCustomerScreen(onTabChange);
-    } else if (res.status === 409) {
-      alert('⚠️ Seçtiğiniz tarih ve saatte berber doludur. Lütfen başka bir saat seçiniz.');
-    } else {
-      alert('⚠️ Randevu oluşturulurken bir hata oluştu.');
+      if (res.ok) {
+        alert('✅ Randevu talebiniz alındı! Bekleyen randevularınızda takip edebilirsiniz.');
+        activeCustomerTab = 'appointments';
+        renderCustomerScreen(onTabChange);
+        return;
+      } else if (res.status === 409) {
+        alert('⚠️ Seçtiğiniz tarih ve saatte berber doludur. Lütfen başka bir saat seçiniz.');
+        return;
+      }
+    } catch (e) {
+      console.warn('Serverless API unreachable, attempting direct Firebase Realtime DB fallback:', e);
     }
+
+    // Direct Firebase Realtime DB Fallback for purely static hosting (GitHub Pages)
+    const allAptsData = await fetchRecord('appointments') || {};
+    const allApts = Object.values(allAptsData);
+
+    const occupied = allApts.some(apt => 
+      apt && apt.businessId === bookingState.businessId &&
+      apt.staffId === bookingState.staffId &&
+      apt.date === bookingState.date &&
+      apt.time === bookingState.time &&
+      apt.status !== 'cancelled' && apt.status !== 'rejected'
+    );
+
+    if (occupied) {
+      alert('⚠️ Seçtiğiniz tarih ve saatte berber doludur. Lütfen başka bir saat seçiniz.');
+      return;
+    }
+
+    const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const newApt = {
+      aptId,
+      businessId: bookingState.businessId,
+      customerUid: user.uid,
+      customerName: user.name,
+      customerPhone: user.phone,
+      staffId: bookingState.staffId,
+      serviceId: bookingState.serviceId,
+      serviceName: bookingState.serviceName,
+      date: bookingState.date,
+      time: bookingState.time,
+      status: 'pending',
+      source: activeCustomerTab === 'ai' ? 'ezo_ai' : 'ezo_discovery',
+      isNewCustomerForBusiness: true,
+      createdAt: new Date().toISOString()
+    };
+
+    await saveRecord(`appointments/${aptId}`, newApt);
+    alert('✅ Randevu talebiniz alındı! Bekleyen randevularınızda takip edebilirsiniz.');
+    activeCustomerTab = 'appointments';
+    renderCustomerScreen(onTabChange);
   };
 
   window.triggerSalonApplication = () => {

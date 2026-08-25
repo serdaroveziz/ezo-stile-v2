@@ -1,5 +1,5 @@
-﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics with Official Logo */
-import { getBusinessRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getAppointmentsForBusiness } from '../db.js';
+﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics with Official Logo & Deployment Fallback */
+import { getBusinessRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getAppointmentsForBusiness, fetchRecord } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 
 let activeOwnerTab = 'home';
@@ -317,18 +317,42 @@ async function renderSalonDashboard(container, user, business) {
   };
 
   window.updateAptStatus = async (aptId, newStatus) => {
-    const res = await fetch('/api/booking/update-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
-    });
+    try {
+      const res = await fetch('/api/booking/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
+      });
 
-    if (res.ok) {
-      alert(`✅ Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
-      renderSalonDashboard(container, user, business);
-    } else {
-      alert('⚠️ Durum güncellenemedi.');
+      if (res.ok) {
+        alert(`✅ Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
+        renderSalonDashboard(container, user, business);
+        return;
+      }
+    } catch (e) {
+      console.warn('Serverless API unreachable, attempting direct Firebase Realtime DB fallback:', e);
     }
+
+    // Direct Firebase Realtime DB Fallback for static hosting
+    await saveRecord(`appointments/${aptId}`, { status: newStatus, statusUpdatedAt: new Date().toISOString() }, 'PATCH');
+
+    if (newStatus === 'completed') {
+      const apt = await fetchRecord(`appointments/${aptId}`);
+      if (apt && apt.customerUid && !apt.appointmentAiBonusGranted) {
+        const targetUser = await fetchRecord(`users/${apt.customerUid}`);
+        if (targetUser) {
+          const currentCredits = targetUser.aiCredits || { economy: 3, premium: 1 };
+          await saveRecord(`users/${apt.customerUid}/aiCredits`, {
+            ...currentCredits,
+            economy: (currentCredits.economy || 0) + 2
+          });
+          await saveRecord(`appointments/${aptId}`, { appointmentAiBonusGranted: true }, 'PATCH');
+        }
+      }
+    }
+
+    alert(`✅ Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
+    renderSalonDashboard(container, user, business);
   };
 
   window.openManualBookingModal = () => {
@@ -364,29 +388,53 @@ async function renderSalonDashboard(container, user, business) {
       return;
     }
 
-    const res = await fetch('/api/booking/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        businessId: user.businessId,
-        customerName: name,
-        customerPhone: phone,
-        serviceName,
-        date,
-        time,
-        source: 'manual',
-        status: 'approved'
-      })
+    try {
+      const res = await fetch('/api/booking/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: user.businessId,
+          customerName: name,
+          customerPhone: phone,
+          serviceName,
+          date,
+          time,
+          source: 'manual',
+          status: 'approved'
+        })
+      });
+
+      if (res.ok) {
+        alert('✅ Manuel randevu oluşturuldu.');
+        window.closeModal();
+        renderSalonDashboard(container, user, business);
+        return;
+      } else if (res.status === 409) {
+        alert('⚠️ Seçtiğiniz saatte berber doludur.');
+        return;
+      }
+    } catch (e) {
+      console.warn('Serverless API unreachable, attempting direct Firebase Realtime DB fallback:', e);
+    }
+
+    // Direct Firebase Realtime DB Fallback for static hosting
+    const aptId = 'apt_man_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    await saveRecord(`appointments/${aptId}`, {
+      aptId,
+      businessId: user.businessId,
+      customerName: name,
+      customerPhone: phone,
+      serviceName,
+      date,
+      time,
+      source: 'manual',
+      status: 'approved',
+      isManual: true,
+      createdAt: new Date().toISOString()
     });
 
-    if (res.ok) {
-      alert('✅ Manuel randevu oluşturuldu.');
-      window.closeModal();
-      renderSalonDashboard(container, user, business);
-    } else if (res.status === 409) {
-      alert('⚠️ Seçtiğiniz saatte berber doludur.');
-    } else {
-      alert('⚠️ Hata oluştu.');
-    }
+    alert('✅ Manuel randevu oluşturuldu.');
+    window.closeModal();
+    renderSalonDashboard(container, user, business);
   };
 }
