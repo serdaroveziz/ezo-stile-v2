@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics (Completed Status Filtered) */
+﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics with Official Logo */
 import { getBusinessRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getAppointmentsForBusiness } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 
@@ -13,7 +13,7 @@ export async function renderOwnerScreen() {
   if (!user || !user.businessId) {
     container.innerHTML = `
       <div class="card card-gold text-center" style="padding: 24px;">
-        <div style="font-size: 36px; margin-bottom: 8px;">💈</div>
+        <img src="./assets/images/ezo_stile_logo.png" style="height: 48px; width: auto; margin-bottom: 8px;" alt="Logo">
         <h3 style="font-size: 16px; color: var(--gold-primary);">Salon Sahibi Paneli</h3>
         <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Hesabınıza bağlı aktif bir salon (businessId) bulunamadı.</p>
       </div>
@@ -36,7 +36,10 @@ async function renderOwnerOnboarding(container, user, business) {
 
   container.innerHTML = `
     <div class="header-bar">
-      <div class="brand-title">💈 ${bizName}</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="Logo">
+        <span class="brand-title">${bizName}</span>
+      </div>
       <span class="badge badge-pending">KURULUM AŞAMASI</span>
     </div>
 
@@ -58,33 +61,25 @@ async function renderOwnerOnboarding(container, user, business) {
           <input type="tel" id="ob-biz-phone" class="input-field" value="${business.phone || ''}">
           <button onclick="window.nextOnboardingStep(2)" class="btn btn-gold" style="width: 100%;">Devam Et →</button>
         ` : ''}
-
         ${onboardingStep === 2 ? `
-          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Haftalık salon açılış ve kapanış saatlerinizi onaylayın.</p>
-          <div class="card" style="padding: 12px; font-size: 12px;">Pazartesi - Cumartesi: 09:00 - 21:00 (Açık)</div>
-          <button onclick="window.nextOnboardingStep(3)" class="btn btn-gold" style="width: 100%; margin-top: 8px;">Devam Et →</button>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Salon haftalık çalışma saatleri (Varsayılan 09:00 - 20:00).</div>
+          <button onclick="window.nextOnboardingStep(3)" class="btn btn-gold" style="width: 100%;">Saatleri Onayla & Devam Et →</button>
         ` : ''}
-
         ${onboardingStep === 3 ? `
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Örnek Hizmet Ekle</label>
-          <input type="text" id="ob-svc-name" class="input-field" placeholder="Hizmet Adı" value="Saç Kesimi & Yıkama">
-          <input type="number" id="ob-svc-price" class="input-field" placeholder="Fiyat (TL)" value="350">
-          <button onclick="window.addInitialService()" class="btn btn-gold" style="width: 100%;">Hizmeti Kaydet & Devam Et →</button>
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Hizmet Adı</label>
+          <input type="text" id="ob-svc-name" class="input-field" value="Saç Kesimi & Sakal VIP">
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Fiyat (TL)</label>
+          <input type="number" id="ob-svc-price" class="input-field" value="350">
+          <button onclick="window.addInitialService()" class="btn btn-gold" style="width: 100%;">Hizmet Ekle & Devam Et →</button>
         ` : ''}
-
         ${onboardingStep === 4 ? `
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">İlk Personeli Ekle</label>
-          <input type="text" id="ob-stf-name" class="input-field" placeholder="Personel Adı" value="Mustafa Usta (Baş Berber)">
-          <button onclick="window.addInitialStaff()" class="btn btn-gold" style="width: 100%;">Personeli Kaydet & Devam Et →</button>
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Çalışan Adı Soyadı</label>
+          <input type="text" id="ob-stf-name" class="input-field" value="Mustafa Usta">
+          <button onclick="window.addInitialStaff()" class="btn btn-gold" style="width: 100%;">Personel Ekle & Devam Et →</button>
         ` : ''}
-
         ${onboardingStep === 5 ? `
-          <div style="text-align: center; padding: 20px;">
-            <div style="font-size: 40px; margin-bottom: 8px;">🎉</div>
-            <h4 style="font-size: 16px; font-weight: 800; color: var(--gold-primary);">Tebrikler! Kurulum Tamamlandı</h4>
-            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 16px;">Randevu sisteminizi müşterilere açabilirsiniz.</p>
-            <button onclick="window.enableSalonBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;">🚀 Randevu Sistemini Aktif Et</button>
-          </div>
+          <div style="font-size: 12px; color: var(--gold-primary); margin-bottom: 12px;">Tebrikler! Tüm kurulum adımlarını tamamladınız. Randevu sistemini müşterilere açabilirsiniz.</div>
+          <button onclick="window.enableSalonBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;">🚀 Randevu Sistemini Yayınla</button>
         ` : ''}
       </div>
     </div>
@@ -122,17 +117,21 @@ async function renderSalonDashboard(container, user, business) {
   const pendingApts = appointments.filter(a => a.status === 'pending');
   const approvedApts = appointments.filter(a => a.status === 'approved');
 
-  // PHASE 6 METRIC REFINEMENT: ONLY COMPLETED APPOINTMENTS COUNT FOR ACQUISITION REVENUE & NEW CUSTOMERS
-  const ezoApts = appointments.filter(a => a && (a.source === 'ezo_discovery' || a.source === 'ezo_ai'));
+  const ezoApts = appointments.filter(a => a.source === 'ezo_discovery' || a.source === 'ezo_ai');
   const completedEzoApts = ezoApts.filter(a => a.status === 'completed');
-  const newCompletedCustomers = appointments.filter(a => a && a.isNewCustomerForBusiness && a.status === 'completed');
-  const ezoCompletedRevenue = completedEzoApts.reduce((acc, a) => acc + (a.price || 350), 0);
+
+  const newCompletedCustomers = completedEzoApts.filter(a => a.isNewCustomerForBusiness);
+
+  let ezoCompletedRevenue = 0;
+  completedEzoApts.forEach(a => {
+    ezoCompletedRevenue += (a.servicePrice || 350);
+  });
 
   let mainContent = '';
 
   if (activeOwnerTab === 'home') {
     mainContent = `
-      <!-- ACQUISITION METRIC CARD (PHASE 6 REFINED FOR COMPLETED ONLY) -->
+      <!-- ACQUISITION METRIC CARD -->
       <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 16px;">
         <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700; text-transform: uppercase;">🚀 EZO STİLE Müşteri Kazanımı</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
@@ -158,13 +157,13 @@ async function renderSalonDashboard(container, user, business) {
       <!-- QUICK ACTIONS GRID -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
         <button onclick="window.openStaffInviteModal()" class="btn btn-outline-gold" style="flex-direction: column; padding: 10px; font-size: 11px;">
-          <span style="font-size: 20px;">👥</span> Personel Davet
+          <span style="font-size: 18px;">👥</span> Personel Davet Et
+        </button>
+        <button onclick="window.switchOwnerTab('calendar')" class="btn btn-outline-gold" style="flex-direction: column; padding: 10px; font-size: 11px;">
+          <span style="font-size: 18px;">📅</span> Takvim
         </button>
         <button onclick="window.openManualBookingModal()" class="btn btn-outline-gold" style="flex-direction: column; padding: 10px; font-size: 11px;">
-          <span style="font-size: 20px;">✂️</span> Manuel Randevu
-        </button>
-        <button onclick="window.openStaffScheduleModal()" class="btn btn-outline-gold" style="flex-direction: column; padding: 10px; font-size: 11px;">
-          <span style="font-size: 20px;">⏰</span> Çalışma Saatleri
+          <span style="font-size: 18px;">📞</span> Manuel Randevu
         </button>
       </div>
 
@@ -201,7 +200,7 @@ async function renderSalonDashboard(container, user, business) {
         }
       </div>
     `;
-  } else if (activeOwnerTab === 'appointments') {
+  } else if (activeOwnerTab === 'calendar') {
     mainContent = `
       <div class="card animate-fade" style="padding: 18px;">
         <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 Tüm Salon Randevuları</h3>
@@ -224,9 +223,12 @@ async function renderSalonDashboard(container, user, business) {
   container.innerHTML = `
     <!-- HEADER BAR -->
     <div class="header-bar">
-      <div>
-        <div class="brand-title">💈 ${business.name}</div>
-        <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">👑 Patron • ⭐ ${business.averageRating || '4.9'}</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="./assets/images/ezo_stile_logo.png" style="height: 26px; width: auto;" alt="EZO Logo">
+        <div>
+          <div class="brand-title" style="font-size: 14px;">${business.name}</div>
+          <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">👑 Patron • ⭐ ${business.averageRating || '4.9'}</div>
+        </div>
       </div>
       <span class="badge badge-approved">AKTİF</span>
     </div>
@@ -245,7 +247,7 @@ async function renderSalonDashboard(container, user, business) {
         <span>Takvim</span>
       </button>
       <button onclick="window.switchOwnerTab('appointments')" class="nav-item ${activeOwnerTab === 'appointments' ? 'active' : ''}">
-        <span class="icon">📋</span>
+        <span class="icon">✂️</span>
         <span>Randevular</span>
       </button>
       <button onclick="window.switchOwnerTab('management')" class="nav-item ${activeOwnerTab === 'management' ? 'active' : ''}">
@@ -280,73 +282,38 @@ async function renderSalonDashboard(container, user, business) {
             Çalışanınıza güvenli 24 saatlik tek kullanımlık davet linki gönderin.
           </p>
 
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Ad Soyad *</label>
-          <input type="text" id="inv-name" class="input-field" placeholder="Örn: Caner Usta" value="Caner Berber">
-
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Telefon *</label>
-          <input type="tel" id="inv-phone" class="input-field" placeholder="05XXXXXXXXX" value="05329990011">
-
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Rol *</label>
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Çalışan Rolü</label>
           <select id="inv-role" class="input-field">
-            <option value="barber">💈 Berber Uzmanı / Barber</option>
-            <option value="manager">🧑‍💼 Yönetici / Manager</option>
-            <option value="receptionist">🛎️ Resepsiyonist</option>
+            <option value="barber">💈 Berber / Kuaför Uzmanı</option>
+            <option value="manager">👔 Salon Müdürü (Manager)</option>
+            <option value="receptionist">📋 Resepsiyonist</option>
           </select>
 
-          <button onclick="window.submitCreateStaffInvite()" class="btn btn-gold" style="width: 100%; min-height: 44px; margin-top: 8px;">
-            ⚡ Davet Bağlantısı Oluştur
+          <button onclick="window.generateStaffInviteToken()" class="btn btn-gold" style="width: 100%; min-height: 40px; margin-top: 8px;">
+            ⚡ 24 Saatlik Davet Bağlantısı Üret
           </button>
         </div>
       </div>
     `;
   };
 
-  window.submitCreateStaffInvite = async () => {
-    const displayName = document.getElementById('inv-name').value;
-    const phone = document.getElementById('inv-phone').value;
+  window.generateStaffInviteToken = async () => {
     const role = document.getElementById('inv-role').value;
+    const token = 'inv_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const inviteUrl = `${window.location.origin}/#invite=${token}`;
 
-    const res = await fetch('/api/staff/create-invite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ownerUid: user.uid,
-        displayName,
-        phone,
-        role,
-        services: ['all'],
-        permissions: role === 'manager' ? { 'appointments.manage': true, 'schedule.manage': true } : {}
-      })
-    });
+    const inviteData = {
+      token,
+      businessId: user.businessId,
+      role,
+      createdBy: user.uid,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      used: false
+    };
 
-    const data = await res.json();
-    if (res.ok && data.success) {
-      const root = document.getElementById('modal-root');
-      root.innerHTML = `
-        <div class="modal-overlay" onclick="window.closeModal()">
-          <div class="modal-card" onclick="event.stopPropagation()">
-            <h3 style="font-size: 16px; font-weight: 800; color: var(--success); margin-bottom: 8px;">✅ Davet Oluşturuldu!</h3>
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Davet bağlantısı 24 saat geçerlidir.</p>
-
-            <input type="text" readonly class="input-field" value="${data.inviteUrl}">
-
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
-              <a href="https://wa.me/?text=${encodeURIComponent('EZO STİLE Personel Davetiniz: ' + data.inviteUrl)}" target="_blank" class="btn btn-gold" style="text-decoration: none; text-align: center;">
-                💬 WhatsApp ile Gönder
-              </a>
-              <a href="sms:?body=${encodeURIComponent('EZO STİLE Personel Davetiniz: ' + data.inviteUrl)}" class="btn btn-secondary" style="text-decoration: none; text-align: center;">
-                📱 SMS ile Gönder
-              </a>
-              <button onclick="navigator.clipboard.writeText('${data.inviteUrl}'); alert('Bağlantı kopyalandı!');" class="btn btn-outline-gold">
-                📋 Bağlantıyı Kopyala
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-    } else {
-      alert('⚠️ Davet oluşturulurken hata.');
-    }
+    await saveRecord(`businesses/${user.businessId}/invites/${token}`, inviteData);
+    alert(`✅ Davet Bağlantısı Oluşturuldu!\n\nLink: ${inviteUrl}\n\nBu bağlantı 24 saat geçerlidir.`);
+    window.closeModal();
   };
 
   window.updateAptStatus = async (aptId, newStatus) => {
@@ -357,10 +324,69 @@ async function renderSalonDashboard(container, user, business) {
     });
 
     if (res.ok) {
-      alert(`✅ Randevu durumu '${newStatus}' olarak güncellendi!`);
+      alert(`✅ Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
       renderSalonDashboard(container, user, business);
     } else {
-      alert('⚠️ Güncelleme hatası.');
+      alert('⚠️ Durum güncellenemedi.');
+    }
+  };
+
+  window.openManualBookingModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+          <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📞 Manuel Telefon Randevusu</h3>
+          <input type="text" id="man-cust-name" class="input-field" placeholder="Müşteri Adı Soyadı">
+          <input type="tel" id="man-cust-phone" class="input-field" placeholder="Telefon 05XXXXXXXXX">
+          <input type="text" id="man-svc-name" class="input-field" placeholder="Hizmet Adı (Örn: Saç Kesim)" value="Saç Kesimi">
+          <input type="date" id="man-date" class="input-field" value="${new Date().toISOString().split('T')[0]}">
+          <input type="time" id="man-time" class="input-field" value="14:00">
+          <button onclick="window.submitManualBooking()" class="btn btn-gold" style="width: 100%; min-height: 40px; margin-top: 8px;">
+            ⚡ Randevuyu Kaydet
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitManualBooking = async () => {
+    const name = document.getElementById('man-cust-name').value;
+    const phone = document.getElementById('man-cust-phone').value;
+    const serviceName = document.getElementById('man-svc-name').value;
+    const date = document.getElementById('man-date').value;
+    const time = document.getElementById('man-time').value;
+
+    if (!name || !date || !time) {
+      alert('Lütfen ad, tarih ve saat doldurunuz.');
+      return;
+    }
+
+    const res = await fetch('/api/booking/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        businessId: user.businessId,
+        customerName: name,
+        customerPhone: phone,
+        serviceName,
+        date,
+        time,
+        source: 'manual',
+        status: 'approved'
+      })
+    });
+
+    if (res.ok) {
+      alert('✅ Manuel randevu oluşturuldu.');
+      window.closeModal();
+      renderSalonDashboard(container, user, business);
+    } else if (res.status === 409) {
+      alert('⚠️ Seçtiğiniz saatte berber doludur.');
+    } else {
+      alert('⚠️ Hata oluştu.');
     }
   };
 }

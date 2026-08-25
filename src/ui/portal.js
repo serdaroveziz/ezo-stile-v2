@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Initial Entry Portal Screen */
+﻿/* EZO STİLE v2 - Initial Entry Portal Screen with Official Logo */
 import { loginUser } from '../auth.js';
 
 export function renderPortalScreen(onAuthenticated) {
@@ -6,10 +6,9 @@ export function renderPortalScreen(onAuthenticated) {
   if (!container) return;
 
   container.innerHTML = `
-    <div style="text-align: center; margin-top: 24px; margin-bottom: 28px;">
-      <div style="font-size: 48px; margin-bottom: 8px;">💈</div>
-      <h1 class="brand-title" style="font-size: 26px; justify-content: center;">EZO STİLE v2</h1>
-      <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">VIP Berber & Güzellik Platformu</p>
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 24px;" class="animate-fade">
+      <img src="./assets/images/ezo_stile_logo.png" style="max-width: 150px; height: auto; margin-bottom: 8px; filter: drop-shadow(0 0 12px rgba(245,158,11,0.3));" alt="EZO STİLE Official Logo">
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">VIP Berber & Güzellik Platformu</p>
     </div>
 
     <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -56,9 +55,12 @@ export function renderPortalScreen(onAuthenticated) {
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card" onclick="event.stopPropagation()">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary);">
-              🔑 ${intent === 'business' ? 'İşletme Girişi' : 'Müşteri Girişi'}
-            </h3>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <img src="./assets/images/ezo_stile_logo.png" style="height: 28px; width: auto;" alt="Logo">
+              <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">
+                ${intent === 'business' ? 'İşletme Girişi' : 'Müşteri Girişi'}
+              </h3>
+            </div>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 

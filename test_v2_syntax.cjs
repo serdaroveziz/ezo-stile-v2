@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Automated Architecture & Syntax Verification Test Suite */
+﻿/* EZO STİLE v2 - Automated Architecture, Assets & Syntax Verification Test Suite */
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -18,7 +18,7 @@ function assert(condition, message) {
   }
 }
 
-// 1. File Structure Integrity
+// 1. File Structure Integrity & Logo Assets Verification
 const requiredFiles = [
   'package.json',
   'index.html',
@@ -32,10 +32,16 @@ const requiredFiles = [
   'src/ui/portal.js',
   'src/ui/customer.js',
   'src/ui/salon-application.js',
-  'src/ui/super-admin.js'
+  'src/ui/super-admin.js',
+  'assets/images/ezo_stile_logo.png',
+  'assets/icons/logo.png',
+  'assets/icons/icon-192.png',
+  'assets/icons/icon-512.png',
+  'assets/icons/apple-touch-icon.png',
+  'assets/icons/favicon.png'
 ];
 
-console.log('📁 1. Verifying File Structure Integrity...');
+console.log('📁 1. Verifying File Structure & Logo Assets Integrity...');
 requiredFiles.forEach(relPath => {
   const fullPath = path.join(__dirname, relPath);
   assert(fs.existsSync(fullPath), `File exists: ${relPath}`);

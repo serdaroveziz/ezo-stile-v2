@@ -1,9 +1,23 @@
 ﻿{
   "name": "EZO STİLE v2 VIP",
-  "short_name": "EZO STİLE v2",
+  "short_name": "EZO STİLE",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#040711",
   "theme_color": "#040711",
-  "description": "EZO STİLE v2 VIP Barber & Beauty SaaS Platform"
+  "description": "EZO STİLE v2 VIP Barber & Beauty SaaS Platform",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }

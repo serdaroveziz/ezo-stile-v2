@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Super Admin Platform Command Center with Revenue & Entitlements Telemetry */
+﻿/* EZO STİLE v2 - Super Admin Platform Command Center with Official Logo */
 import { getSalonApplications, approveSalonApplication, fetchRecord } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 import { renderOwnerScreen } from './owner.js';
@@ -15,7 +15,7 @@ export async function renderSuperAdminScreen() {
   if (user.role !== 'super_admin') {
     container.innerHTML = `
       <div class="card card-gold text-center" style="padding: 24px;">
-        <div style="font-size: 36px; margin-bottom: 8px;">🔒</div>
+        <img src="./assets/images/ezo_stile_logo.png" style="height: 48px; width: auto; margin-bottom: 8px;" alt="Logo">
         <h3 style="font-size: 16px; color: var(--danger);">Erişim Engellendi</h3>
         <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Süper Admin yetkiniz bulunmamaktadır.</p>
       </div>
@@ -204,9 +204,12 @@ export async function renderSuperAdminScreen() {
   }
 
   container.innerHTML = `
-    <!-- HEADER BAR -->
+    <!-- HEADER BAR WITH OFFICIAL LOGO -->
     <div class="header-bar">
-      <div class="brand-title">🛡️ EZO STİLE — Süper Admin</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="./assets/images/ezo_stile_logo.png" style="height: 26px; width: auto;" alt="EZO Logo">
+        <span class="brand-title" style="font-size: 14px;">Süper Admin</span>
+      </div>
       <span class="badge badge-approved">PLATFORM HAKİMİ</span>
     </div>
 

@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with AI Integration */
+﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with Official Logo */
 import { getCurrentUser } from '../auth.js';
 import { openSalonApplicationWizard } from './salon-application.js';
 import { fetchRecord, getAppointmentsForCustomer, getServices, getStaffList, saveRecord } from '../db.js';
@@ -40,7 +40,9 @@ export async function renderCustomerScreen(onTabChange) {
   if (activeCustomerTab === 'ai') {
     container.innerHTML = `
       <div class="header-bar">
-        <div class="brand-title">💈 EZO STİLE v2</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="EZO Logo">
+        </div>
         <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
       </div>
       <div id="ai-tab-container"></div>
@@ -81,8 +83,13 @@ export async function renderCustomerScreen(onTabChange) {
   if (activeCustomerTab === 'home') {
     mainHtml = `
       <div class="card card-gold animate-fade" style="padding: 20px;">
-        <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700; text-transform: uppercase;">Hoş Geldiniz 👋</div>
-        <h2 style="font-size: 18px; font-weight: 800; color: #fff; margin-top: 2px;">${user.name}</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div>
+            <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700; text-transform: uppercase;">Hoş Geldiniz 👋</div>
+            <h2 style="font-size: 18px; font-weight: 800; color: #fff; margin-top: 2px;">${user.name}</h2>
+          </div>
+          <img src="./assets/images/ezo_stile_logo.png" style="height: 38px; width: auto;" alt="Logo">
+        </div>
         <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">VIP berber salonlarından anında randevunuzu oluşturun.</p>
       </div>
 
@@ -287,7 +294,9 @@ export async function renderCustomerScreen(onTabChange) {
 
   container.innerHTML = `
     <div class="header-bar">
-      <div class="brand-title">💈 EZO STİLE v2</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="EZO Logo">
+      </div>
       <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
     </div>
 
