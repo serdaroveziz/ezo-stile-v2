@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Salon Owner Panel (5 Tabs, Cancel/Reschedule Approval Engines, VIP Modals, 5 Languages) */
+/* EZO STİLE v2 - Salon Owner Panel (Interactive KPI Cards, Status Segments, Geldi/Gelmedi Flow, VIP Modals) */
 import { getAppointmentsForBusiness, fetchRecord, saveRecord, getServices, saveService, getStaffList, saveStaff } from '../db.js';
 import { canAccessStaffRevenueAnalytics } from '../permissions.js';
 import { isRtl, t } from '../config.js';
@@ -6,6 +6,7 @@ import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js'
 import { logoutUserSession } from '../auth.js';
 
 let activeOwnerTab = 'dashboard';
+let activeAptFilter = 'pending'; // 'pending', 'approved', 'completed', 'cancelled_rejected', 'requests', 'bugun'
 let revenueTimeframe = 'today';
 
 export async function renderOwnerScreen(user, onTabChange) {
@@ -23,16 +24,19 @@ export async function renderOwnerScreen(user, onTabChange) {
   const services = await getServices(businessId);
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayApts = allApts.filter(a => a.date === todayStr);
+  const todayApts = allApts.filter(a => a && a.date === todayStr);
 
-  const completedToday = todayApts.filter(a => a.status === 'completed');
-  const pendingToday = todayApts.filter(a => a.status === 'pending' || a.status === 'reschedule_requested' || a.status === 'cancel_requested');
+  const todayApprovedUpcoming = todayApts.filter(a => a && (a.status === 'approved' || a.status === 'completed'));
+  const pendingRequests = allApts.filter(a => a && a.status === 'pending');
+  const completedApts = allApts.filter(a => a && a.status === 'completed');
+  const todayCompleted = todayApts.filter(a => a && a.status === 'completed');
 
-  const todayRevenue = completedToday.reduce((sum, a) => sum + (parseInt(a.servicePrice) || 350), 0);
+  const todayRevenue = todayCompleted.reduce((sum, a) => sum + (parseInt(a.servicePrice) || 350), 0);
 
   let mainHtml = '';
 
   if (activeOwnerTab === 'dashboard') {
+    // 1. INTERACTIVE DASHBOARD KPI CARDS (REQUIREMENT 1)
     mainHtml = `
       <div class="card card-gold animate-fade" style="padding: 18px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -44,15 +48,30 @@ export async function renderOwnerScreen(user, onTabChange) {
         </div>
       </div>
 
+      <!-- 4 INTERACTIVE DASHBOARD CARDS THAT CHANGE TAB/FILTER -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
-        <div class="card" style="padding: 14px; text-align: center;">
-          <div style="font-size: 11px; color: var(--text-muted);">Bugünkü Randevu</div>
-          <div style="font-size: 22px; font-weight: 800; color: #fff;">${todayApts.length}</div>
+        <div class="card animate-fade" style="padding: 14px; text-align: center; cursor: pointer; border-color: var(--gold-primary);" onclick="window.switchOwnerTab('appointments', 'bugun')">
+          <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">📅 Bugünkü Randevu</div>
+          <div style="font-size: 24px; font-weight: 900; color: #fff; margin-top: 2px;">${todayApprovedUpcoming.length}</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Detayları Aç →</div>
         </div>
 
-        <div class="card" style="padding: 14px; text-align: center;">
-          <div style="font-size: 11px; color: var(--text-muted);">Bekleyen Talepler</div>
-          <div style="font-size: 22px; font-weight: 800; color: var(--gold-primary);">${pendingToday.length}</div>
+        <div class="card animate-fade" style="padding: 14px; text-align: center; cursor: pointer;" onclick="window.switchOwnerTab('appointments', 'pending')">
+          <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">⏳ Bekleyen Talepler</div>
+          <div style="font-size: 24px; font-weight: 900; color: var(--gold-primary); margin-top: 2px;">${pendingRequests.length}</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Bekleyenleri Gör →</div>
+        </div>
+
+        <div class="card animate-fade" style="padding: 14px; text-align: center; cursor: pointer;" onclick="window.switchOwnerTab('appointments', 'completed')">
+          <div style="font-size: 11px; color: #22c55e; font-weight: 700;">🎉 Tamamlanan</div>
+          <div style="font-size: 24px; font-weight: 900; color: #22c55e; margin-top: 2px;">${completedApts.length}</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Tamamlananlar →</div>
+        </div>
+
+        <div class="card animate-fade" style="padding: 14px; text-align: center; cursor: pointer;" onclick="window.switchOwnerTab('management')">
+          <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">💰 Bugünkü Ciro</div>
+          <div style="font-size: 22px; font-weight: 900; color: #fff; margin-top: 2px;">${todayRevenue} TL</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Ciro Raporu →</div>
         </div>
       </div>
 
@@ -72,39 +91,69 @@ export async function renderOwnerScreen(user, onTabChange) {
       </div>
     `;
   } else if (activeOwnerTab === 'appointments') {
-    const aptCardsHtml = allApts.map(apt => {
+    // 2. APPOINTMENT SEGMENTATION FILTERS (REQUIREMENT 2 & 9)
+    let filteredApts = [];
+
+    if (activeAptFilter === 'bugun') {
+      filteredApts = todayApts.filter(a => a && (a.status === 'approved' || a.status === 'completed')).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+    } else if (activeAptFilter === 'pending') {
+      filteredApts = allApts.filter(a => a && a.status === 'pending');
+    } else if (activeAptFilter === 'approved') {
+      filteredApts = allApts.filter(a => a && a.status === 'approved');
+    } else if (activeAptFilter === 'completed') {
+      filteredApts = allApts.filter(a => a && a.status === 'completed');
+    } else if (activeAptFilter === 'cancelled_rejected') {
+      filteredApts = allApts.filter(a => a && (a.status === 'cancelled' || a.status === 'rejected' || a.status === 'no_show'));
+    } else if (activeAptFilter === 'requests') {
+      filteredApts = allApts.filter(a => a && (a.status === 'cancel_requested' || a.status === 'reschedule_requested'));
+    }
+
+    const aptCardsHtml = filteredApts.map(apt => {
       const isCancelReq = apt.status === 'cancel_requested';
       const isReschedReq = apt.status === 'reschedule_requested';
+      const isPending = apt.status === 'pending';
+      const isApproved = apt.status === 'approved';
+
+      const nowHours = new Date().getHours() * 60 + new Date().getMinutes();
+      const [aptH, aptM] = (apt.time || '00:00').split(':').map(Number);
+      const isPastHour = apt.date === todayStr && (aptH * 60 + aptM) < nowHours && isApproved;
 
       return `
-        <div class="card card-gold animate-fade" style="padding: 14px; margin-bottom: 10px;">
+        <div class="card card-gold animate-fade" style="padding: 12px; margin-bottom: 10px; cursor: pointer;" onclick="window.openAppointmentDetailModal('${apt.aptId}')">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-              <div style="font-size: 14px; font-weight: 800; color: #fff;">👤 ${apt.customerName} (${apt.customerPhone})</div>
-              <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">✂️ ${apt.serviceName} • 💈 ${apt.staffName || 'Mustafa Usta'}</div>
-              <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk) • ${apt.servicePrice || 350} TL</div>
-              
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 14px; font-weight: 900; color: var(--gold-primary);">⏰ ${apt.time}</span>
+                <span style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName}</span>
+                ${isPastHour ? '<span class="badge badge-pending" style="font-size: 9px;">⚠️ İşlem Bekliyor</span>' : ''}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                ✂️ ${apt.serviceName} • 💈 ${apt.staffName || 'Mustafa Usta'} • 💰 ${apt.servicePrice || 350} TL
+              </div>
               ${isReschedReq ? `
-                <div style="font-size: 11px; color: #eab308; font-weight: 800; margin-top: 4px;">
-                  🔄 İstenen Yeni Saat: ${apt.requestedDate || apt.date} @ ${apt.requestedTime || '14:00'}
+                <div style="font-size: 10px; color: #eab308; font-weight: 800; margin-top: 2px;">
+                  🔄 İstenen Saat: ${apt.requestedDate || apt.date} @ ${apt.requestedTime || '14:00'}
                 </div>
               ` : ''}
             </div>
-            <span class="badge ${apt.status === 'completed' ? 'badge-approved' : (isCancelReq || isReschedReq ? 'badge-pending' : 'badge-approved')}">${t(apt.status, currentLang)}</span>
+            <span class="badge ${apt.status === 'completed' ? 'badge-approved' : (isCancelReq || isReschedReq || isPending ? 'badge-pending' : 'badge-approved')}" style="font-size: 9px;">${t(apt.status, currentLang)}</span>
           </div>
 
-          <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
-            ${isCancelReq ? `
-              <button onclick="window.ownerApproveCancel('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size: 11px; border-color: #ef4444; color: #ef4444;">✅ İptali Onayla</button>
-              <button onclick="window.ownerRejectCancel('${apt.aptId}')" class="btn btn-gold" style="flex: 1; padding: 4px 8px; font-size: 11px;">❌ İptali Reddet</button>
+          <!-- ACTIONS -->
+          <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;" onclick="event.stopPropagation()">
+            ${isPending ? `
+              <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'approved')" class="btn btn-gold" style="flex: 1; padding: 4px 8px; font-size: 10px;">✅ Onayla</button>
+              <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'rejected')" class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size: 10px; border-color: #ef4444; color: #ef4444;">❌ Reddet</button>
+            ` : isApproved ? `
+              <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'completed')" class="btn btn-gold" style="flex: 1; padding: 4px 8px; font-size: 10px;">✅ Geldi (Tamamlandı)</button>
+              <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'no_show')" class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size: 10px; border-color: #ef4444; color: #ef4444;">🚫 Gelmedi</button>
+            ` : isCancelReq ? `
+              <button onclick="window.ownerApproveCancel('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size: 10px; border-color: #ef4444; color: #ef4444;">✅ İptali Onayla</button>
+              <button onclick="window.ownerRejectCancel('${apt.aptId}')" class="btn btn-gold" style="flex: 1; padding: 4px 8px; font-size: 10px;">❌ İptali Reddet</button>
             ` : isReschedReq ? `
-              <button onclick="window.ownerApproveReschedule('${apt.aptId}', '${apt.requestedDate || apt.date}', '${apt.requestedTime || '14:00'}')" class="btn btn-gold" style="flex: 1; padding: 4px 8px; font-size: 11px;">✅ Değişikliği Onayla</button>
-              <button onclick="window.ownerRejectReschedule('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size: 11px;">❌ Talebi Reddet</button>
-            ` : `
-              <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'approved')" class="btn btn-gold" style="flex: 1; padding: 4px 8px; font-size: 11px;">✅ Onayla</button>
-              <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'completed')" class="btn btn-outline-gold" style="flex: 1; padding: 4px 8px; font-size: 11px;">🎉 Tamamlandı</button>
-              <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'rejected')" class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size: 11px; border-color: #ef4444; color: #ef4444;">❌ Reddet</button>
-            `}
+              <button onclick="window.ownerApproveReschedule('${apt.aptId}', '${apt.requestedDate || apt.date}', '${apt.requestedTime || '14:00'}')" class="btn btn-gold" style="flex: 1; padding: 4px 8px; font-size: 10px;">✅ Değişikliği Onayla</button>
+              <button onclick="window.ownerRejectReschedule('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size: 10px;">❌ Talebi Reddet</button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -112,8 +161,19 @@ export async function renderOwnerScreen(user, onTabChange) {
 
     mainHtml = `
       <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 Salon Randevu Yönetimi</h3>
-        ${allApts.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted);">Randevu kaydı bulunamadı.</div>' : aptCardsHtml}
+        <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">📅 Salon Randevu Yönetimi</h3>
+
+        <!-- STATUS SEGMENT BAR (REQUIREMENT 2) -->
+        <div style="display: flex; gap: 4px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px;">
+          <button onclick="window.setAppointmentFilter('bugun')" class="btn ${activeAptFilter === 'bugun' ? 'btn-gold' : 'btn-secondary'}" style="padding: 4px 8px; font-size: 10px; white-space: nowrap;">📅 Bugün (${todayApprovedUpcoming.length})</button>
+          <button onclick="window.setAppointmentFilter('pending')" class="btn ${activeAptFilter === 'pending' ? 'btn-gold' : 'btn-secondary'}" style="padding: 4px 8px; font-size: 10px; white-space: nowrap;">⏳ Bekleyen (${pendingRequests.length})</button>
+          <button onclick="window.setAppointmentFilter('approved')" class="btn ${activeAptFilter === 'approved' ? 'btn-gold' : 'btn-secondary'}" style="padding: 4px 8px; font-size: 10px; white-space: nowrap;">📅 Gelecek</button>
+          <button onclick="window.setAppointmentFilter('completed')" class="btn ${activeAptFilter === 'completed' ? 'btn-gold' : 'btn-secondary'}" style="padding: 4px 8px; font-size: 10px; white-space: nowrap;">🎉 Tamamlanan</button>
+          <button onclick="window.setAppointmentFilter('requests')" class="btn ${activeAptFilter === 'requests' ? 'btn-gold' : 'btn-secondary'}" style="padding: 4px 8px; font-size: 10px; white-space: nowrap;">🔄 Talepler</button>
+          <button onclick="window.setAppointmentFilter('cancelled_rejected')" class="btn ${activeAptFilter === 'cancelled_rejected' ? 'btn-gold' : 'btn-secondary'}" style="padding: 4px 8px; font-size: 10px; white-space: nowrap;">🚫 İptal/Ret</button>
+        </div>
+
+        ${filteredApts.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">Bu kategoride randevu kaydı bulunmamaktadır.</div>' : aptCardsHtml}
       </div>
     `;
   } else if (activeOwnerTab === 'management') {
@@ -190,14 +250,49 @@ export async function renderOwnerScreen(user, onTabChange) {
     </nav>
   `;
 
-  window.switchOwnerTab = (tab) => {
+  window.switchOwnerTab = (tab, filter = null) => {
     activeOwnerTab = tab;
+    if (filter) activeAptFilter = filter;
+    renderOwnerScreen(user, onTabChange);
+  };
+
+  window.setAppointmentFilter = (filter) => {
+    activeAptFilter = filter;
     renderOwnerScreen(user, onTabChange);
   };
 
   window.setRevenueTimeframe = (tf) => {
     revenueTimeframe = tf;
     renderOwnerScreen(user, onTabChange);
+  };
+
+  window.openAppointmentDetailModal = (aptId) => {
+    const apt = allApts.find(a => a.aptId === aptId);
+    if (!apt) return;
+
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">📋 Randevu Detayı</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #fff; margin-bottom: 16px;">
+            <div><strong>Müşteri:</strong> ${apt.customerName} (${apt.customerPhone})</div>
+            <div><strong>Hizmet:</strong> ${apt.serviceName} (${apt.serviceDuration || 30} dk) - ${apt.servicePrice || 350} TL</div>
+            <div><strong>Berber:</strong> ${apt.staffName || 'Mustafa Usta'}</div>
+            <div><strong>Tarih & Saat:</strong> 📅 ${apt.date} @ ${apt.time}</div>
+            <div><strong>Durum:</strong> ${apt.status}</div>
+          </div>
+
+          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%;">Kapat</button>
+        </div>
+      </div>
+    `;
   };
 
   window.updateAppointmentStatusOwner = async (aptId, newStatus) => {
