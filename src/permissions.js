@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Security & Permission Engine */
+﻿/* EZO STİLE v2 - Security & Permission Engine */
 import { CONFIG } from './config.js';
 
 export const PERMISSIONS = {
@@ -30,7 +30,7 @@ export function hasPermission(user, requiredPerm) {
 
   if (role === 'manager') {
     const userPerms = user.permissions || {};
-    return Boolean(userPerms[requiredPerm]);
+    return Boolean(userPerms[requiredPerm] || userPerms[requiredPerm.replace('.', '_')]);
   }
 
   if (role === 'barber' || role === 'receptionist') {
@@ -43,5 +43,24 @@ export function hasPermission(user, requiredPerm) {
     return requiredPerm === PERMISSIONS.CUSTOMER_BOOK;
   }
 
+  return false;
+}
+
+export function canAccessStaffRevenueAnalytics(biz) {
+  if (!biz) return false;
+  return biz.plan === 'PREMIUM' || 
+         biz.premiumSource === 'super_admin_grant' || 
+         (biz.subscription && biz.subscription.plan === 'PREMIUM' && biz.subscription.status === 'active');
+}
+
+export function canStaffAccessOwnCustomers(user, biz) {
+  if (!user) return false;
+  if (user.role === 'owner' || user.role === 'super_admin' || user.role === 'receptionist') return true;
+  if (user.role === 'barber') {
+    // Owner override takes precedence
+    if (biz && biz.allowStaffCustomerAccess === false) return false;
+    // Requires Staff Premium entitlement
+    return Boolean(user.staffPremium);
+  }
   return false;
 }

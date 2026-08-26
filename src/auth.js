@@ -1,6 +1,6 @@
-/* EZO STİLE v2 - Backend-Driven Authentication & Role Resolution */
+﻿/* EZO STİLE v2 - Backend-Driven Authentication, Role Resolution & Language Persistence */
 import { getUserProfile, saveRecord } from './db.js';
-import { CONFIG } from './config.js';
+import { CONFIG, detectDefaultLanguage } from './config.js';
 
 let currentUserState = null;
 
@@ -12,8 +12,21 @@ export function setCurrentUser(user) {
   currentUserState = user;
   if (user) {
     localStorage.setItem('ez2_session', JSON.stringify({ uid: user.uid, phone: user.phone }));
+    if (user.language) {
+      localStorage.setItem('ezo_lang', user.language);
+    }
   } else {
     localStorage.removeItem('ez2_session');
+  }
+}
+
+export async function updateUserLanguage(lang) {
+  if (currentUserState) {
+    currentUserState.language = lang;
+    localStorage.setItem('ezo_lang', lang);
+    await saveRecord(`users/${currentUserState.uid}/language`, lang, 'PUT');
+  } else {
+    localStorage.setItem('ezo_lang', lang);
   }
 }
 
@@ -23,9 +36,10 @@ export function setCurrentUser(user) {
  * User cannot choose or elevate their role on frontend.
  */
 export async function resolveBackendUserRole(uid, fallbackPhone = '') {
-  if (!uid) return { role: 'customer', businessId: null };
+  if (!uid) return { role: 'customer', businessId: null, language: detectDefaultLanguage() };
 
   const dbProfile = await getUserProfile(uid);
+  const activeLang = (dbProfile && dbProfile.language) ? dbProfile.language : detectDefaultLanguage();
   
   if (dbProfile && dbProfile.role) {
     const verifiedRole = CONFIG.ROLE_HIERARCHY.includes(dbProfile.role) ? dbProfile.role : 'customer';
@@ -35,16 +49,22 @@ export async function resolveBackendUserRole(uid, fallbackPhone = '') {
       name: dbProfile.name || 'EZO Kullanıcısı',
       role: verifiedRole,
       businessId: dbProfile.businessId || null,
-      permissions: dbProfile.permissions || {}
+      permissions: dbProfile.permissions || {},
+      aiCredits: dbProfile.aiCredits || { economy: 3, premium: 1 },
+      staffPremium: Boolean(dbProfile.staffPremium),
+      language: activeLang
     };
   }
 
-  // Default customer profile initialization if new user
+  // Default customer profile initialization if new user (New User Bonus: 3 Economy Credits)
   const newCustomer = {
     uid,
     phone: fallbackPhone,
     name: 'Müşteri',
     role: 'customer',
+    aiCredits: { economy: 3, premium: 1 },
+    welcomeAiBonusGranted: true,
+    language: activeLang,
     createdAt: new Date().toISOString()
   };
 
@@ -54,7 +74,6 @@ export async function resolveBackendUserRole(uid, fallbackPhone = '') {
 }
 
 export async function loginUser(phone, password) {
-  // Normalize phone digits
   const cleanPhone = phone.replace(/\D/g, '');
   const uid = 'usr_' + cleanPhone;
 

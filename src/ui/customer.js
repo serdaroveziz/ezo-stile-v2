@@ -1,192 +1,117 @@
-/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with Official Logo & Deployment Fallback */
-import { getCurrentUser } from '../auth.js';
-import { openSalonApplicationWizard } from './salon-application.js';
-import { fetchRecord, getAppointmentsForCustomer, getServices, getStaffList, saveRecord } from '../db.js';
+﻿/* EZO STİLE v2 - Customer Final Panel (5 Tabs, 4 Action Buttons, 5-Step Booking, Duration Overlap Engine, Slot Colors, WhatsApp/SMS Modal, 5 Languages, RTL) */
+import { getAppointmentsForCustomer, fetchRecord, saveRecord, getServices, getStaffList } from '../db.js';
+import { updateUserLanguage } from '../auth.js';
+import { SUPPORTED_LANGUAGES, isRtl, t } from '../config.js';
 import { renderAiConsultantScreen } from './ai-consultant.js';
 
 let activeCustomerTab = 'home';
-let userCoords = null;
-let searchQuery = '';
-let filterCity = '';
-
 let bookingState = {
   businessId: 'biz_merkez_salon',
   serviceId: null,
   serviceName: null,
+  servicePrice: 0,
+  serviceDuration: 30,
   staffId: 'staff-any',
   staffName: 'Fark Etmez',
   date: new Date().toISOString().split('T')[0],
   time: null
 };
 
-function calcDistance(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return parseFloat((R * c).toFixed(1));
-}
+let userFavoritesMap = null;
+let searchQuery = '';
+let nearbyGeoLocation = null;
 
-export async function renderCustomerScreen(onTabChange) {
+export async function renderCustomerScreen(user, onTabChange) {
   const container = document.getElementById('app-container');
   if (!container) return;
 
-  const user = getCurrentUser() || { uid: 'usr_demo', name: 'Müşteri', phone: '05550000000', role: 'customer' };
+  const currentLang = user.language || 'tr';
+  const rtl = isRtl(currentLang);
+  document.documentElement.dir = rtl ? 'rtl' : 'ltr';
 
-  if (activeCustomerTab === 'ai') {
-    container.innerHTML = `
-      <div class="header-bar">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="EZO Logo">
-        </div>
-        <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
-      </div>
-      <div id="ai-tab-container"></div>
-      <nav class="bottom-nav">
-        <button onclick="window.switchCustomerTab('home')" class="nav-item ${activeCustomerTab === 'home' ? 'active' : ''}">
-          <span class="icon">🏠</span>
-          <span>Ana Sayfa</span>
-        </button>
-        <button onclick="window.switchCustomerTab('salons')" class="nav-item ${activeCustomerTab === 'salons' ? 'active' : ''}">
-          <span class="icon">💈</span>
-          <span>Salonlar</span>
-        </button>
-        <button onclick="window.switchCustomerTab('booking')" class="nav-item ${activeCustomerTab === 'booking' ? 'active' : ''}">
-          <span class="icon">✂️</span>
-          <span>Randevu Al</span>
-        </button>
-        <button onclick="window.switchCustomerTab('ai')" class="nav-item ${activeCustomerTab === 'ai' ? 'active' : ''}">
-          <span class="icon">🤖</span>
-          <span>AI Danışman</span>
-        </button>
-        <button onclick="window.switchCustomerTab('appointments')" class="nav-item ${activeCustomerTab === 'appointments' ? 'active' : ''}">
-          <span class="icon">📅</span>
-          <span>Randevularım</span>
-        </button>
-      </nav>
-    `;
-    renderAiConsultantScreen(document.getElementById('ai-tab-container'));
-
-    window.switchCustomerTab = (tabKey) => {
-      activeCustomerTab = tabKey;
-      renderCustomerScreen(onTabChange);
-    };
-    return;
+  if (!userFavoritesMap) {
+    userFavoritesMap = await fetchRecord(`users/${user.uid}/favorites`) || {};
   }
 
   let mainHtml = '';
 
   if (activeCustomerTab === 'home') {
     mainHtml = `
-      <div class="card card-gold animate-fade" style="padding: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <div>
-            <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700; text-transform: uppercase;">Hoş Geldiniz 👋</div>
-            <h2 style="font-size: 18px; font-weight: 800; color: #fff; margin-top: 2px;">${user.name}</h2>
-          </div>
-          <img src="./assets/images/ezo_stile_logo.png" style="height: 38px; width: auto;" alt="Logo">
-        </div>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">VIP berber salonlarından anında randevunuzu oluşturun.</p>
+      <div class="card card-gold animate-fade" style="padding: 20px; margin-bottom: 16px;">
+        <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 4px;">
+          👋 ${t('welcomeTitle', currentLang)}, ${user.name || 'Müşterimiz'}
+        </h3>
+        <p style="font-size: 12px; color: var(--text-muted);">
+          VIP Kuaför & Berber randevunuzu saniyeler içinde planlayın.
+        </p>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-        <div class="card" onclick="window.switchCustomerTab('booking')" style="padding: 16px; text-align: center; cursor: pointer; border-color: var(--border-gold);">
+      <!-- 4 CLEAN MAIN ACTION BUTTONS -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div class="card animate-fade" style="padding: 16px; cursor: pointer; text-align: center; border-color: var(--gold-primary);" onclick="window.switchCustomerTab('booking')">
           <div style="font-size: 32px; margin-bottom: 6px;">✂️</div>
-          <div style="font-size: 14px; font-weight: 800; color: #fff;">Randevu Al</div>
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Anında slot seçin</div>
+          <div style="font-size: 13px; font-weight: 800; color: #fff;">${t('bookAppointment', currentLang)}</div>
         </div>
 
-        <div class="card" onclick="window.switchCustomerTab('salons')" style="padding: 16px; text-align: center; cursor: pointer;">
+        <div class="card animate-fade" style="padding: 16px; cursor: pointer; text-align: center;" onclick="window.switchCustomerTab('salons')">
           <div style="font-size: 32px; margin-bottom: 6px;">💈</div>
-          <div style="font-size: 14px; font-weight: 800; color: #fff;">Yakındaki Salonlar</div>
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">En iyi berberleri keşfet</div>
+          <div style="font-size: 13px; font-weight: 800; color: #fff;">${t('discoverSalons', currentLang)}</div>
         </div>
 
-        <div class="card" onclick="window.switchCustomerTab('ai')" style="padding: 16px; text-align: center; cursor: pointer;">
+        <div class="card animate-fade" style="padding: 16px; cursor: pointer; text-align: center;" onclick="window.switchCustomerTab('ai')">
           <div style="font-size: 32px; margin-bottom: 6px;">🤖</div>
-          <div style="font-size: 14px; font-weight: 800; color: #fff;">Saç Modelimi Bul</div>
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">AI saç danışmanı</div>
+          <div style="font-size: 13px; font-weight: 800; color: #fff;">${t('aiConsultant', currentLang)}</div>
         </div>
 
-        <div class="card" onclick="window.switchCustomerTab('appointments')" style="padding: 16px; text-align: center; cursor: pointer;">
+        <div class="card animate-fade" style="padding: 16px; cursor: pointer; text-align: center;" onclick="window.switchCustomerTab('appointments')">
           <div style="font-size: 32px; margin-bottom: 6px;">📅</div>
-          <div style="font-size: 14px; font-weight: 800; color: #fff;">Randevularım</div>
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Geçmiş ve aktif talepler</div>
+          <div style="font-size: 13px; font-weight: 800; color: #fff;">${t('myAppointments', currentLang)}</div>
         </div>
       </div>
     `;
   } else if (activeCustomerTab === 'salons') {
-    const rawBiz = await fetchRecord('businesses') || {};
-    const favs = await fetchRecord(`users/${user.uid}/favorites`) || {};
+    const allBusinessesData = await fetchRecord('businesses') || {};
+    let salons = Object.values(allBusinessesData).filter(b => b && b.status !== 'suspended');
 
-    let salons = Object.values(rawBiz).filter(b => 
-      b &&
-      b.status !== 'suspended' &&
-      b.bookingEnabled !== false &&
-      b.hiddenFromDiscovery !== true
-    );
+    salons = salons.map(b => {
+      let dist = null;
+      if (nearbyGeoLocation && b.lat && b.lng) {
+        const rad = Math.PI / 180;
+        const dLat = (b.lat - nearbyGeoLocation.lat) * rad;
+        const dLng = (b.lng - nearbyGeoLocation.lng) * rad;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(nearbyGeoLocation.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        dist = Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
+      }
+      return { ...b, distanceKm: dist };
+    });
 
     if (searchQuery) {
-      salons = salons.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()) || (b.district && b.district.toLowerCase().includes(searchQuery.toLowerCase())));
-    }
-    if (filterCity) {
-      salons = salons.filter(b => b.city && b.city.toLowerCase() === filterCity.toLowerCase());
+      const q = searchQuery.toLowerCase();
+      salons = salons.filter(b => (b.name || '').toLowerCase().includes(q) || (b.district || '').toLowerCase().includes(q) || (b.city || '').toLowerCase().includes(q));
     }
 
-    salons.forEach(b => {
-      if (userCoords && b.latitude && b.longitude) {
-        b.distanceKm = calcDistance(userCoords.latitude, userCoords.longitude, b.latitude, b.longitude);
-      } else {
-        b.distanceKm = null;
-      }
-    });
-
-    salons.sort((a, b) => {
-      if (a.distanceKm !== null && b.distanceKm !== null) return a.distanceKm - b.distanceKm;
-      return (b.averageRating || 5) - (a.averageRating || 5);
-    });
-
-    const salonCardsHtml = salons.map(b => {
-      const isFav = Boolean(favs[b.businessId]);
-      return `
-        <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 12px; cursor: pointer;" onclick="window.openSalonProfileModal('${b.businessId}')">
-          <div style="position: relative; height: 130px; border-radius: 12px; overflow: hidden; margin-bottom: 10px;">
-            <img src="${b.photoUrl || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=500'}" style="width: 100%; height: 100%; object-fit: cover;" alt="Salon">
-            <button onclick="event.stopPropagation(); window.toggleFavoriteSalon('${b.businessId}')" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); border: none; border-radius: 50%; width: 34px; height: 34px; font-size: 18px; cursor: pointer; color: #fff;">
-              ${isFav ? '❤️' : '🤍'}
-            </button>
-            <span class="badge badge-approved" style="position: absolute; bottom: 8px; left: 8px;">
-              ✨ Bugün Müsait
-            </span>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">💈 ${b.name}</h4>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-                📍 ${b.district || 'Şişli'} / ${b.city || 'İstanbul'} ${b.distanceKm !== null ? `• ${b.distanceKm} km` : ''}
-              </div>
+    const salonCardsHtml = salons.map(b => `
+      <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 12px; cursor: pointer;" onclick="window.selectSalonForBooking('${b.businessId}')">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h4 style="font-size: 15px; font-weight: 800; color: #fff;">💈 ${b.name}</h4>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              📍 ${b.district || 'Şişli'} / ${b.city || 'İstanbul'}
             </div>
-            <span class="badge badge-approved" style="font-size: 11px;">⭐ ${b.averageRating || '4.9'} (${b.ratingCount || 12})</span>
           </div>
+          <span class="badge badge-approved">⭐ ${b.averageRating || '4.9'}</span>
         </div>
-      `;
-    }).join('');
+        <button class="btn btn-gold" style="width: 100%; margin-top: 10px; min-height: 36px; font-size: 11px;">
+          ✂️ Randevu Al →
+        </button>
+      </div>
+    `).join('');
 
     mainHtml = `
       <div class="card animate-fade">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">💈 VIP Salon Keşfet</h3>
-
-        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-          <input type="text" placeholder="Salon adı veya semt ara..." value="${searchQuery}" oninput="window.setDiscoverySearch(this.value)" class="input-field" style="margin-bottom: 0;">
-          <button onclick="window.requestGeolocation()" class="btn btn-outline-gold" style="white-space: nowrap; font-size: 11px;">📍 Yakındakiler</button>
-        </div>
-
-        ${salons.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">Kriterlere uygun salon bulunamadı.</div>' : salonCardsHtml}
+        <input type="text" placeholder="Salon adı veya semt ara..." value="${searchQuery}" oninput="window.setDiscoverySearch(this.value)" class="input-field">
+        ${salons.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">Salon bulunamadı.</div>' : salonCardsHtml}
       </div>
     `;
   } else if (activeCustomerTab === 'booking') {
@@ -195,45 +120,92 @@ export async function renderCustomerScreen(onTabChange) {
     const allAptsData = await fetchRecord('appointments') || {};
     const allApts = Object.values(allAptsData);
 
+    // DURATION OVERLAP & OCCUPIED SLOTS CALCULATION
     const occupiedSlots = new Set();
     allApts.forEach(apt => {
       if (apt && apt.businessId === bookingState.businessId &&
           (apt.staffId === bookingState.staffId || bookingState.staffId === 'staff-any') &&
           apt.date === bookingState.date &&
           apt.status !== 'cancelled' && apt.status !== 'rejected') {
-        occupiedSlots.add(apt.time);
+        
+        const aptDuration = apt.serviceDuration || 30;
+        const [h, m] = (apt.time || '00:00').split(':').map(Number);
+        const startMins = h * 60 + m;
+        const endMins = startMins + aptDuration;
+
+        // Block all 30-min intervals falling within this appointment
+        for (let t = 9 * 60; t <= 20 * 60 + 30; t += 30) {
+          if (t >= startMins && t < endMins) {
+            const slotHourStr = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+            occupiedSlots.add(slotHourStr);
+          }
+        }
       }
     });
 
-    const hours = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'];
+    const allHours = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'];
 
-    const slotsHtml = hours.map(h => {
+    // FILTER PAST HOURS FOR TODAY
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    const visibleHours = allHours.filter(hStr => {
+      if (bookingState.date !== todayStr) return true;
+      const [h, m] = hStr.split(':').map(Number);
+      return (h * 60 + m) > currentMins;
+    });
+
+    // SLOT COLOR SYSTEM: Green (Müsait), Red (Dolu 🔒), Yellow (Seçili ✓)
+    const slotsHtml = visibleHours.map(h => {
       const isOccupied = occupiedSlots.has(h);
       const isSelected = bookingState.time === h;
+
+      let style = 'padding: 6px; font-size: 11px; font-weight: 700; border-radius: 8px; text-align: center; ';
+      let icon = '';
+
+      if (isSelected) {
+        style += 'background: #eab308; color: #000; border: 1px solid #eab308; cursor: pointer;';
+        icon = ' ✓';
+      } else if (isOccupied) {
+        style += 'background: #ef4444; color: #fff; border: 1px solid #ef4444; opacity: 0.55; cursor: not-allowed;';
+        icon = ' 🔒';
+      } else {
+        style += 'background: #22c55e; color: #fff; border: 1px solid #22c55e; cursor: pointer;';
+      }
+
       return `
-        <button onclick="${isOccupied ? '' : `window.selectBookingTime('${h}')`}" class="btn ${isSelected ? 'btn-gold' : (isOccupied ? 'btn-secondary' : 'btn-outline-gold')}" style="padding: 6px; font-size: 11px; ${isOccupied ? 'opacity: 0.4; cursor: not-allowed;' : ''}">
-          ${h} ${isOccupied ? '🔴 Dolu' : ''}
+        <button onclick="${isOccupied ? '' : `window.selectBookingTime('${h}')`}" class="btn" style="${style}">
+          ${h}${icon}
         </button>
       `;
     }).join('');
+
+    const todayDate = new Date().toISOString().split('T')[0];
+    const tomorrowDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
     mainHtml = `
       <div class="card card-gold animate-fade" style="padding: 18px;">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">✂️ Randevu Al</h3>
 
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">1. Hizmet Seçin</label>
+        <!-- STEP 1: SERVICE SELECT (NO DEFAULT CHOICE) -->
+        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">1. Hizmet Seçin (Zorunlu)</label>
         <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; margin-top: 4px;">
-          ${(services.length > 0 ? services : [{ id: 'svc_1', name: 'Saç Kesimi & Sakal', price: 350 }]).map(s => `
-            <div onclick="window.selectBookingService('${s.id}', '${s.name}')" class="card" style="padding: 10px; margin: 0; cursor: pointer; border-color: ${bookingState.serviceId === s.id ? 'var(--gold-primary)' : 'var(--border-color)'};">
-              <div style="display: flex; justify-content: space-between;">
-                <span style="font-size: 12px; font-weight: 700; color: #fff;">${s.name}</span>
+          ${(services.length > 0 ? services : [
+            { id: 'svc_1', name: 'Saç Kesimi & Sakal', price: 350, duration: 45 },
+            { id: 'svc_2', name: 'VIP Saç & Cilt Bakımı', price: 500, duration: 60 }
+          ]).map(s => `
+            <div onclick="window.selectBookingService('${s.id}', '${s.name}', ${s.price}, ${s.duration || 30})" class="card" style="padding: 10px; margin: 0; cursor: pointer; border-color: ${bookingState.serviceId === s.id ? 'var(--gold-primary)' : 'var(--border-color)'}; background: ${bookingState.serviceId === s.id ? 'rgba(245,158,11,0.15)' : 'transparent'};">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12px; font-weight: 700; color: #fff;">${s.name} (${s.duration || 30} dk)</span>
                 <span style="font-size: 12px; color: var(--gold-primary); font-weight: 800;">${s.price} TL</span>
               </div>
             </div>
           `).join('')}
         </div>
 
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">2. Berber Uzmanı Seçin</label>
+        <!-- STEP 2: STAFF SELECT -->
+        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">2. Berber / Uzman Seçin</label>
         <div style="display: flex; gap: 6px; margin-bottom: 14px; margin-top: 4px; overflow-x: auto;">
           <button onclick="window.selectBookingStaff('staff-any', 'Fark Etmez')" class="btn ${bookingState.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="padding: 6px 12px; font-size: 11px;">
             Fark Etmez
@@ -245,59 +217,114 @@ export async function renderCustomerScreen(onTabChange) {
           `).join('')}
         </div>
 
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">3. Tarih ve Müsait Saat</label>
-        <input type="date" value="${bookingState.date}" onchange="window.selectBookingDate(this.value)" class="input-field" style="margin-top: 4px; margin-bottom: 10px;">
+        <!-- STEP 3: DATE & TIME SELECT -->
+        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">3. Tarih ve Saat Seçin</label>
+        <div style="display: flex; gap: 6px; margin-top: 4px; margin-bottom: 10px;">
+          <button onclick="window.selectBookingDate('${todayDate}')" class="btn ${bookingState.date === todayDate ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">
+            ${t('today', currentLang)}
+          </button>
+          <button onclick="window.selectBookingDate('${tomorrowDate}')" class="btn ${bookingState.date === tomorrowDate ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">
+            ${t('tomorrow', currentLang)}
+          </button>
+          <input type="date" value="${bookingState.date}" onchange="window.selectBookingDate(this.value)" class="input-field" style="flex: 1; margin: 0; font-size: 11px; padding: 4px;">
+        </div>
 
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px;">
           ${slotsHtml}
         </div>
 
-        <button onclick="window.submitCustomerBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${!bookingState.serviceId || !bookingState.time ? 'disabled' : ''}>
-          ⚡ Randevuyu Onayla ve Gönder
+        <button onclick="window.submitCustomerBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${(!bookingState.serviceId || !bookingState.time) ? 'disabled' : ''}>
+          ⚡ ${t('confirmBooking', currentLang)}
         </button>
       </div>
     `;
   } else if (activeCustomerTab === 'appointments') {
     const userApts = await getAppointmentsForCustomer(user.uid);
+    const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'reschedule_requested'));
+    let pastApts = userApts.filter(apt => apt && (apt.status === 'completed' || apt.status === 'cancelled' || apt.status === 'rejected' || apt.status === 'no_show'));
+    
+    // CUSTOMER VIEW LIMIT: MAXIMUM LAST 5 PAST APPOINTMENTS
+    pastApts = pastApts.slice(0, 5);
 
-    let aptsListHtml = '';
-    if (userApts.length === 0) {
-      aptsListHtml = `<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">Henüz aktif bir randevunuz bulunmamaktadır.</div>`;
-    } else {
-      aptsListHtml = userApts.map(apt => `
-        <div class="card card-gold" style="padding: 14px; margin-bottom: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
-              <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time}</div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Kaynak: ${apt.source || 'ezo_discovery'} ${apt.isNewCustomerForBusiness ? '• ✨ Yeni Müşteri' : ''}</div>
-            </div>
-            <span class="badge ${apt.status === 'completed' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
+    const activeHtml = activeApts.map(apt => `
+      <div class="card card-gold" style="padding: 14px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
+            <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time}</div>
           </div>
-
-          ${apt.status === 'completed' ? `
-            <button onclick="window.openReviewModal('${apt.aptId}')" class="btn btn-outline-gold" style="width: 100%; margin-top: 8px; min-height: 32px; font-size: 11px;">
-              ⭐ Yorum Yap & Puan Ver
-            </button>
-          ` : ''}
+          <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
         </div>
-      `).join('');
-    }
+
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <button onclick="window.requestRescheduleAppointment('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px;">
+            🔄 Tarih/Saat Değiştir
+          </button>
+          <button onclick="window.cancelCustomerAppointment('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;">
+            ❌ İptal Et
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    const pastHtml = pastApts.map(apt => `
+      <div class="card" style="padding: 12px; margin-bottom: 8px; opacity: 0.8;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: #fff;">✂️ ${apt.serviceName}</div>
+            <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time}</div>
+          </div>
+          <span class="badge badge-secondary" style="font-size: 10px;">${apt.status.toUpperCase()}</span>
+        </div>
+      </div>
+    `).join('');
 
     mainHtml = `
       <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 Randevularım</h3>
-        ${aptsListHtml}
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 ${t('myAppointments', currentLang)}</h3>
+        <h4 style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Aktif Randevular</h4>
+        ${activeApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">Aktif randevunuz bulunmamaktadır.</div>' : activeHtml}
+
+        <h4 style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 16px; margin-bottom: 8px;">Geçmiş Randevular (Son 5)</h4>
+        ${pastApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Geçmiş randevu kaydı yok.</div>' : pastHtml}
+      </div>
+    `;
+  } else if (activeCustomerTab === 'ai') {
+    renderAiConsultantScreen(user, onTabChange);
+    return;
+  } else if (activeCustomerTab === 'profile') {
+    const langOptionsHtml = SUPPORTED_LANGUAGES.map(l => `
+      <option value="${l.code}" ${l.code === currentLang ? 'selected' : ''}>
+        ${l.flag} ${l.name}
+      </option>
+    `).join('');
+
+    mainHtml = `
+      <div class="card animate-fade">
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">👤 Profilim</h3>
+        <p style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${user.name}</p>
+        <p style="font-size: 12px; color: #fff; margin-bottom: 14px;"><strong>Telefon:</strong> ${user.phone}</p>
+
+        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">🌐 Dil Seçimi / Language</label>
+        <select onchange="window.changeCustomerLanguage(this.value)" class="input-field" style="margin-top: 4px; margin-bottom: 16px;">
+          ${langOptionsHtml}
+        </select>
+
+        <button onclick="window.logoutUserSession()" class="btn btn-secondary" style="width: 100%; min-height: 40px; border-color: #ef4444; color: #ef4444;">
+          🚪 ${t('logout', currentLang)}
+        </button>
       </div>
     `;
   }
 
+  // TOP BAR HEADER
   container.innerHTML = `
     <div class="header-bar">
       <div style="display: flex; align-items: center; gap: 8px;">
         <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="EZO Logo">
+        <span style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">${user.name}</span>
       </div>
-      <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
+      <div style="font-size: 11px; color: var(--text-muted);">${user.phone}</div>
     </div>
 
     ${mainHtml}
@@ -305,143 +332,66 @@ export async function renderCustomerScreen(onTabChange) {
     <nav class="bottom-nav">
       <button onclick="window.switchCustomerTab('home')" class="nav-item ${activeCustomerTab === 'home' ? 'active' : ''}">
         <span class="icon">🏠</span>
-        <span>Ana Sayfa</span>
+        <span>${t('homeTab', currentLang)}</span>
       </button>
       <button onclick="window.switchCustomerTab('salons')" class="nav-item ${activeCustomerTab === 'salons' ? 'active' : ''}">
         <span class="icon">💈</span>
-        <span>Salonlar</span>
+        <span>${t('salonsTab', currentLang)}</span>
       </button>
       <button onclick="window.switchCustomerTab('booking')" class="nav-item ${activeCustomerTab === 'booking' ? 'active' : ''}">
         <span class="icon">✂️</span>
-        <span>Randevu Al</span>
+        <span>${t('bookingTab', currentLang)}</span>
       </button>
       <button onclick="window.switchCustomerTab('ai')" class="nav-item ${activeCustomerTab === 'ai' ? 'active' : ''}">
         <span class="icon">🤖</span>
-        <span>AI Danışman</span>
+        <span>${t('aiTab', currentLang)}</span>
       </button>
-      <button onclick="window.switchCustomerTab('appointments')" class="nav-item ${activeCustomerTab === 'appointments' ? 'active' : ''}">
-        <span class="icon">📅</span>
-        <span>Randevularım</span>
+      <button onclick="window.switchCustomerTab('profile')" class="nav-item ${activeCustomerTab === 'profile' ? 'active' : ''}">
+        <span class="icon">👤</span>
+        <span>${t('profileTab', currentLang)}</span>
       </button>
     </nav>
   `;
 
-  window.switchCustomerTab = (tabKey) => {
-    activeCustomerTab = tabKey;
-    renderCustomerScreen(onTabChange);
+  // GLOBAL BINDINGS
+  window.switchCustomerTab = (tab) => {
+    activeCustomerTab = tab;
+    renderCustomerScreen(user, onTabChange);
   };
 
-  window.setDiscoverySearch = (q) => {
-    searchQuery = q;
-    renderCustomerScreen(onTabChange);
+  window.selectBookingService = (id, name, price, duration) => {
+    bookingState.serviceId = id;
+    bookingState.serviceName = name;
+    bookingState.servicePrice = price;
+    bookingState.serviceDuration = duration || 30;
+    renderCustomerScreen(user, onTabChange);
   };
 
-  window.requestGeolocation = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          userCoords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-          alert('📍 Konumunuz alındı! Yakındaki salonlar mesafeye göre sıralandı.');
-          renderCustomerScreen(onTabChange);
-        },
-        () => alert('⚠️ Konum izni alınamadı. Şehir araması kullanabilirsiniz.')
-      );
-    }
+  window.selectBookingStaff = (id, name) => {
+    bookingState.staffId = id;
+    bookingState.staffName = name;
+    renderCustomerScreen(user, onTabChange);
   };
 
-  window.toggleFavoriteSalon = async (bizId) => {
-    const favs = await fetchRecord(`users/${user.uid}/favorites`) || {};
-    const isFav = Boolean(favs[bizId]);
-    if (isFav) {
-      delete favs[bizId];
-    } else {
-      favs[bizId] = true;
-    }
-    await saveRecord(`users/${user.uid}/favorites`, favs);
-    renderCustomerScreen(onTabChange);
-  };
-
-  window.openReviewModal = (aptId) => {
-    const root = document.getElementById('modal-root');
-    if (!root) return;
-
-    root.innerHTML = `
-      <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card" onclick="event.stopPropagation()">
-          <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">⭐ Değerlendirme Yap</h3>
-          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Aldığınız hizmeti 1-5 yıldız arasında puanlayıp yorum yapabilirsiniz.</p>
-
-          <select id="rev-rating" class="input-field">
-            <option value="5">⭐⭐⭐⭐⭐ (5/5 Mükemmel)</option>
-            <option value="4">⭐⭐⭐⭐ (4/5 Çok İyi)</option>
-            <option value="3">⭐⭐⭐ (3/5 Orta)</option>
-            <option value="2">⭐⭐ (2/5 Zayıf)</option>
-            <option value="1">⭐ (1/5 Kötü)</option>
-          </select>
-
-          <textarea id="rev-comment" class="input-field" rows="3" placeholder="Yorumunuz..."></textarea>
-
-          <button onclick="window.submitReviewForm('${aptId}')" class="btn btn-gold" style="width: 100%; min-height: 40px;">
-            🚀 Yorumu Gönder
-          </button>
-        </div>
-      </div>
-    `;
-  };
-
-  window.submitReviewForm = async (aptId) => {
-    const rating = document.getElementById('rev-rating').value;
-    const comment = document.getElementById('rev-comment').value;
-
-    const res = await fetch('/api/reviews/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ appointmentId: aptId, customerUid: user.uid, rating, comment })
-    }).catch(() => null);
-
-    if (res && res.ok) {
-      alert('✅ Değerlendirmeniz başarıyla kaydedildi!');
-      window.closeModal();
-      renderCustomerScreen(onTabChange);
-      return;
-    }
-
-    // Direct Firebase Realtime DB Fallback for purely static hosting
-    const revId = 'rev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    await saveRecord(`reviews/${revId}`, {
-      reviewId: revId,
-      appointmentId: aptId,
-      customerUid: user.uid,
-      rating: parseInt(rating) || 5,
-      comment: comment || '',
-      createdAt: new Date().toISOString()
-    });
-    alert('✅ Değerlendirmeniz başarıyla kaydedildi!');
-    window.closeModal();
-    renderCustomerScreen(onTabChange);
-  };
-
-  window.selectBookingService = (svcId, svcName) => {
-    bookingState.serviceId = svcId;
-    bookingState.serviceName = svcName;
-    renderCustomerScreen(onTabChange);
-  };
-
-  window.selectBookingStaff = (staffId, staffName) => {
-    bookingState.staffId = staffId;
-    bookingState.staffName = staffName;
-    renderCustomerScreen(onTabChange);
-  };
-
-  window.selectBookingDate = (dateStr) => {
-    bookingState.date = dateStr;
+  window.selectBookingDate = (d) => {
+    bookingState.date = d;
     bookingState.time = null;
-    renderCustomerScreen(onTabChange);
+    renderCustomerScreen(user, onTabChange);
   };
 
-  window.selectBookingTime = (timeStr) => {
-    bookingState.time = timeStr;
-    renderCustomerScreen(onTabChange);
+  window.selectBookingTime = (t) => {
+    bookingState.time = t;
+    renderCustomerScreen(user, onTabChange);
+  };
+
+  window.changeCustomerLanguage = async (newLang) => {
+    await updateUserLanguage(newLang);
+    renderCustomerScreen(user, onTabChange);
+  };
+
+  window.logoutUserSession = () => {
+    localStorage.removeItem('ez2_session');
+    if (typeof onTabChange === 'function') onTabChange(null);
   };
 
   window.submitCustomerBooking = async () => {
@@ -462,18 +412,28 @@ export async function renderCustomerScreen(onTabChange) {
           staffId: bookingState.staffId,
           serviceId: bookingState.serviceId,
           serviceName: bookingState.serviceName,
+          servicePrice: bookingState.servicePrice,
+          serviceDuration: bookingState.serviceDuration,
           date: bookingState.date,
           time: bookingState.time,
-          source: activeCustomerTab === 'ai' ? 'ezo_ai' : 'ezo_discovery'
+          source: 'ezo_discovery'
         })
       });
 
       const resData = await res.json().catch(() => null);
 
       if (res.ok && resData && resData.success && (resData.aptId || resData.appointment)) {
-        alert('✅ Randevu talebiniz alındı! Bekleyen randevularınızda takip edebilirsiniz.');
+        const aptId = resData.aptId || (resData.appointment ? resData.appointment.aptId : 'apt_new');
+        window.openWhatsAppSmsModal('create', {
+          aptId,
+          serviceName: bookingState.serviceName,
+          date: bookingState.date,
+          time: bookingState.time,
+          customerName: user.name,
+          customerPhone: user.phone
+        });
         activeCustomerTab = 'appointments';
-        renderCustomerScreen(onTabChange);
+        renderCustomerScreen(user, onTabChange);
         return;
       }
 
@@ -486,57 +446,55 @@ export async function renderCustomerScreen(onTabChange) {
         alert(`❌ Hata (${res ? res.status : 'API'}): ${resData.error}`);
         return;
       }
-
-      if (res && !res.ok) {
-        alert(`❌ Hata (${res.status}): Randevu oluşturulamadı.`);
-        return;
-      }
     } catch (e) {
-      console.warn('Serverless API unreachable, attempting direct Firebase Realtime DB fallback:', e);
+      console.warn('Booking create error:', e);
     }
-
-    // Direct Firebase Realtime DB Fallback for purely static hosting (GitHub Pages)
-    const allAptsData = await fetchRecord('appointments') || {};
-    const allApts = Object.values(allAptsData);
-
-    const occupied = allApts.some(apt => 
-      apt && apt.businessId === bookingState.businessId &&
-      apt.staffId === bookingState.staffId &&
-      apt.date === bookingState.date &&
-      apt.time === bookingState.time &&
-      apt.status !== 'cancelled' && apt.status !== 'rejected'
-    );
-
-    if (occupied) {
-      alert('⚠️ Seçtiğiniz tarih ve saatte berber doludur. Lütfen başka bir saat seçiniz.');
-      return;
-    }
-
-    const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    const newApt = {
-      aptId,
-      businessId: bookingState.businessId,
-      customerUid: user.uid,
-      customerName: user.name,
-      customerPhone: user.phone,
-      staffId: bookingState.staffId,
-      serviceId: bookingState.serviceId,
-      serviceName: bookingState.serviceName,
-      date: bookingState.date,
-      time: bookingState.time,
-      status: 'pending',
-      source: activeCustomerTab === 'ai' ? 'ezo_ai' : 'ezo_discovery',
-      isNewCustomerForBusiness: true,
-      createdAt: new Date().toISOString()
-    };
-
-    await saveRecord(`appointments/${aptId}`, newApt);
-    alert('✅ Randevu talebiniz alındı! Bekleyen randevularınızda takip edebilirsiniz.');
-    activeCustomerTab = 'appointments';
-    renderCustomerScreen(onTabChange);
   };
 
-  window.triggerSalonApplication = () => {
-    openSalonApplicationWizard();
+  // WHATSAPP & SMS MODAL ENGINE
+  window.openWhatsAppSmsModal = (actionType, details) => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    const messageText = `EZO STİLE Bildirimi:\nİşlem: ${actionType.toUpperCase()}\nMüşteri: ${details.customerName} (${details.customerPhone})\nHizmet: ${details.serviceName}\nTarih: ${details.date} @ ${details.time}\nEZO STİLE üzerinden oluşturuldu.`;
+    const encodedText = encodeURIComponent(messageText);
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+          <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">
+            💬 Salon Sahibine Bildir
+          </h3>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
+            Randevunuz kaydedildi. İsterseniz salon sahibine doğrudan WhatsApp veya SMS ile bilgi mesajı gönderebilirsiniz.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <a href="https://wa.me/?text=${encodedText}" target="_blank" onclick="window.closeModal()" class="btn btn-gold" style="text-align: center; text-decoration: none;">
+              💬 ${t('notifyWhatsApp', currentLang)}
+            </a>
+            <a href="sms:?body=${encodedText}" target="_blank" onclick="window.closeModal()" class="btn btn-outline-gold" style="text-align: center; text-decoration: none;">
+              📱 ${t('notifySms', currentLang)}
+            </a>
+            <button onclick="window.closeModal()" class="btn btn-secondary">
+              ❌ ${t('notNow', currentLang)}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  window.cancelCustomerAppointment = async (aptId) => {
+    if (!confirm('Randevuyu iptal etmek istediğinize emin misiniz?')) return;
+    await saveRecord(`appointments/${aptId}/status`, 'cancelled');
+    alert('✅ Randevunuz iptal edildi.');
+    renderCustomerScreen(user, onTabChange);
+  };
+
+  window.requestRescheduleAppointment = async (aptId) => {
+    await saveRecord(`appointments/${aptId}/status`, 'reschedule_requested');
+    alert('✅ Randevu için tarih/saat değişiklik talebiniz salon sahibine iletildi.');
+    renderCustomerScreen(user, onTabChange);
   };
 }

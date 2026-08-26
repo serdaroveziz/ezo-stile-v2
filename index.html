@@ -53,11 +53,11 @@
       console.log('⚡ [EZO v2] Resolved User & Role:', user);
 
       if (user.role === 'super_admin') {
-        renderSuperAdminScreen();
+        renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser || getCurrentUser()));
       } else if (user.role === 'owner' || user.role === 'manager' || user.role === 'barber' || user.role === 'receptionist') {
-        renderOwnerScreen();
+        renderOwnerScreen(user, (updatedUser) => handleUserRouting(updatedUser || getCurrentUser()));
       } else {
-        renderCustomerScreen(() => handleUserRouting(getCurrentUser()));
+        renderCustomerScreen(user, (updatedUser) => handleUserRouting(updatedUser || getCurrentUser()));
       }
     }
 

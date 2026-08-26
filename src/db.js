@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Firebase Realtime Database Data Provider */
+﻿/* EZO STİLE v2 - Firebase Realtime Database Data Provider & Performance Index Engine */
 import { CONFIG } from './config.js';
 
 export async function fetchRecord(path) {
@@ -75,7 +75,7 @@ export async function approveSalonApplication(appId) {
   await saveRecord(`users/${app.applicantUid}`, {
     role: 'owner',
     businessId,
-    permissions: { 'business.manage': true, 'staff.manage': true, 'finance.view': true }
+    permissions: { business_manage: true, staff_manage: true, finance_view: true }
   }, 'PATCH');
 
   await saveRecord(`salon_applications/${appId}`, {
@@ -87,7 +87,7 @@ export async function approveSalonApplication(appId) {
   return { success: true, businessId };
 }
 
-/* --- PHASE 2: MULTI-TENANT BOOKING & SALON DATA SERVICES --- */
+/* --- MULTI-TENANT BOOKING & SALON DATA SERVICES --- */
 
 export async function getBusinessRecord(businessId) {
   if (!businessId) return null;
@@ -123,11 +123,43 @@ export async function saveStaff(businessId, staffData) {
 export async function getAppointmentsForBusiness(businessId) {
   const data = await fetchRecord('appointments');
   if (!data) return [];
-  return Object.values(data).filter(apt => apt && apt.businessId === businessId);
+  const list = Object.values(data).filter(apt => apt && apt.businessId === businessId);
+  return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
 export async function getAppointmentsForCustomer(customerUid) {
   const data = await fetchRecord('appointments');
   if (!data) return [];
-  return Object.values(data).filter(apt => apt && apt.customerUid === customerUid);
+  const list = Object.values(data).filter(apt => apt && apt.customerUid === customerUid);
+  return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+}
+
+/* --- 2-YEAR REVENUE SUMMARY ARCHIVE ENGINE --- */
+
+export async function getDailyRevenueSummaries(businessId) {
+  const data = await fetchRecord(`businesses/${businessId}/revenue_daily`);
+  if (!data) return [];
+  return Object.values(data);
+}
+
+export async function getMonthlyRevenueSummaries(businessId) {
+  const data = await fetchRecord(`businesses/${businessId}/revenue_monthly`);
+  if (!data) return [];
+  return Object.values(data);
+}
+
+export async function saveDailyRevenueSummary(businessId, dateStr, summaryData) {
+  return await saveRecord(`businesses/${businessId}/revenue_daily/${dateStr}`, {
+    date: dateStr,
+    updatedAt: new Date().toISOString(),
+    ...summaryData
+  });
+}
+
+export async function saveMonthlyRevenueSummary(businessId, monthStr, summaryData) {
+  return await saveRecord(`businesses/${businessId}/revenue_monthly/${monthStr}`, {
+    month: monthStr,
+    updatedAt: new Date().toISOString(),
+    ...summaryData
+  });
 }

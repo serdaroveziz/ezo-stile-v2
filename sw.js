@@ -1,5 +1,5 @@
-﻿// EZO STİLE v2 Service Worker v2.0.0
-const CACHE_NAME = 'ezo-stile-v2.0.0';
+﻿// EZO STİLE v2 Service Worker v2.0.1
+const CACHE_NAME = 'ezo-stile-v2.0.1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -21,6 +21,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // NEVER INTERCEPT API CALLS
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );
