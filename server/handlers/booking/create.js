@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Atomic Serverless Double Booking Prevention & Source Attribution Endpoint */
+﻿/* EZO STİLE v2 - Atomic Serverless Double Booking Prevention & Interval Overlap Check */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { businessId, customerUid, customerName, customerPhone, staffId, serviceId, serviceName, date, time, source } = req.body || {};
+    const { businessId, customerUid, customerName, customerPhone, staffId, serviceId, serviceName, servicePrice, serviceDuration, date, time, source } = req.body || {};
 
     if (!businessId || !customerUid || !staffId || !serviceId || !date || !time) {
       return res.status(400).json({ error: 'Eksik randevu bilgileri' });
@@ -22,25 +22,38 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Bu salon şu anda askıya alınmıştır. Yeni randevu oluşturulamaz.' });
     }
 
-    // 2. BACKEND DOUBLE BOOKING TRANSACTIONAL CHECK
+    // 2. BACKEND INTERVAL OVERLAP CHECK (startTime -> endTime)
+    const durationMinutes = parseInt(serviceDuration) || 30;
+    const [startH, startM] = time.split(':').map(Number);
+    const newStartMins = startH * 60 + startM;
+    const newEndMins = newStartMins + durationMinutes;
+
+    const endH = Math.floor(newEndMins / 60);
+    const endM = newEndMins % 60;
+    const endTimeStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+
     const allAptsRes = await fetch(`${FIREBASE_DB_URL}/appointments.json`);
     const allAptsData = allAptsRes.ok ? await allAptsRes.json() : null;
     const allApts = allAptsData ? Object.values(allAptsData) : [];
 
-    const existingConflict = allApts.find(apt => 
-      apt &&
-      apt.businessId === businessId &&
-      (apt.staffId === staffId || staffId === 'staff-any') &&
-      apt.date === date &&
-      apt.time === time &&
-      apt.status !== 'cancelled' &&
-      apt.status !== 'rejected'
-    );
+    const existingConflict = allApts.find(apt => {
+      if (!apt || apt.businessId !== businessId || apt.date !== date) return false;
+      if (apt.status === 'cancelled' || apt.status === 'rejected') return false;
+      if (apt.staffId !== staffId && staffId !== 'staff-any' && apt.staffId !== 'staff-any') return false;
+
+      const aptDuration = parseInt(apt.serviceDuration) || 30;
+      const [exH, exM] = (apt.time || '00:00').split(':').map(Number);
+      const exStartMins = exH * 60 + exM;
+      const exEndMins = exStartMins + aptDuration;
+
+      // Interval overlap check: (newStart < exEnd && newEnd > exStart)
+      return (newStartMins < exEndMins && newEndMins > exStartMins);
+    });
 
     if (existingConflict) {
-      console.warn(`[DOUBLE BOOKING PREVENTED] Conflict detected for Business: ${businessId}, Staff: ${staffId}, Date: ${date}, Time: ${time}`);
+      console.warn(`[DOUBLE BOOKING PREVENTED] Interval conflict detected for Business: ${businessId}, Staff: ${staffId}, Time Range: ${time}-${endTimeStr}`);
       return res.status(409).json({
-        error: 'Bu tarih ve saatte seçili personel doludur. Lütfen başka bir saat seçiniz.',
+        error: `Seçtiğiniz ${time} - ${endTimeStr} aralığında seçili berber doludur. Lütfen başka bir saat seçiniz.`,
         conflictAptId: existingConflict.aptId
       });
     }
@@ -56,7 +69,7 @@ export default async function handler(req, res) {
     const isNewCustomerForBusiness = !priorCompletedApt;
     const bookingSource = source || 'ezo_discovery';
 
-    // 4. SAVE NEW APPOINTMENT WITH SOURCE ATTRIBUTION
+    // 4. SAVE NEW APPOINTMENT WITH START & END TIME AND DURATION
     const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const appointmentRecord = {
       aptId,
@@ -67,8 +80,12 @@ export default async function handler(req, res) {
       staffId,
       serviceId,
       serviceName: serviceName || 'Hizmet',
+      servicePrice: parseInt(servicePrice) || 350,
+      serviceDuration: durationMinutes,
       date,
       time,
+      startTime: time,
+      endTime: endTimeStr,
       status: 'pending',
       source: bookingSource,
       isNewCustomerForBusiness,

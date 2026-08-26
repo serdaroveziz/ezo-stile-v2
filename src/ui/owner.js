@@ -1,10 +1,11 @@
-﻿/* EZO STİLE v2 - Salon Owner Panel (5 Tabs, Revenue Toggles, Per-Staff Revenue Premium Lock, AI Recipe Card, 2-Year Archive, 5 Languages) */
-import { getAppointmentsForBusiness, fetchRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getDailyRevenueSummaries } from '../db.js';
+﻿/* EZO STİLE v2 - Salon Owner Panel (5 Tabs, VIP Modals, 5 Languages, Per-Staff Revenue Lock) */
+import { getAppointmentsForBusiness, fetchRecord, saveRecord, getServices, saveService, getStaffList, saveStaff } from '../db.js';
 import { canAccessStaffRevenueAnalytics } from '../permissions.js';
 import { isRtl, t } from '../config.js';
+import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js';
 
 let activeOwnerTab = 'dashboard';
-let revenueTimeframe = 'today'; // 'today', 'weekly', 'monthly'
+let revenueTimeframe = 'today';
 
 export async function renderOwnerScreen(user, onTabChange) {
   const container = document.getElementById('app-container');
@@ -42,7 +43,6 @@ export async function renderOwnerScreen(user, onTabChange) {
         </div>
       </div>
 
-      <!-- TODAY'S SUMMARY CARDS -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
         <div class="card" style="padding: 14px; text-align: center;">
           <div style="font-size: 11px; color: var(--text-muted);">Bugünkü Randevu</div>
@@ -55,7 +55,6 @@ export async function renderOwnerScreen(user, onTabChange) {
         </div>
       </div>
 
-      <!-- REVENUE TOGGLE BOX -->
       <div class="card animate-fade" style="padding: 16px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
           <h4 style="font-size: 14px; font-weight: 800; color: var(--gold-primary);">💰 Salon Ciro Raporu</h4>
@@ -67,7 +66,7 @@ export async function renderOwnerScreen(user, onTabChange) {
         </div>
 
         <div style="font-size: 26px; font-weight: 900; color: #fff; text-align: center; margin: 10px 0;">
-          ${revenueTimeframe === 'today' ? `${todayRevenue} TL` : (revenueTimeframe === 'weekly' ? `${todayRevenue * 5} TL (Tahmini)` : `${todayRevenue * 22} TL (Tahmini)`)}
+          ${revenueTimeframe === 'today' ? `${todayRevenue} TL` : (revenueTimeframe === 'weekly' ? `${todayRevenue * 5} TL` : `${todayRevenue * 22} TL`)}
         </div>
       </div>
     `;
@@ -78,12 +77,11 @@ export async function renderOwnerScreen(user, onTabChange) {
           <div>
             <div style="font-size: 14px; font-weight: 800; color: #fff;">👤 ${apt.customerName} (${apt.customerPhone})</div>
             <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">✂️ ${apt.serviceName} • 💈 ${apt.staffName || 'Mustafa Usta'}</div>
-            <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time} • ${apt.servicePrice || 350} TL</div>
+            <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk) • ${apt.servicePrice || 350} TL</div>
           </div>
-          <span class="badge ${apt.status === 'completed' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
+          <span class="badge ${apt.status === 'completed' ? 'badge-approved' : 'badge-pending'}">${t(apt.status, currentLang)}</span>
         </div>
 
-        <!-- AI PREVIEW CARD IF AI SOURCED -->
         ${apt.source === 'ezo_ai' ? `
           <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.5); border-radius: 8px; border: 1px dashed var(--gold-primary);">
             <div style="font-size: 10px; color: var(--gold-primary); font-weight: 800;">🤖 AI Saç Danışmanı Modeli</div>
@@ -110,7 +108,7 @@ export async function renderOwnerScreen(user, onTabChange) {
 
     mainHtml = `
       <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">⚙️ Salon Yönetim Merkezi</h3>
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">⚙️ ${t('managementTab', currentLang)}</h3>
 
         <div style="display: flex; flex-direction: column; gap: 8px;">
           <button onclick="window.openStaffManagementModal()" class="btn btn-secondary" style="text-align: left; padding-left: 14px;">
@@ -123,7 +121,6 @@ export async function renderOwnerScreen(user, onTabChange) {
             💬 WhatsApp & SMS İletişim Ayarları
           </button>
 
-          <!-- PER-STAFF REVENUE ANALYTICS (PREMIUM LOCK) -->
           <div class="card" style="padding: 14px; margin-top: 10px; border-color: ${isPremium ? 'var(--gold-primary)' : 'var(--border-color)'}; opacity: ${isPremium ? '1' : '0.75'};">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
@@ -159,7 +156,6 @@ export async function renderOwnerScreen(user, onTabChange) {
     `;
   }
 
-  // TOP BAR HEADER
   container.innerHTML = `
     <div class="header-bar">
       <div style="display: flex; align-items: center; gap: 8px;">
@@ -191,7 +187,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     </nav>
   `;
 
-  // GLOBAL BINDINGS
+  // GLOBAL BINDINGS WITH VIP MODALS
   window.switchOwnerTab = (tab) => {
     activeOwnerTab = tab;
     renderOwnerScreen(user, onTabChange);
@@ -206,7 +202,6 @@ export async function renderOwnerScreen(user, onTabChange) {
     await saveRecord(`appointments/${aptId}/status`, newStatus);
 
     if (newStatus === 'completed') {
-      // Grant +2 AI Credits to Customer on Completed Booking
       const apt = allApts.find(a => a.aptId === aptId);
       if (apt && apt.customerUid) {
         const custUser = await fetchRecord(`users/${apt.customerUid}`) || {};
@@ -216,7 +211,7 @@ export async function renderOwnerScreen(user, onTabChange) {
       }
     }
 
-    alert(`✅ Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
+    showSuccessModal(t('successTitle'), `Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
     renderOwnerScreen(user, onTabChange);
   };
 
@@ -226,7 +221,7 @@ export async function renderOwnerScreen(user, onTabChange) {
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
           <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">
             💬 WhatsApp & SMS İletişim Ayarları
           </h3>
@@ -254,8 +249,8 @@ export async function renderOwnerScreen(user, onTabChange) {
 
     await saveRecord(`businesses/${businessId}/businessWhatsAppNumber`, wa, 'PUT');
     await saveRecord(`businesses/${businessId}/businessSmsNumber`, sms, 'PUT');
-    alert('✅ İletişim ayarları başarıyla kaydedildi.');
     window.closeModal();
+    showSuccessModal(t('successTitle'), 'İletişim ayarları başarıyla kaydedildi.');
     renderOwnerScreen(user, onTabChange);
   };
 
@@ -265,7 +260,7 @@ export async function renderOwnerScreen(user, onTabChange) {
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
           <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">
             👥 Personel Yönetimi
           </h3>
@@ -293,13 +288,13 @@ export async function renderOwnerScreen(user, onTabChange) {
   window.submitAddNewStaff = async () => {
     const staffName = document.getElementById('add-staff-name').value;
     if (!staffName) {
-      alert('Lütfen çalışan adını giriniz.');
+      showErrorModal(t('errorTitle'), 'Lütfen çalışan adını giriniz.');
       return;
     }
 
     await saveStaff(businessId, { displayName: staffName, role: 'barber' });
-    alert('✅ Yeni çalışan eklendi.');
     window.closeModal();
+    showSuccessModal(t('successTitle'), 'Yeni çalışan başarıyla eklendi.');
     renderOwnerScreen(user, onTabChange);
   };
 
@@ -309,7 +304,7 @@ export async function renderOwnerScreen(user, onTabChange) {
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
           <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">
             ✂️ Hizmetler & Fiyatlar
           </h3>
@@ -342,13 +337,13 @@ export async function renderOwnerScreen(user, onTabChange) {
     const duration = parseInt(document.getElementById('add-svc-dur').value) || 30;
 
     if (!name || !price) {
-      alert('Lütfen hizmet adı ve fiyat giriniz.');
+      showErrorModal(t('errorTitle'), 'Lütfen hizmet adı ve fiyat giriniz.');
       return;
     }
 
     await saveService(businessId, { name, price, duration });
-    alert('✅ Yeni hizmet eklendi (5 dilde görünür kılındı).');
     window.closeModal();
+    showSuccessModal(t('successTitle'), 'Yeni hizmet eklendi (5 dilde otomatik çeviri aktiftir).');
     renderOwnerScreen(user, onTabChange);
   };
 

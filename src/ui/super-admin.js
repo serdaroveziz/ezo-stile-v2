@@ -1,5 +1,6 @@
-﻿/* EZO STİLE v2 - Super Admin Command Center (Support Viewing Mode, Max 2 Free Premium Grants) */
+﻿/* EZO STİLE v2 - Super Admin Command Center (VIP Modals, Support Viewing Mode, Max 2 Free Premium Grants) */
 import { getSalonApplications, approveSalonApplication, fetchRecord, saveRecord } from '../db.js';
+import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js';
 
 let activeAdminTab = 'dashboard';
 
@@ -151,7 +152,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
     </nav>
   `;
 
-  // GLOBAL BINDINGS
+  // GLOBAL BINDINGS WITH VIP MODALS
   window.switchAdminTab = (tab) => {
     activeAdminTab = tab;
     renderSuperAdminScreen(user, onTabChange);
@@ -160,10 +161,10 @@ export async function renderSuperAdminScreen(user, onTabChange) {
   window.approveSalonAppAdmin = async (appId) => {
     const res = await approveSalonApplication(appId);
     if (res && res.success) {
-      alert(`✅ Salon başvurusu onaylandı. Yeni Business ID: ${res.businessId}`);
+      showSuccessModal('Başarılı', `✅ Salon başvurusu onaylandı. Yeni Business ID: ${res.businessId}`);
       renderSuperAdminScreen(user, onTabChange);
     } else {
-      alert(`❌ Onay başarısız: ${(res && res.error) ? res.error : 'Hata'}`);
+      showErrorModal('Hata', `❌ Onay başarısız: ${(res && res.error) ? res.error : 'Hata'}`);
     }
   };
 
@@ -172,20 +173,18 @@ export async function renderSuperAdminScreen(user, onTabChange) {
     if (!biz) return;
 
     if (biz.premiumSource === 'super_admin_grant') {
-      // REMOVE GRANT -> FALL BACK TO ACTIVE PAID PLAN OR FREE
       await saveRecord(`businesses/${businessId}/plan`, 'FREE', 'PUT');
       await saveRecord(`businesses/${businessId}/premiumSource`, null, 'DELETE');
-      alert('✅ Ücretsiz Premium Grant kaldırıldı. Salon FREE pakete döndürüldü.');
+      showSuccessModal('Başarılı', 'Ücretsiz Premium Grant kaldırıldı. Salon FREE pakete döndürüldü.');
     } else {
-      // MAX 2 FREE PREMIUM GRANTS GUARD
       if (grantedSalons.length >= 2) {
-        alert('⚠️ En fazla 2 salona ücretsiz Premium grant verilebilir. Önce mevcut grantlardan birini kaldırınız.');
+        showErrorModal('Limit Aşımı', '⚠️ En fazla 2 salona ücretsiz Premium grant verilebilir. Önce mevcut grantlardan birini kaldırınız.');
         return;
       }
 
       await saveRecord(`businesses/${businessId}/plan`, 'PREMIUM', 'PUT');
       await saveRecord(`businesses/${businessId}/premiumSource`, 'super_admin_grant', 'PUT');
-      alert('⚡ Ücretsiz Süresiz Premium Grant başarıyla tanımlandı (Audit log kaydı yazıldı).');
+      showSuccessModal('Başarılı', '⚡ Ücretsiz Süresiz Premium Grant başarıyla tanımlandı (Audit log kaydı yazıldı).');
     }
 
     renderSuperAdminScreen(user, onTabChange);
@@ -196,7 +195,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
     if (!biz) return;
     const newStatus = biz.status === 'suspended' ? 'active' : 'suspended';
     await saveRecord(`businesses/${businessId}/status`, newStatus, 'PUT');
-    alert(`✅ Salon durumu '${newStatus.toUpperCase()}' yapıldı.`);
+    showSuccessModal('Başarılı', `Salon durumu '${newStatus.toUpperCase()}' yapıldı.`);
     renderSuperAdminScreen(user, onTabChange);
   };
 }

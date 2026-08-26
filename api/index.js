@@ -1,31 +1,52 @@
 ﻿/* EZO STİLE v2 - Central Vercel Catch-All Router (1 Single Function for Vercel Hobby Limit) */
 import url from 'url';
 
+function extractRoutePath(req) {
+  const reqUrl = req.url || '';
+  const parsedUrl = url.parse(reqUrl, true);
+
+  // A. Check explicit query parameter 'path' (e.g. ?path=booking/create)
+  if (parsedUrl.query && parsedUrl.query.path) {
+    let p = String(parsedUrl.query.path).trim();
+    if (p && p !== 'index' && p !== 'api') return p;
+  }
+
+  // B. If req.url contains ?path= or &path=
+  if (reqUrl.includes('path=')) {
+    const qMatch = reqUrl.match(/[?&]path=([^&]+)/);
+    if (qMatch && qMatch[1]) {
+      let p = decodeURIComponent(qMatch[1]).trim();
+      if (p && p !== 'index' && p !== 'api') return p;
+    }
+  }
+
+  // C. Check headers if passed by Vercel
+  const matchedHeader = req.headers && (req.headers['x-matched-path'] || req.headers['x-now-route-matches']);
+  if (matchedHeader) {
+    const match = String(matchedHeader).match(/path=([^&]+)/);
+    if (match && match[1]) {
+      let p = match[1].trim();
+      if (p && p !== 'index' && p !== 'api') return p;
+    }
+  }
+
+  // D. Extract directly from pathname (e.g. /api/booking/create -> booking/create)
+  let rawPath = parsedUrl.pathname || reqUrl.split('?')[0] || '';
+  
+  rawPath = rawPath
+    .replace(/^\/?(api\/)?/, '')
+    .replace(/^index\/?/, '')
+    .replace(/\/$/, '')
+    .trim();
+
+  return rawPath;
+}
+
 export default async function handler(req, res) {
   try {
-    const parsedUrl = url.parse(req.url, true);
-    let routePath = '';
+    const routePath = extractRoutePath(req);
 
-    // 1. Check query parameter 'path' (e.g. /api/index?path=booking/create)
-    if (parsedUrl.query && parsedUrl.query.path) {
-      routePath = parsedUrl.query.path;
-    } 
-    // 2. Check x-matched-path header if passed by Vercel
-    else if (req.headers && req.headers['x-matched-path']) {
-      routePath = req.headers['x-matched-path'];
-    }
-    // 3. Fallback to raw pathname (e.g. /api/booking/create)
-    else if (parsedUrl.pathname) {
-      routePath = parsedUrl.pathname;
-    }
-
-    // Strip leading /api/, leading / and trailing /
-    routePath = String(routePath)
-      .replace(/^\/?(api\/)?/, '')
-      .replace(/\/$/, '')
-      .split('?')[0];
-
-    console.log(`[API ROUTER] Processing incoming request -> Method: ${req.method}, Matched RoutePath: '${routePath}'`);
+    console.log(`[API ROUTER] Incoming Request -> Method: ${req.method}, URL: ${req.url}, Extracted Route: '${routePath}'`);
 
     if (!routePath || routePath === 'index' || routePath === 'api') {
       return res.status(200).json({
@@ -45,12 +66,13 @@ export default async function handler(req, res) {
       console.warn(`[API ROUTER] Handler module not found for route: '${routePath}'`, importErr.message);
       return res.status(404).json({
         error: `API endpoint '${routePath}' bulunamadı veya Vercel Router tarafından eşleştirilemedi.`,
-        routePath
+        routePath,
+        url: req.url
       });
     }
 
   } catch (err) {
     console.error('[API ROUTER ERROR]', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error', message: err.message });
   }
 }

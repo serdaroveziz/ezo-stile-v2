@@ -1,7 +1,8 @@
-﻿/* EZO STİLE v2 - Customer Final Panel (5 Tabs, 4 Action Buttons, 5-Step Booking, Duration Overlap Engine, Slot Colors, WhatsApp/SMS Modal, 5 Languages, RTL) */
+﻿/* EZO STİLE v2 - Customer Final Panel (Closed Service Selector, 5 Languages, RTL, Custom VIP Modals) */
 import { getAppointmentsForCustomer, fetchRecord, saveRecord, getServices, getStaffList } from '../db.js';
 import { updateUserLanguage } from '../auth.js';
-import { SUPPORTED_LANGUAGES, isRtl, t } from '../config.js';
+import { SUPPORTED_LANGUAGES, isRtl, t, autoTranslateCustomContent } from '../config.js';
+import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js';
 import { renderAiConsultantScreen } from './ai-consultant.js';
 
 let activeCustomerTab = 'home';
@@ -17,9 +18,7 @@ let bookingState = {
   time: null
 };
 
-let userFavoritesMap = null;
 let searchQuery = '';
-let nearbyGeoLocation = null;
 
 export async function renderCustomerScreen(user, onTabChange) {
   const container = document.getElementById('app-container');
@@ -28,10 +27,6 @@ export async function renderCustomerScreen(user, onTabChange) {
   const currentLang = user.language || 'tr';
   const rtl = isRtl(currentLang);
   document.documentElement.dir = rtl ? 'rtl' : 'ltr';
-
-  if (!userFavoritesMap) {
-    userFavoritesMap = await fetchRecord(`users/${user.uid}/favorites`) || {};
-  }
 
   let mainHtml = '';
 
@@ -71,18 +66,22 @@ export async function renderCustomerScreen(user, onTabChange) {
     `;
   } else if (activeCustomerTab === 'salons') {
     const allBusinessesData = await fetchRecord('businesses') || {};
-    let salons = Object.values(allBusinessesData).filter(b => b && b.status !== 'suspended');
+    
+    // PRODUCTION DISCOVERY FILTER: ONLY active, approved, discoveryEnabled salons (Exclude test fixtures)
+    let salons = Object.values(allBusinessesData).filter(b => 
+      b && 
+      b.status !== 'suspended' && 
+      b.bookingEnabled !== false &&
+      !String(b.name || '').toLowerCase().includes('router') &&
+      !String(b.name || '').toLowerCase().includes('test')
+    );
 
-    salons = salons.map(b => {
-      let dist = null;
-      if (nearbyGeoLocation && b.lat && b.lng) {
-        const rad = Math.PI / 180;
-        const dLat = (b.lat - nearbyGeoLocation.lat) * rad;
-        const dLng = (b.lng - nearbyGeoLocation.lng) * rad;
-        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(nearbyGeoLocation.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        dist = Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
-      }
-      return { ...b, distanceKm: dist };
+    // Deduplicate by businessId
+    const seenIds = new Set();
+    salons = salons.filter(b => {
+      if (seenIds.has(b.businessId)) return false;
+      seenIds.add(b.businessId);
+      return true;
     });
 
     if (searchQuery) {
@@ -102,14 +101,14 @@ export async function renderCustomerScreen(user, onTabChange) {
           <span class="badge badge-approved">⭐ ${b.averageRating || '4.9'}</span>
         </div>
         <button class="btn btn-gold" style="width: 100%; margin-top: 10px; min-height: 36px; font-size: 11px;">
-          ✂️ Randevu Al →
+          ✂️ ${t('bookAppointment', currentLang)} →
         </button>
       </div>
     `).join('');
 
     mainHtml = `
       <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">💈 VIP Salon Keşfet</h3>
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">💈 ${t('discoverSalons', currentLang)}</h3>
         <input type="text" placeholder="Salon adı veya semt ara..." value="${searchQuery}" oninput="window.setDiscoverySearch(this.value)" class="input-field">
         ${salons.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">Salon bulunamadı.</div>' : salonCardsHtml}
       </div>
@@ -120,7 +119,7 @@ export async function renderCustomerScreen(user, onTabChange) {
     const allAptsData = await fetchRecord('appointments') || {};
     const allApts = Object.values(allAptsData);
 
-    // DURATION OVERLAP & OCCUPIED SLOTS CALCULATION
+    // DURATION OVERLAP CALCULATION
     const occupiedSlots = new Set();
     allApts.forEach(apt => {
       if (apt && apt.businessId === bookingState.businessId &&
@@ -128,12 +127,11 @@ export async function renderCustomerScreen(user, onTabChange) {
           apt.date === bookingState.date &&
           apt.status !== 'cancelled' && apt.status !== 'rejected') {
         
-        const aptDuration = apt.serviceDuration || 30;
+        const aptDuration = parseInt(apt.serviceDuration) || 30;
         const [h, m] = (apt.time || '00:00').split(':').map(Number);
         const startMins = h * 60 + m;
         const endMins = startMins + aptDuration;
 
-        // Block all 30-min intervals falling within this appointment
         for (let t = 9 * 60; t <= 20 * 60 + 30; t += 30) {
           if (t >= startMins && t < endMins) {
             const slotHourStr = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
@@ -145,7 +143,6 @@ export async function renderCustomerScreen(user, onTabChange) {
 
     const allHours = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'];
 
-    // FILTER PAST HOURS FOR TODAY
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const currentMins = now.getHours() * 60 + now.getMinutes();
@@ -186,26 +183,28 @@ export async function renderCustomerScreen(user, onTabChange) {
 
     mainHtml = `
       <div class="card card-gold animate-fade" style="padding: 18px;">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">✂️ Randevu Al</h3>
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">✂️ ${t('bookAppointment', currentLang)}</h3>
 
-        <!-- STEP 1: SERVICE SELECT (NO DEFAULT CHOICE) -->
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">1. Hizmet Seçin (Zorunlu)</label>
-        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; margin-top: 4px;">
-          ${(services.length > 0 ? services : [
-            { id: 'svc_1', name: 'Saç Kesimi & Sakal', price: 350, duration: 45 },
-            { id: 'svc_2', name: 'VIP Saç & Cilt Bakımı', price: 500, duration: 60 }
-          ]).map(s => `
-            <div onclick="window.selectBookingService('${s.id}', '${s.name}', ${s.price}, ${s.duration || 30})" class="card" style="padding: 10px; margin: 0; cursor: pointer; border-color: ${bookingState.serviceId === s.id ? 'var(--gold-primary)' : 'var(--border-color)'}; background: ${bookingState.serviceId === s.id ? 'rgba(245,158,11,0.15)' : 'transparent'};">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 12px; font-weight: 700; color: #fff;">${s.name} (${s.duration || 30} dk)</span>
-                <span style="font-size: 12px; color: var(--gold-primary); font-weight: 800;">${s.price} TL</span>
+        <!-- STEP 1: INITIALLY CLOSED SERVICE SELECTOR BUTTON (REQUIREMENT 2) -->
+        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">1. Hizmet Seçimi</label>
+        <div style="margin-top: 4px; margin-bottom: 14px;">
+          ${bookingState.serviceId ? `
+            <div class="card" style="padding: 12px; margin: 0; border-color: var(--gold-primary); background: rgba(245,158,11,0.12); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 13px; font-weight: 800; color: #fff;">✂️ ${bookingState.serviceName} (${bookingState.serviceDuration} dk)</div>
+                <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700; margin-top: 2px;">${bookingState.servicePrice} TL</div>
               </div>
+              <button onclick="window.openServiceSelectionModal()" class="btn btn-outline-gold" style="padding: 4px 8px; font-size: 10px;">Değiştir</button>
             </div>
-          `).join('')}
+          ` : `
+            <button onclick="window.openServiceSelectionModal()" class="btn btn-outline-gold" style="width: 100%; min-height: 44px; font-size: 13px; font-weight: 800;">
+              ${t('selectServiceBtn', currentLang)}
+            </button>
+          `}
         </div>
 
         <!-- STEP 2: STAFF SELECT -->
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">2. Berber / Uzman Seçin</label>
+        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">2. ${t('selectStaff', currentLang)}</label>
         <div style="display: flex; gap: 6px; margin-bottom: 14px; margin-top: 4px; overflow-x: auto;">
           <button onclick="window.selectBookingStaff('staff-any', 'Fark Etmez')" class="btn ${bookingState.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="padding: 6px 12px; font-size: 11px;">
             Fark Etmez
@@ -218,7 +217,7 @@ export async function renderCustomerScreen(user, onTabChange) {
         </div>
 
         <!-- STEP 3: DATE & TIME SELECT -->
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">3. Tarih ve Saat Seçin</label>
+        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">3. ${t('selectDateTime', currentLang)}</label>
         <div style="display: flex; gap: 6px; margin-top: 4px; margin-bottom: 10px;">
           <button onclick="window.selectBookingDate('${todayDate}')" class="btn ${bookingState.date === todayDate ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">
             ${t('today', currentLang)}
@@ -243,7 +242,6 @@ export async function renderCustomerScreen(user, onTabChange) {
     const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'reschedule_requested'));
     let pastApts = userApts.filter(apt => apt && (apt.status === 'completed' || apt.status === 'cancelled' || apt.status === 'rejected' || apt.status === 'no_show'));
     
-    // CUSTOMER VIEW LIMIT: MAXIMUM LAST 5 PAST APPOINTMENTS
     pastApts = pastApts.slice(0, 5);
 
     const activeHtml = activeApts.map(apt => `
@@ -251,17 +249,17 @@ export async function renderCustomerScreen(user, onTabChange) {
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
             <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
-            <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time}</div>
+            <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk)</div>
           </div>
-          <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${apt.status.toUpperCase()}</span>
+          <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${t(apt.status, currentLang)}</span>
         </div>
 
         <div style="display: flex; gap: 8px; margin-top: 10px;">
           <button onclick="window.requestRescheduleAppointment('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px;">
-            🔄 Tarih/Saat Değiştir
+            ${t('rescheduleAppointment', currentLang)}
           </button>
           <button onclick="window.cancelCustomerAppointment('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;">
-            ❌ İptal Et
+            ${t('cancelAppointment', currentLang)}
           </button>
         </div>
       </div>
@@ -274,7 +272,7 @@ export async function renderCustomerScreen(user, onTabChange) {
             <div style="font-size: 13px; font-weight: 700; color: #fff;">✂️ ${apt.serviceName}</div>
             <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time}</div>
           </div>
-          <span class="badge badge-secondary" style="font-size: 10px;">${apt.status.toUpperCase()}</span>
+          <span class="badge badge-secondary" style="font-size: 10px;">${t(apt.status, currentLang)}</span>
         </div>
       </div>
     `).join('');
@@ -293,26 +291,41 @@ export async function renderCustomerScreen(user, onTabChange) {
     renderAiConsultantScreen(user, onTabChange);
     return;
   } else if (activeCustomerTab === 'profile') {
-    const langOptionsHtml = SUPPORTED_LANGUAGES.map(l => `
-      <option value="${l.code}" ${l.code === currentLang ? 'selected' : ''}>
-        ${l.flag} ${l.name}
-      </option>
-    `).join('');
+    // FINAL CUSTOMER PROFILE LAYOUT (REQUIREMENT 6)
+    const currentLangObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || SUPPORTED_LANGUAGES[0];
 
     mainHtml = `
-      <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">👤 Profilim</h3>
-        <p style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${user.name}</p>
-        <p style="font-size: 12px; color: #fff; margin-bottom: 14px;"><strong>Telefon:</strong> ${user.phone}</p>
+      <div class="card animate-fade" style="padding: 20px;">
+        <div style="text-align: center; margin-bottom: 16px;">
+          <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--gold-gradient); display: inline-flex; align-items: center; justify-content: center; font-size: 32px; color: #000; margin-bottom: 8px;">
+            👤
+          </div>
+          <h3 style="font-size: 16px; font-weight: 800; color: #fff;">${user.name}</h3>
+          <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
+        </div>
 
-        <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">🌐 Dil Seçimi / Language</label>
-        <select onchange="window.changeCustomerLanguage(this.value)" class="input-field" style="margin-top: 4px; margin-bottom: 16px;">
-          ${langOptionsHtml}
-        </select>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button onclick="window.openLanguageModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🌐 ${t('language', currentLang)}</span>
+            <span style="font-size: 12px; color: var(--gold-primary);">${currentLangObj.flag} ${currentLangObj.name}</span>
+          </button>
 
-        <button onclick="window.logoutUserSession()" class="btn btn-secondary" style="width: 100%; min-height: 40px; border-color: #ef4444; color: #ef4444;">
-          🚪 ${t('logout', currentLang)}
-        </button>
+          <button onclick="window.showCustomerToast('${t('notificationSettings', currentLang)}')" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
+            ${t('notificationSettings', currentLang)}
+          </button>
+
+          <button onclick="window.showCustomerToast('${t('privacyAccount', currentLang)}')" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
+            ${t('privacyAccount', currentLang)}
+          </button>
+
+          <button onclick="window.showCustomerToast('${t('helpSupport', currentLang)}')" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
+            ${t('helpSupport', currentLang)}
+          </button>
+
+          <button onclick="window.logoutUserSession()" class="btn btn-secondary" style="width: 100%; margin-top: 10px; min-height: 42px; border-color: #ef4444; color: #ef4444;">
+            🚪 ${t('logout', currentLang)}
+          </button>
+        </div>
       </div>
     `;
   }
@@ -353,17 +366,72 @@ export async function renderCustomerScreen(user, onTabChange) {
     </nav>
   `;
 
-  // GLOBAL BINDINGS
-  window.switchCustomerTab = (tab) => {
-    activeCustomerTab = tab;
-    renderCustomerScreen(user, onTabChange);
+  // SERVICE SELECTION BOTTOM SHEET MODAL (REQUIREMENT 2)
+  window.openServiceSelectionModal = async () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    const servicesList = await getServices(bookingState.businessId);
+    const availableServices = (servicesList.length > 0 ? servicesList : [
+      { id: 'svc_1', name: 'Saç Kesimi & Sakal', price: 350, duration: 45 },
+      { id: 'svc_2', name: 'VIP Saç & Cilt Bakımı', price: 500, duration: 60 },
+      { id: 'svc_3', name: 'Ense & Sakal Düzeltme', price: 200, duration: 30 }
+    ]);
+
+    const serviceRowsHtml = availableServices.map(s => {
+      const translatedName = autoTranslateCustomContent(s.name, currentLang);
+      const isSelected = bookingState.serviceId === s.id;
+      return `
+        <div onclick="window.tempSelectService('${s.id}', '${translatedName}', ${s.price}, ${s.duration || 30})" class="card" style="padding: 12px; margin-bottom: 8px; cursor: pointer; border-color: ${isSelected ? 'var(--gold-primary)' : 'var(--border-color)'}; background: ${isSelected ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.04)'}; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 13px; font-weight: 800; color: #fff;">✂️ ${translatedName}</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Süre: ${s.duration || 30} Dakika</div>
+          </div>
+          <div style="font-size: 14px; color: var(--gold-primary); font-weight: 900;">${s.price} TL</div>
+        </div>
+      `;
+    }).join('');
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">✂️ Hizmet Seçin</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="max-height: 300px; overflow-y: auto; margin-bottom: 14px;">
+            ${serviceRowsHtml}
+          </div>
+
+          <button onclick="window.confirmServiceSelection()" class="btn btn-gold" style="width: 100%; min-height: 42px;">
+            Onayla ve Devam Et →
+          </button>
+        </div>
+      </div>
+    `;
   };
 
-  window.selectBookingService = (id, name, price, duration) => {
+  window.tempSelectService = (id, name, price, duration) => {
     bookingState.serviceId = id;
     bookingState.serviceName = name;
     bookingState.servicePrice = price;
-    bookingState.serviceDuration = duration || 30;
+    bookingState.serviceDuration = duration;
+    window.openServiceSelectionModal();
+  };
+
+  window.confirmServiceSelection = () => {
+    if (!bookingState.serviceId) {
+      showErrorModal(t('errorTitle'), 'Lütfen bir hizmet seçiniz.');
+      return;
+    }
+    window.closeModal();
+    renderCustomerScreen(user, onTabChange);
+  };
+
+  // GLOBAL BINDINGS
+  window.switchCustomerTab = (tab) => {
+    activeCustomerTab = tab;
     renderCustomerScreen(user, onTabChange);
   };
 
@@ -379,14 +447,13 @@ export async function renderCustomerScreen(user, onTabChange) {
     renderCustomerScreen(user, onTabChange);
   };
 
-  window.selectBookingTime = (t) => {
-    bookingState.time = t;
+  window.selectBookingTime = (tStr) => {
+    bookingState.time = tStr;
     renderCustomerScreen(user, onTabChange);
   };
 
-  window.changeCustomerLanguage = async (newLang) => {
-    await updateUserLanguage(newLang);
-    renderCustomerScreen(user, onTabChange);
+  window.showCustomerToast = (msg) => {
+    showSuccessModal('Bilgi', msg);
   };
 
   window.logoutUserSession = () => {
@@ -396,7 +463,7 @@ export async function renderCustomerScreen(user, onTabChange) {
 
   window.submitCustomerBooking = async () => {
     if (!bookingState.serviceId || !bookingState.time) {
-      alert('Lütfen hizmet ve müsait saat seçiniz.');
+      showErrorModal(t('errorTitle'), 'Lütfen hizmet ve müsait saat seçiniz.');
       return;
     }
 
@@ -438,16 +505,17 @@ export async function renderCustomerScreen(user, onTabChange) {
       }
 
       if (res && res.status === 409) {
-        alert('⚠️ Seçtiğiniz tarih ve saatte berber doludur. Lütfen başka bir saat seçiniz.');
+        showErrorModal(t('errorTitle'), (resData && resData.error) ? resData.error : '⚠️ Seçtiğiniz tarih ve saat aralığında berber doludur. Lütfen başka bir saat seçiniz.');
         return;
       }
 
       if (resData && resData.error) {
-        alert(`❌ Hata (${res ? res.status : 'API'}): ${resData.error}`);
+        showErrorModal(t('errorTitle'), `❌ Hata (${res ? res.status : 'API'}): ${resData.error}`);
         return;
       }
     } catch (e) {
       console.warn('Booking create error:', e);
+      showErrorModal(t('errorTitle'), 'Sunucuya ulaşılamadı. Lütfen tekrar deneyiniz.');
     }
   };
 
@@ -461,12 +529,12 @@ export async function renderCustomerScreen(user, onTabChange) {
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
           <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">
             💬 Salon Sahibine Bildir
           </h3>
           <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-            Randevunuz kaydedildi. İsterseniz salon sahibine doğrudan WhatsApp veya SMS ile bilgi mesajı gönderebilirsiniz.
+            Randevunuz başarıyla oluşturuldu. İsterseniz salon sahibine doğrudan WhatsApp veya SMS ile bilgi gönderebilirsiniz.
           </p>
 
           <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -485,16 +553,17 @@ export async function renderCustomerScreen(user, onTabChange) {
     `;
   };
 
-  window.cancelCustomerAppointment = async (aptId) => {
-    if (!confirm('Randevuyu iptal etmek istediğinize emin misiniz?')) return;
-    await saveRecord(`appointments/${aptId}/status`, 'cancelled');
-    alert('✅ Randevunuz iptal edildi.');
-    renderCustomerScreen(user, onTabChange);
+  window.cancelCustomerAppointment = (aptId) => {
+    showConfirmModal('Randevu İptali', 'Randevuyu iptal etmek istediğinize emin misiniz?', async () => {
+      await saveRecord(`appointments/${aptId}/status`, 'cancelled');
+      showSuccessModal(t('successTitle'), '✅ Randevunuz iptal edildi.');
+      renderCustomerScreen(user, onTabChange);
+    });
   };
 
   window.requestRescheduleAppointment = async (aptId) => {
     await saveRecord(`appointments/${aptId}/status`, 'reschedule_requested');
-    alert('✅ Randevu için tarih/saat değişiklik talebiniz salon sahibine iletildi.');
+    showSuccessModal(t('successTitle'), '✅ Tarih/Saat değişiklik talebiniz iletildi.');
     renderCustomerScreen(user, onTabChange);
   };
 }
