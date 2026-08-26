@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Backend-Driven Authentication & Role Resolution */
+/* EZO STİLE v2 - Backend-Driven Authentication & Role Resolution */
 import { getUserProfile, saveRecord } from './db.js';
 import { CONFIG } from './config.js';
 

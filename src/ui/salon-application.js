@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Salon Application Wizard & Submission */
+/* EZO STİLE v2 - Salon Application Wizard & Submission */
 import { submitSalonApplication } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 

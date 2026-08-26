@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Security & Permission Engine */
+/* EZO STİLE v2 - Security & Permission Engine */
 import { CONFIG } from './config.js';
 
 export const PERMISSIONS = {

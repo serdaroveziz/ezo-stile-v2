@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Standalone AI Hair & Style Consultant Module with AI Wallet & Products Catalog */
+/* EZO STİLE v2 - Standalone AI Hair & Style Consultant Module with AI Wallet & Products Catalog */
 import { getCurrentUser } from '../auth.js';
 import { AI_CREDIT_CATALOG } from '../config/products.js';
 

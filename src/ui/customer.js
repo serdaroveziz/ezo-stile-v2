@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with Official Logo & Deployment Fallback */
+/* EZO STİLE v2 - Customer Main View, Discovery & Geolocation Engine with Official Logo & Deployment Fallback */
 import { getCurrentUser } from '../auth.js';
 import { openSalonApplicationWizard } from './salon-application.js';
 import { fetchRecord, getAppointmentsForCustomer, getServices, getStaffList, saveRecord } from '../db.js';

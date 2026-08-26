@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Super Admin Platform Command Center with Official Logo */
+/* EZO STİLE v2 - Super Admin Platform Command Center with Official Logo */
 import { getSalonApplications, approveSalonApplication, fetchRecord } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 import { renderOwnerScreen } from './owner.js';

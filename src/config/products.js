@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Single Source of Truth Product & Subscription Catalog */
+/* EZO STİLE v2 - Single Source of Truth Product & Subscription Catalog */
 export const AI_CREDIT_CATALOG = {
   economy_5: {
     id: 'economy_5',

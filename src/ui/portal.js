@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Initial Entry Portal Screen with Official Logo */
+/* EZO STİLE v2 - Initial Entry Portal Screen with Official Logo */
 import { loginUser } from '../auth.js';
 
 export function renderPortalScreen(onAuthenticated) {

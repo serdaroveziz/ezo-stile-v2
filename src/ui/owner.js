@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics with Official Logo & Deployment Fallback */
+/* EZO STİLE v2 - Patron Dashboard, Staff Invite & Acquisition Analytics with Official Logo & Deployment Fallback */
 import { getBusinessRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, getAppointmentsForBusiness, fetchRecord } from '../db.js';
 import { getCurrentUser } from '../auth.js';
 

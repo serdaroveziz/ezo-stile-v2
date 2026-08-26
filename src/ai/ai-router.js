@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Official Production AI Provider Router Engine */
+/* EZO STİLE v2 - Official Production AI Provider Router Engine */
 export const OFFICIAL_AI_MODELS = {
   replicate: {
     providerName: 'Replicate API',

@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Salon Subscription Tiers & Entitlements Engine */
+/* EZO STİLE v2 - Salon Subscription Tiers & Entitlements Engine */
 export const SALON_SUBSCRIPTION_TIERS = {
   FREE: {
     planKey: 'FREE',

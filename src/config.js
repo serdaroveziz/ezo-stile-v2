@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - System Configuration & Constants */
+/* EZO STİLE v2 - System Configuration & Constants */
 
 export const CONFIG = {
   APP_NAME: 'EZO STİLE v2',

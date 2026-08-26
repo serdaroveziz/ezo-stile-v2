@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Firebase Realtime Database Data Provider */
+/* EZO STİLE v2 - Firebase Realtime Database Data Provider */
 import { CONFIG } from './config.js';
 
 export async function fetchRecord(path) {
