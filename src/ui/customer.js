@@ -468,13 +468,27 @@ export async function renderCustomerScreen(onTabChange) {
         })
       });
 
-      if (res.ok) {
+      const resData = await res.json().catch(() => null);
+
+      if (res.ok && resData && resData.success && (resData.aptId || resData.appointment)) {
         alert('✅ Randevu talebiniz alındı! Bekleyen randevularınızda takip edebilirsiniz.');
         activeCustomerTab = 'appointments';
         renderCustomerScreen(onTabChange);
         return;
-      } else if (res.status === 409) {
+      }
+
+      if (res && res.status === 409) {
         alert('⚠️ Seçtiğiniz tarih ve saatte berber doludur. Lütfen başka bir saat seçiniz.');
+        return;
+      }
+
+      if (resData && resData.error) {
+        alert(`❌ Hata (${res ? res.status : 'API'}): ${resData.error}`);
+        return;
+      }
+
+      if (res && !res.ok) {
+        alert(`❌ Hata (${res.status}): Randevu oluşturulamadı.`);
         return;
       }
     } catch (e) {
