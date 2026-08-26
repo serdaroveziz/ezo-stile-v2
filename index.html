@@ -51,6 +51,7 @@
       }
 
       console.log('⚡ [EZO v2] Resolved User & Role:', user);
+      window.onAppLanguageChanged = (updatedUser) => handleUserRouting(updatedUser || getCurrentUser());
 
       if (user.role === 'super_admin') {
         renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser || getCurrentUser()));

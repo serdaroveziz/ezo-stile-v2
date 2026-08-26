@@ -1,5 +1,5 @@
-﻿/* EZO STİLE v2 - Initial Entry Portal Screen (VIP Modals, Custom Language Selector, Salon Login & Application Flow) */
-import { loginUser, updateUserLanguage } from '../auth.js';
+﻿/* EZO STİLE v2 - Initial Entry Portal Screen (VIP Modals, Custom Language Selector, Session Preservation) */
+import { loginUser, updateUserLanguage, getCurrentUser } from '../auth.js';
 import { submitSalonApplication, fetchRecord } from '../db.js';
 import { SUPPORTED_LANGUAGES, detectDefaultLanguage, isRtl, t } from '../config.js';
 
@@ -131,7 +131,7 @@ export function renderPortalScreen(onAuthenticated) {
     </div>
   `;
 
-  // Custom VIP Language Selector Modal (Requirement 5)
+  // Custom VIP Language Selector Modal (Requirement 4 & 5)
   window.openLanguageModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -159,10 +159,19 @@ export function renderPortalScreen(onAuthenticated) {
     `;
   };
 
+  // Language Change Without Logout Bug Fix (P0 - Requirement 3)
   window.selectAppLanguage = async (newLang) => {
     await updateUserLanguage(newLang);
     window.closeModal();
-    renderPortalScreen(onAuthenticated);
+    
+    const activeUser = getCurrentUser();
+    if (activeUser) {
+      if (typeof window.onAppLanguageChanged === 'function') {
+        window.onAppLanguageChanged(activeUser);
+      }
+    } else {
+      renderPortalScreen(onAuthenticated);
+    }
   };
 
   window.openCustomerAuthModal = () => {
@@ -226,7 +235,6 @@ export function renderPortalScreen(onAuthenticated) {
     `;
   };
 
-  // Salon Login Handler with Role Resolution & Application Pending Check (Requirement 8 & 10)
   window.openSalonLoginModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -346,7 +354,6 @@ export function renderPortalScreen(onAuthenticated) {
 
     const user = await loginUser(phone, password);
 
-    // CHECK IF SALON OWNER HAS PENDING APPLICATION OR NO BUSINESS RECORD
     if (user && user.role === 'owner') {
       const applicantUid = user.uid;
       const allAppsData = await fetchRecord('salon_applications') || {};
@@ -384,7 +391,6 @@ export function renderPortalScreen(onAuthenticated) {
 
     const applicantUid = 'usr_' + phone.replace(/\D/g, '');
 
-    // DUPLICATE APPLICATION CHECK
     const allAppsData = await fetchRecord('salon_applications') || {};
     const existingApp = Object.values(allAppsData).find(a => a && a.applicantUid === applicantUid && a.status === 'pending');
 
@@ -421,7 +427,7 @@ export function renderPortalScreen(onAuthenticated) {
     const data = res ? await res.json().catch(() => null) : null;
     if (res && res.ok && data && data.success) {
       window.closeModal();
-      showSuccessModal(t('successTitle'), '✅ Davet kabul edildi! Salon kadrosuna katıldınız.');
+      showSuccessModal(t('successTitle'), '✅ Daveti kabul edildi! Salon kadrosuna katıldınız.');
       const user = await loginUser(phone, '123456');
       if (typeof onAuthenticated === 'function') onAuthenticated(user);
     } else {

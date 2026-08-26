@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Platform Audit Logger Service */
+﻿/* EZO STİLE v2 - Platform Audit Logger Service */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export async function writeAuditLog({ actorUid, actorRole, action, targetType, targetId, businessId, metadata }) {
@@ -28,3 +28,5 @@ export async function writeAuditLog({ actorUid, actorRole, action, targetType, t
     return null;
   }
 }
+
+export default writeAuditLog;

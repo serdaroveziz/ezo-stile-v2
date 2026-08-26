@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - In-App Notification Dispatcher Service */
+﻿/* EZO STİLE v2 - In-App Notification Dispatcher Service */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export async function sendNotification({ targetUid, type, title, message, appointmentId, businessId }) {
@@ -32,3 +32,5 @@ export async function sendNotification({ targetUid, type, title, message, appoin
     return null;
   }
 }
+
+export default sendNotification;

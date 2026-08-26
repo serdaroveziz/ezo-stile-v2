@@ -232,7 +232,7 @@ export async function renderCustomerScreen(user, onTabChange) {
           ${slotsHtml}
         </div>
 
-        <button onclick="window.submitCustomerBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${(!bookingState.serviceId || !bookingState.time) ? 'disabled' : ''}>
+        <button id="btn-submit-booking" onclick="window.submitCustomerBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${(!bookingState.serviceId || !bookingState.time) ? 'disabled' : ''}>
           ⚡ ${t('confirmBooking', currentLang)}
         </button>
       </div>
@@ -366,6 +366,148 @@ export async function renderCustomerScreen(user, onTabChange) {
     </nav>
   `;
 
+  
+  // BILDİRİM AYARLARI MODAL (P1-2)
+  window.openNotificationSettingsModal = async () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    const prefs = await fetchRecord('users/' + user.uid + '/notificationPreferences') || {
+      inApp: true,
+      reminders: true,
+      statusChanges: true,
+      campaigns: false
+    };
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">${t('notificationSettings', currentLang)}</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
+              <span>🔔 Uygulama İçi Bildirimler</span>
+              <input type="checkbox" id="pref-inapp" ${prefs.inApp !== false ? 'checked' : ''}>
+            </label>
+            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
+              <span>📅 Randevu Hatırlatmaları</span>
+              <input type="checkbox" id="pref-reminders" ${prefs.reminders !== false ? 'checked' : ''}>
+            </label>
+            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
+              <span>⚡ Randevu Durum Değişiklikleri</span>
+              <input type="checkbox" id="pref-status" ${prefs.statusChanges !== false ? 'checked' : ''}>
+            </label>
+            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
+              <span>🎁 Kampanya Bildirimleri</span>
+              <input type="checkbox" id="pref-campaigns" ${prefs.campaigns ? 'checked' : ''}>
+            </label>
+          </div>
+
+          <button onclick="window.saveNotificationPreferences()" class="btn btn-gold" style="width: 100%; min-height: 42px;">
+            💾 ${t('saveBtn')}
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.saveNotificationPreferences = async () => {
+    const prefs = {
+      inApp: document.getElementById('pref-inapp').checked,
+      reminders: document.getElementById('pref-reminders').checked,
+      statusChanges: document.getElementById('pref-status').checked,
+      campaigns: document.getElementById('pref-campaigns').checked,
+      updatedAt: new Date().toISOString()
+    };
+    await saveRecord('users/' + user.uid + '/notificationPreferences', prefs);
+    window.closeModal();
+    showSuccessModal(t('successTitle'), 'Bildirim tercihleriniz başarıyla kaydedildi.');
+  };
+
+  // GİZLİLİK VE HESAP MODAL (P1-2)
+  window.openPrivacyAccountModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">${t('privacyAccount', currentLang)}</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <div style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${user.name}</div>
+            <div style="font-size: 12px; color: #fff;"><strong>Telefon:</strong> ${user.phone} (Güvenlik gereği salt okunurdur)</div>
+            <div style="font-size: 12px; color: var(--gold-primary);"><strong>Oturum Durumu:</strong> Aktif VIP Müşteri</div>
+          </div>
+
+          <button onclick="window.requestDeleteAccount()" class="btn btn-secondary" style="width: 100%; border-color: #ef4444; color: #ef4444;">
+            ⚠️ Hesabı Silme Talebi Gönder
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.requestDeleteAccount = () => {
+    showConfirmModal('Hesap Silme Talebi', 'Hesap silme talebiniz yöneticiye iletilecektir. Emin misiniz?', async () => {
+      await saveRecord('users/' + user.uid + '/deleteRequest', { requestedAt: new Date().toISOString() });
+      showSuccessModal(t('successTitle'), 'Hesap silme talebiniz başarıyla alındı.');
+    });
+  };
+
+  // YARDIM VE DESTEK MODAL (P1-2)
+  window.openHelpSupportModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">${t('helpSupport', currentLang)}</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="margin-bottom: 14px; max-height: 250px; overflow-y: auto;">
+            <div class="card" style="padding: 10px; margin-bottom: 6px;">
+              <div style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">❓ Nasıl randevu alırım?</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Randevu Al sekmesinden hizmet, berber, tarih ve müsait saati seçip onaylayabilirsiniz.</div>
+            </div>
+            <div class="card" style="padding: 10px; margin-bottom: 6px;">
+              <div style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">❓ Randevumu nasıl değiştiririm?</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Randevularım sekmesinde aktif randevunuzun altında "Tarih/Saat Değiştir" butonuna basabilirsiniz.</div>
+            </div>
+          </div>
+
+          <h4 style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">Destek Ekibine Mesaj Gönder</h4>
+          <textarea id="support-msg" class="input-field" rows="3" placeholder="Sorunuz veya geri bildiriminiz..."></textarea>
+
+          <button onclick="window.submitSupportTicket()" class="btn btn-gold" style="width: 100%; min-height: 40px;">
+            🚀 Mesajı Gönder
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitSupportTicket = async () => {
+    const msg = document.getElementById('support-msg').value;
+    if (!msg) {
+      showErrorModal(t('errorTitle'), 'Lütfen bir mesaj yazınız.');
+      return;
+    }
+    const ticketId = 'tkt_' + Date.now();
+    await saveRecord('support_tickets/' + ticketId, { ticketId, userUid: user.uid, message: msg, createdAt: new Date().toISOString() });
+    window.closeModal();
+    showSuccessModal(t('successTitle'), 'Destek mesajınız başarıyla iletildi.');
+  };
+
   // SERVICE SELECTION BOTTOM SHEET MODAL (REQUIREMENT 2)
   window.openServiceSelectionModal = async () => {
     const root = document.getElementById('modal-root');
@@ -462,6 +604,9 @@ export async function renderCustomerScreen(user, onTabChange) {
   };
 
   window.submitCustomerBooking = async () => {
+    const btnEl = document.getElementById("btn-submit-booking");
+    if (btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Randevu Oluşturuluyor..."; }
+
     if (!bookingState.serviceId || !bookingState.time) {
       showErrorModal(t('errorTitle'), 'Lütfen hizmet ve müsait saat seçiniz.');
       return;
