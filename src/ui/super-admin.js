@@ -1,6 +1,7 @@
 ﻿/* EZO STİLE v2 - Super Admin Command Center (VIP Modals, Support Viewing Mode, Max 2 Free Premium Grants) */
 import { getSalonApplications, approveSalonApplication, fetchRecord, saveRecord } from '../db.js';
 import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js';
+import { logoutUserSession } from '../auth.js';
 
 let activeAdminTab = 'dashboard';
 
@@ -25,7 +26,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
     mainHtml = `
       <div class="card card-gold animate-fade" style="padding: 18px; margin-bottom: 14px;">
         <h3 style="font-size: 16px; font-weight: 800; color: #fff;">⚡ Platform Süper Admin Komuta Merkezi</h3>
-        <p style="font-size: 11px; color: var(--gold-primary);">EZO STİLE v2 Global Sistem Denetimi</p>
+        <p style="font-size: 11px; color: var(--gold-primary);">EZO STİLE v2 Global Sistem Denetimi • Hoş geldiniz, ${user.displayName || user.name || 'Kuvvat'}</p>
       </div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
@@ -112,9 +113,9 @@ export async function renderSuperAdminScreen(user, onTabChange) {
     mainHtml = `
       <div class="card animate-fade">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">⚡ Süper Admin Profili</h3>
-        <p style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${user.name}</p>
+        <p style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${user.displayName || user.name || 'Kuvvat'}</p>
         <p style="font-size: 12px; color: #fff; margin-bottom: 14px;"><strong>Rol:</strong> super_admin</p>
-        <button onclick="window.logoutUserSession()" class="btn btn-secondary" style="width: 100%; border-color: #ef4444; color: #ef4444;">
+        <button onclick="window.promptAdminLogout()" class="btn btn-secondary" style="width: 100%; border-color: #ef4444; color: #ef4444;">
           🚪 Oturumu Kapat
         </button>
       </div>
@@ -125,7 +126,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
     <div class="header-bar">
       <div style="display: flex; align-items: center; gap: 8px;">
         <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="EZO Logo">
-        <span style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">Süper Admin</span>
+        <span style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">Süper Admin (${user.displayName || user.name || 'Kuvvat'})</span>
       </div>
       <div style="font-size: 11px; color: var(--text-muted);">${user.phone}</div>
     </div>
@@ -156,6 +157,13 @@ export async function renderSuperAdminScreen(user, onTabChange) {
   window.switchAdminTab = (tab) => {
     activeAdminTab = tab;
     renderSuperAdminScreen(user, onTabChange);
+  };
+
+  window.promptAdminLogout = () => {
+    showConfirmModal('Oturumu Kapat', 'Süper Admin oturumunu kapatmak istediğinize emin misiniz?', () => {
+      logoutUserSession();
+      if (typeof onTabChange === 'function') onTabChange(null);
+    });
   };
 
   window.approveSalonAppAdmin = async (appId) => {

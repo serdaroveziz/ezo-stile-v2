@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Atomic Appointment Lifecycle Status Update, Completed AI Bonus & Notification Dispatcher Endpoint */
+﻿/* EZO STİLE v2 - Atomic Appointment Lifecycle Status Update, Completed AI Bonus & Notification Dispatcher Endpoint */
 import { sendNotification } from '../notifications/send.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'aptId, newStatus ve userUid zorunludur' });
     }
 
-    const validStatuses = ['pending', 'approved', 'completed', 'rejected', 'cancelled', 'reschedule_requested', 'no_show'];
+    const validStatuses = ['pending', 'approved', 'completed', 'rejected', 'cancelled', 'cancel_requested', 'reschedule_requested', 'no_show'];
     if (!validStatuses.includes(newStatus)) {
       return res.status(400).json({ error: 'Geçersiz randevu durumu' });
     }
@@ -35,11 +35,20 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Kullanıcı bulunamadı' });
     }
 
-    // 2. SECURITY GUARD FOR RESTRICTED STATUSES (completed & no_show)
+    // 2. SECURITY GUARDS
+    // Customer cannot directly set status to 'cancelled', 'completed', or 'no_show'
+    if (user.role === 'customer' && (newStatus === 'cancelled' || newStatus === 'completed' || newStatus === 'no_show')) {
+      console.warn(`[SECURITY ALERT] Customer UID ${userUid} attempted setting status to restricted '${newStatus}'!`);
+      return res.status(403).json({
+        error: newStatus === 'cancelled'
+          ? 'Müşteriler randevuyu doğrudan iptal edemez. İptal talebi göndermelisiniz.'
+          : `Yalnızca yetkili salon çalışanları randevuyu '${newStatus}' durumuna getirebilir.`
+      });
+    }
+
     if (newStatus === 'completed' || newStatus === 'no_show') {
       const isStaffOrAdmin = user.role === 'super_admin' || (user.businessId === apt.businessId && user.role !== 'customer');
       if (!isStaffOrAdmin) {
-        console.warn(`[SECURITY ALERT] Customer UID ${userUid} attempted setting status to restricted '${newStatus}'!`);
         return res.status(403).json({ error: `Yalnızca yetkili salon çalışanları randevuyu '${newStatus}' durumuna getirebilir.` });
       }
     }
@@ -124,7 +133,16 @@ export default async function handler(req, res) {
         targetUid: apt.customerUid,
         type: 'apt_cancelled',
         title: '🚫 Randevu İptal Edildi',
-        message: 'Randevunuz başarıyla iptal edilmiştir.',
+        message: 'Randevunuz iptal edilmiştir.',
+        appointmentId: aptId,
+        businessId: apt.businessId
+      });
+    } else if (newStatus === 'cancel_requested') {
+      await sendNotification({
+        targetUid: apt.customerUid,
+        type: 'apt_cancel_requested',
+        title: '📩 İptal Talebi Gönderildi',
+        message: 'Randevu iptal talebiniz salona iletilmiştir. Yanıt beklenmektedir.',
         appointmentId: aptId,
         businessId: apt.businessId
       });

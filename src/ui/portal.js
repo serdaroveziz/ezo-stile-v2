@@ -1,5 +1,5 @@
-﻿/* EZO STİLE v2 - Initial Entry Portal Screen (VIP Modals, Custom Language Selector, Session Preservation) */
-import { loginUser, updateUserLanguage, getCurrentUser } from '../auth.js';
+﻿/* EZO STİLE v2 - Initial Entry Portal Screen (Kayıt Ol / Hesabım Var, Salon & Super Admin Login) */
+import { loginUser, registerCustomer, updateUserLanguage, getCurrentUser } from '../auth.js';
 import { submitSalonApplication, fetchRecord } from '../db.js';
 import { SUPPORTED_LANGUAGES, detectDefaultLanguage, isRtl, t } from '../config.js';
 
@@ -60,8 +60,7 @@ export function showConfirmModal(title, message, onConfirm, onCancel) {
           </button>
         </div>
       </div>
-    </div>
-  `;
+    `;
   window._onModalConfirm = onConfirm;
   window._onModalCancel = onCancel;
 }
@@ -95,10 +94,10 @@ export function renderPortalScreen(onAuthenticated) {
       <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">${t('welcomeSub', currentLang)}</p>
     </div>
 
-    <!-- STRICT 2 MAIN OPTIONS -->
+    <!-- STRICT 2 MAIN OPTIONS (REQUIREMENT 1) -->
     <div style="display: flex; flex-direction: column; gap: 16px;">
       <!-- OPTION 1: MÜŞTERİYİM -->
-      <div class="card card-gold animate-fade" style="padding: 22px; cursor: pointer;" onclick="window.openCustomerAuthModal()">
+      <div class="card card-gold animate-fade" style="padding: 22px; cursor: pointer;" onclick="window.openCustomerChoiceModal()">
         <div style="display: flex; align-items: center; gap: 14px;">
           <div style="width: 52px; height: 52px; border-radius: 16px; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 26px; color: #000; flex-shrink: 0;">
             👤
@@ -131,7 +130,7 @@ export function renderPortalScreen(onAuthenticated) {
     </div>
   `;
 
-  // Custom VIP Language Selector Modal (Requirement 4 & 5)
+  // Custom VIP Language Selector Modal
   window.openLanguageModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -159,7 +158,7 @@ export function renderPortalScreen(onAuthenticated) {
     `;
   };
 
-  // Language Change Without Logout Bug Fix (P0 - Requirement 3)
+  // Language Change Without Logout Bug Fix
   window.selectAppLanguage = async (newLang) => {
     await updateUserLanguage(newLang);
     window.closeModal();
@@ -172,6 +171,69 @@ export function renderPortalScreen(onAuthenticated) {
     } else {
       renderPortalScreen(onAuthenticated);
     }
+  };
+
+  // CUSTOMER CHOICE MODAL: KAYIT OL vs HESABIM VAR (REQUIREMENT 1)
+  window.openCustomerChoiceModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">
+              👤 Müşteri Girişi & Kayıt
+            </h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="window.openCustomerRegisterModal()" class="btn btn-gold" style="width: 100%; min-height: 44px; text-align: left; padding-left: 16px;">
+              📝 1. Kayıt Ol (Yeni Müşteri)
+            </button>
+            <button onclick="window.openCustomerAuthModal()" class="btn btn-outline-gold" style="width: 100%; min-height: 44px; text-align: left; padding-left: 16px;">
+              🔑 2. Hesabım Var (Müşteri Girişi)
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  // CUSTOMER REGISTER MODAL (REQUIREMENT 1)
+  window.openCustomerRegisterModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">
+              📝 Müşteri Kayıt Formu
+            </h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Ad Soyad</label>
+          <input type="text" id="reg-name" class="input-field" placeholder="Örn: Serdar Kuvvat">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Telefon</label>
+          <input type="tel" id="reg-phone" class="input-field" placeholder="05XXXXXXXXX">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Şifre</label>
+          <input type="password" id="reg-password" class="input-field" placeholder="••••••••">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Şifre Tekrar</label>
+          <input type="password" id="reg-password-confirm" class="input-field" placeholder="••••••••">
+
+          <button onclick="window.submitCustomerRegister()" class="btn btn-gold" style="width: 100%; margin-top: 8px; min-height: 44px;">
+            🚀 Kayıt Ol & Otomatik Giriş Yap
+          </button>
+        </div>
+      </div>
+    `;
   };
 
   window.openCustomerAuthModal = () => {
@@ -323,6 +385,30 @@ export function renderPortalScreen(onAuthenticated) {
   window.closeModal = () => {
     const root = document.getElementById('modal-root');
     if (root) root.innerHTML = '';
+  };
+
+  window.submitCustomerRegister = async () => {
+    const name = document.getElementById('reg-name').value;
+    const phone = document.getElementById('reg-phone').value;
+    const password = document.getElementById('reg-password').value;
+    const passwordConfirm = document.getElementById('reg-password-confirm').value;
+
+    if (!name || !phone) {
+      showErrorModal(t('errorTitle'), 'Lütfen ad soyad ve telefon numarası giriniz.');
+      return;
+    }
+    if (!password || password.length < 4) {
+      showErrorModal(t('errorTitle'), 'Şifreniz en az 4 karakter olmalıdır.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      showErrorModal(t('errorTitle'), 'Şifreler birbiriyle eşleşmiyor.');
+      return;
+    }
+
+    const user = await registerCustomer(name, phone, password);
+    window.closeModal();
+    if (typeof onAuthenticated === 'function') onAuthenticated(user);
   };
 
   window.submitCustomerAuthLogin = async () => {

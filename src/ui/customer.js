@@ -1,6 +1,6 @@
-﻿/* EZO STİLE v2 - Customer Final Panel (Closed Service Selector, 5 Languages, RTL, Custom VIP Modals) */
+/* EZO STİLE v2 - Customer Final Panel (Notification Center, Photo Upload, Password Change, Cancel & 6-Hour Reschedule Requests, VIP Modals) */
 import { getAppointmentsForCustomer, fetchRecord, saveRecord, getServices, getStaffList } from '../db.js';
-import { updateUserLanguage } from '../auth.js';
+import { updateUserLanguage, logoutUserSession } from '../auth.js';
 import { SUPPORTED_LANGUAGES, isRtl, t, autoTranslateCustomContent } from '../config.js';
 import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js';
 import { renderAiConsultantScreen } from './ai-consultant.js';
@@ -28,13 +28,25 @@ export async function renderCustomerScreen(user, onTabChange) {
   const rtl = isRtl(currentLang);
   document.documentElement.dir = rtl ? 'rtl' : 'ltr';
 
+  // Fetch In-App Notifications
+  const notifsData = await fetchRecord('notifications/' + user.uid) || {};
+  const notifList = Object.values(notifsData).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 20);
+  const unreadCount = notifList.filter(n => n && !n.read).length;
+
+  // Calculate User Initials
+  const displayName = user.displayName || user.name || 'Müşteri';
+  const nameParts = displayName.trim().split(' ');
+  const initials = nameParts.length >= 2
+    ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+    : displayName.substring(0, 2).toUpperCase();
+
   let mainHtml = '';
 
   if (activeCustomerTab === 'home') {
     mainHtml = `
       <div class="card card-gold animate-fade" style="padding: 20px; margin-bottom: 16px;">
         <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 4px;">
-          👋 ${t('welcomeTitle', currentLang)}, ${user.name || 'Müşterimiz'}
+          👋 Merhaba, ${displayName}
         </h3>
         <p style="font-size: 12px; color: var(--text-muted);">
           VIP Kuaför & Berber randevunuzu saniyeler içinde planlayın.
@@ -66,8 +78,6 @@ export async function renderCustomerScreen(user, onTabChange) {
     `;
   } else if (activeCustomerTab === 'salons') {
     const allBusinessesData = await fetchRecord('businesses') || {};
-    
-    // PRODUCTION DISCOVERY FILTER: ONLY active, approved, discoveryEnabled salons (Exclude test fixtures)
     let salons = Object.values(allBusinessesData).filter(b => 
       b && 
       b.status !== 'suspended' && 
@@ -76,7 +86,6 @@ export async function renderCustomerScreen(user, onTabChange) {
       !String(b.name || '').toLowerCase().includes('test')
     );
 
-    // Deduplicate by businessId
     const seenIds = new Set();
     salons = salons.filter(b => {
       if (seenIds.has(b.businessId)) return false;
@@ -119,7 +128,6 @@ export async function renderCustomerScreen(user, onTabChange) {
     const allAptsData = await fetchRecord('appointments') || {};
     const allApts = Object.values(allAptsData);
 
-    // DURATION OVERLAP CALCULATION
     const occupiedSlots = new Set();
     allApts.forEach(apt => {
       if (apt && apt.businessId === bookingState.businessId &&
@@ -153,7 +161,6 @@ export async function renderCustomerScreen(user, onTabChange) {
       return (h * 60 + m) > currentMins;
     });
 
-    // SLOT COLOR SYSTEM: Green (Müsait), Red (Dolu 🔒), Yellow (Seçili ✓)
     const slotsHtml = visibleHours.map(h => {
       const isOccupied = occupiedSlots.has(h);
       const isSelected = bookingState.time === h;
@@ -185,7 +192,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       <div class="card card-gold animate-fade" style="padding: 18px;">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">✂️ ${t('bookAppointment', currentLang)}</h3>
 
-        <!-- STEP 1: INITIALLY CLOSED SERVICE SELECTOR BUTTON (REQUIREMENT 2) -->
+        <!-- STEP 1: INITIALLY CLOSED SERVICE SELECTOR -->
         <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">1. Hizmet Seçimi</label>
         <div style="margin-top: 4px; margin-bottom: 14px;">
           ${bookingState.serviceId ? `
@@ -239,31 +246,37 @@ export async function renderCustomerScreen(user, onTabChange) {
     `;
   } else if (activeCustomerTab === 'appointments') {
     const userApts = await getAppointmentsForCustomer(user.uid);
-    const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'reschedule_requested'));
+    const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'cancel_requested' || apt.status === 'reschedule_requested'));
     let pastApts = userApts.filter(apt => apt && (apt.status === 'completed' || apt.status === 'cancelled' || apt.status === 'rejected' || apt.status === 'no_show'));
     
     pastApts = pastApts.slice(0, 5);
 
-    const activeHtml = activeApts.map(apt => `
-      <div class="card card-gold" style="padding: 14px; margin-bottom: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
-            <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk)</div>
-          </div>
-          <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${t(apt.status, currentLang)}</span>
-        </div>
+    const activeHtml = activeApts.map(apt => {
+      const aptTimeMs = new Date(`${apt.date}T${apt.time}:00`).getTime();
+      const hoursUntilApt = (aptTimeMs - Date.now()) / (1000 * 3600);
+      const is6HoursOrMore = hoursUntilApt >= 6;
 
-        <div style="display: flex; gap: 8px; margin-top: 10px;">
-          <button onclick="window.requestRescheduleAppointment('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px;">
-            ${t('rescheduleAppointment', currentLang)}
-          </button>
-          <button onclick="window.cancelCustomerAppointment('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;">
-            ${t('cancelAppointment', currentLang)}
-          </button>
+      return `
+        <div class="card card-gold" style="padding: 14px; margin-bottom: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
+              <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk)</div>
+            </div>
+            <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${t(apt.status, currentLang)}</span>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button onclick="window.requestRescheduleCustomer('${apt.aptId}', ${is6HoursOrMore})" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px;">
+              ${is6HoursOrMore ? '🔄 Tarih/Saat Değiştir' : '📩 Değişiklik Talebi Gönder'}
+            </button>
+            <button onclick="window.requestCancelCustomer('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;" ${apt.status === 'cancel_requested' ? 'disabled' : ''}>
+              ${apt.status === 'cancel_requested' ? '⏳ İptal Talebi Alındı' : '❌ İptal Talebi Gönder'}
+            </button>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     const pastHtml = pastApts.map(apt => `
       <div class="card" style="padding: 12px; margin-bottom: 8px; opacity: 0.8;">
@@ -291,16 +304,24 @@ export async function renderCustomerScreen(user, onTabChange) {
     renderAiConsultantScreen(user, onTabChange);
     return;
   } else if (activeCustomerTab === 'profile') {
-    // FINAL CUSTOMER PROFILE LAYOUT (REQUIREMENT 6)
     const currentLangObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || SUPPORTED_LANGUAGES[0];
 
     mainHtml = `
       <div class="card animate-fade" style="padding: 20px;">
         <div style="text-align: center; margin-bottom: 16px;">
-          <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--gold-gradient); display: inline-flex; align-items: center; justify-content: center; font-size: 32px; color: #000; margin-bottom: 8px;">
-            👤
+          <div style="position: relative; display: inline-block;">
+            ${user.photoUrl ? `
+              <img src="${user.photoUrl}" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold-primary);" alt="Avatar">
+            ` : `
+              <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; color: #000;">
+                ${initials}
+              </div>
+            `}
+            <button onclick="window.openProfilePhotoModal()" style="position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%; background: #000; border: 1px solid var(--gold-primary); color: var(--gold-primary); font-size: 12px; cursor: pointer;">
+              📷
+            </button>
           </div>
-          <h3 style="font-size: 16px; font-weight: 800; color: #fff;">${user.name}</h3>
+          <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-top: 8px;">${displayName}</h3>
           <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700;">${user.phone}</div>
         </div>
 
@@ -310,19 +331,19 @@ export async function renderCustomerScreen(user, onTabChange) {
             <span style="font-size: 12px; color: var(--gold-primary);">${currentLangObj.flag} ${currentLangObj.name}</span>
           </button>
 
-          <button onclick="window.showCustomerToast('${t('notificationSettings', currentLang)}')" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
+          <button onclick="window.openNotificationSettingsModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
             ${t('notificationSettings', currentLang)}
           </button>
 
-          <button onclick="window.showCustomerToast('${t('privacyAccount', currentLang)}')" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
+          <button onclick="window.openPrivacyAccountModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
             ${t('privacyAccount', currentLang)}
           </button>
 
-          <button onclick="window.showCustomerToast('${t('helpSupport', currentLang)}')" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
+          <button onclick="window.openHelpSupportModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
             ${t('helpSupport', currentLang)}
           </button>
 
-          <button onclick="window.logoutUserSession()" class="btn btn-secondary" style="width: 100%; margin-top: 10px; min-height: 42px; border-color: #ef4444; color: #ef4444;">
+          <button onclick="window.promptUserLogout()" class="btn btn-secondary" style="width: 100%; margin-top: 10px; min-height: 42px; border-color: #ef4444; color: #ef4444;">
             🚪 ${t('logout', currentLang)}
           </button>
         </div>
@@ -330,14 +351,21 @@ export async function renderCustomerScreen(user, onTabChange) {
     `;
   }
 
-  // TOP BAR HEADER
+  // TOP BAR HEADER WITH NOTIFICATION BELL (REQUIREMENT 9)
   container.innerHTML = `
     <div class="header-bar">
       <div style="display: flex; align-items: center; gap: 8px;">
         <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="EZO Logo">
-        <span style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">${user.name}</span>
+        <span style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">${displayName}</span>
       </div>
-      <div style="font-size: 11px; color: var(--text-muted);">${user.phone}</div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <button onclick="window.openNotificationCenterModal()" style="position: relative; background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--gold-primary);">
+          🔔
+          ${unreadCount > 0 ? `<span style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #ef4444; color: #fff; font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center;">${unreadCount}</span>` : ''}
+        </button>
+        <span style="font-size: 11px; color: var(--text-muted);">${user.phone}</span>
+      </div>
     </div>
 
     ${mainHtml}
@@ -366,16 +394,185 @@ export async function renderCustomerScreen(user, onTabChange) {
     </nav>
   `;
 
-  
-  // BILDİRİM AYARLARI MODAL (P1-2)
+  // NOTIFICATION CENTER MODAL (REQUIREMENT 9)
+  window.openNotificationCenterModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    const notifRows = notifList.map(n => `
+      <div class="card" style="padding: 10px; margin-bottom: 6px; background: ${n.read ? 'rgba(255,255,255,0.03)' : 'rgba(245,158,11,0.12)'}; border-color: ${n.read ? 'var(--border-color)' : 'var(--gold-primary)'};">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="font-size: 12px; font-weight: 800; color: #fff;">${n.title}</div>
+          <div style="font-size: 9px; color: var(--text-muted);">${new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${n.message}</div>
+      </div>
+    `).join('');
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">🔔 Bildirim Merkezi</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="max-height: 300px; overflow-y: auto; margin-bottom: 12px;">
+            ${notifList.length === 0 ? '<div style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 20px;">Bildiriminiz bulunmamaktadır.</div>' : notifRows}
+          </div>
+
+          <button onclick="window.markAllNotificationsRead()" class="btn btn-gold" style="width: 100%;">
+            Tümünü Okundu İşaretle
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.markAllNotificationsRead = async () => {
+    for (const n of notifList) {
+      if (!n.read) {
+        await saveRecord(`notifications/${user.uid}/${n.notificationId}/read`, true);
+      }
+    }
+    window.closeModal();
+    renderCustomerScreen(user, onTabChange);
+  };
+
+  // PROFILE PHOTO UPLOAD & REMOVE MODAL (REQUIREMENT 4)
+  window.openProfilePhotoModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📷 Profil Fotoğrafı</h3>
+
+          <input type="file" id="profile-photo-input" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="window.handleProfilePhotoSelect(event)">
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button onclick="document.getElementById('profile-photo-input').click()" class="btn btn-gold">
+              📤 Fotoğraf Yükle / Değiştir
+            </button>
+            ${user.photoUrl ? `
+              <button onclick="window.removeProfilePhoto()" class="btn btn-secondary" style="border-color: #ef4444; color: #ef4444;">
+                🗑️ Fotoğrafı Kaldır
+              </button>
+            ` : ''}
+            <button onclick="window.closeModal()" class="btn btn-secondary">
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  window.handleProfilePhotoSelect = (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showErrorModal(t('errorTitle'), 'Lütfen geçerli bir JPEG veya PNG resim dosyası seçiniz.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 180;
+        canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 180, 180);
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        user.photoUrl = compressedBase64;
+        await saveRecord(`users/${user.uid}/photoUrl`, compressedBase64);
+        window.closeModal();
+        showSuccessModal(t('successTitle'), 'Profil fotoğrafınız başarıyla güncellendi.');
+        renderCustomerScreen(user, onTabChange);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.removeProfilePhoto = async () => {
+    user.photoUrl = null;
+    await saveRecord(`users/${user.uid}/photoUrl`, null);
+    window.closeModal();
+    showSuccessModal(t('successTitle'), 'Profil fotoğrafınız kaldırıldı.');
+    renderCustomerScreen(user, onTabChange);
+  };
+
+  // CHANGE PASSWORD MODAL (REQUIREMENT 5)
+  window.openChangePasswordModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">🔒 Şifre Değiştir</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Mevcut Şifre</label>
+          <input type="password" id="pwd-current" class="input-field" placeholder="••••••••">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Yeni Şifre</label>
+          <input type="password" id="pwd-new" class="input-field" placeholder="••••••••">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Yeni Şifre Tekrar</label>
+          <input type="password" id="pwd-confirm" class="input-field" placeholder="••••••••">
+
+          <button onclick="window.submitChangePassword()" class="btn btn-gold" style="width: 100%; margin-top: 8px;">
+            💾 Şifreyi Kaydet
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitChangePassword = async () => {
+    const currentPwd = document.getElementById('pwd-current').value;
+    const newPwd = document.getElementById('pwd-new').value;
+    const confirmPwd = document.getElementById('pwd-confirm').value;
+
+    const dbUser = await fetchRecord(`users/${user.uid}`) || {};
+    const actualCurrentPwd = dbUser.password || '123456';
+
+    if (currentPwd !== actualCurrentPwd) {
+      showErrorModal(t('errorTitle'), 'Mevcut şifreniz hatalıdır.');
+      return;
+    }
+    if (!newPwd || newPwd.length < 4) {
+      showErrorModal(t('errorTitle'), 'Yeni şifreniz en az 4 karakter olmalıdır.');
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      showErrorModal(t('errorTitle'), 'Yeni şifreler birbiriyle eşleşmiyor.');
+      return;
+    }
+
+    await saveRecord(`users/${user.uid}/password`, newPwd);
+    window.closeModal();
+    showSuccessModal(t('successTitle'), 'Şifreniz başarıyla değiştirildi.');
+  };
+
+  // BILDİRİM AYARLARI MODAL (REQUIREMENT 6)
   window.openNotificationSettingsModal = async () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
 
-    const prefs = await fetchRecord('users/' + user.uid + '/notificationPreferences') || {
+    const prefs = await fetchRecord(`users/${user.uid}/notificationPreferences`) || {
       inApp: true,
       reminders: true,
-      statusChanges: true,
+      sound: true,
       campaigns: false
     };
 
@@ -390,44 +587,49 @@ export async function renderCustomerScreen(user, onTabChange) {
           <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
             <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
               <span>🔔 Uygulama İçi Bildirimler</span>
-              <input type="checkbox" id="pref-inapp" ${prefs.inApp !== false ? 'checked' : ''}>
+              <input type="checkbox" id="pref-inapp" ${prefs.inApp !== false ? 'checked' : ''} onchange="window.handleNotificationPermission(this.checked)">
             </label>
             <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>📅 Randevu Hatırlatmaları</span>
-              <input type="checkbox" id="pref-reminders" ${prefs.reminders !== false ? 'checked' : ''}>
+              <span>🔊 Sesli Bildirimler</span>
+              <input type="checkbox" id="pref-sound" ${prefs.sound !== false ? 'checked' : ''}>
             </label>
             <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>⚡ Randevu Durum Değişiklikleri</span>
-              <input type="checkbox" id="pref-status" ${prefs.statusChanges !== false ? 'checked' : ''}>
-            </label>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>🎁 Kampanya Bildirimleri</span>
+              <span>📣 Kampanya & Fırsat Bildirimleri</span>
               <input type="checkbox" id="pref-campaigns" ${prefs.campaigns ? 'checked' : ''}>
             </label>
           </div>
 
           <button onclick="window.saveNotificationPreferences()" class="btn btn-gold" style="width: 100%; min-height: 42px;">
-            💾 ${t('saveBtn')}
+            💾 Kaydet
           </button>
         </div>
       </div>
     `;
   };
 
+  window.handleNotificationPermission = (isEnabling) => {
+    if (isEnabling && 'Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission().then(perm => {
+        if (perm !== 'granted') {
+          showErrorModal('Bildirim İzni Denied', 'Tarayıcınızda bildirim izni verilmedi. Bildirimler uygulama içi olarak gösterilecektir.');
+        }
+      });
+    }
+  };
+
   window.saveNotificationPreferences = async () => {
     const prefs = {
       inApp: document.getElementById('pref-inapp').checked,
-      reminders: document.getElementById('pref-reminders').checked,
-      statusChanges: document.getElementById('pref-status').checked,
+      sound: document.getElementById('pref-sound').checked,
       campaigns: document.getElementById('pref-campaigns').checked,
       updatedAt: new Date().toISOString()
     };
-    await saveRecord('users/' + user.uid + '/notificationPreferences', prefs);
+    await saveRecord(`users/${user.uid}/notificationPreferences`, prefs);
     window.closeModal();
     showSuccessModal(t('successTitle'), 'Bildirim tercihleriniz başarıyla kaydedildi.');
   };
 
-  // GİZLİLİK VE HESAP MODAL (P1-2)
+  // GİZLİLİK VE HESAP MODAL
   window.openPrivacyAccountModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -441,9 +643,12 @@ export async function renderCustomerScreen(user, onTabChange) {
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
-            <div style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${user.name}</div>
+            <div style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${displayName}</div>
             <div style="font-size: 12px; color: #fff;"><strong>Telefon:</strong> ${user.phone} (Güvenlik gereği salt okunurdur)</div>
-            <div style="font-size: 12px; color: var(--gold-primary);"><strong>Oturum Durumu:</strong> Aktif VIP Müşteri</div>
+            
+            <button onclick="window.openChangePasswordModal()" class="btn btn-outline-gold" style="margin-top: 4px;">
+              🔒 Şifre Değiştir
+            </button>
           </div>
 
           <button onclick="window.requestDeleteAccount()" class="btn btn-secondary" style="width: 100%; border-color: #ef4444; color: #ef4444;">
@@ -456,12 +661,12 @@ export async function renderCustomerScreen(user, onTabChange) {
 
   window.requestDeleteAccount = () => {
     showConfirmModal('Hesap Silme Talebi', 'Hesap silme talebiniz yöneticiye iletilecektir. Emin misiniz?', async () => {
-      await saveRecord('users/' + user.uid + '/deleteRequest', { requestedAt: new Date().toISOString() });
+      await saveRecord(`users/${user.uid}/deleteRequest`, { requestedAt: new Date().toISOString() });
       showSuccessModal(t('successTitle'), 'Hesap silme talebiniz başarıyla alındı.');
     });
   };
 
-  // YARDIM VE DESTEK MODAL (P1-2)
+  // YARDIM VE DESTEK MODAL
   window.openHelpSupportModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -503,12 +708,99 @@ export async function renderCustomerScreen(user, onTabChange) {
       return;
     }
     const ticketId = 'tkt_' + Date.now();
-    await saveRecord('support_tickets/' + ticketId, { ticketId, userUid: user.uid, message: msg, createdAt: new Date().toISOString() });
+    await saveRecord(`support_tickets/${ticketId}`, { ticketId, userUid: user.uid, message: msg, createdAt: new Date().toISOString() });
     window.closeModal();
     showSuccessModal(t('successTitle'), 'Destek mesajınız başarıyla iletildi.');
   };
 
-  // SERVICE SELECTION BOTTOM SHEET MODAL (REQUIREMENT 2)
+  // CUSTOMER RESCHEDULE WITH 6-HOUR RULE ENGINE (REQUIREMENT 8)
+  window.requestRescheduleCustomer = (aptId, is6HoursOrMore) => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    const todayDate = new Date().toISOString().split('T')[0];
+    const tomorrowDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">
+            🔄 ${is6HoursOrMore ? 'Yeni Tarih & Saat Seçin' : 'Değişiklik Talebi Gönder'}
+          </h3>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+            ${is6HoursOrMore ? 'Randevunuza 6 saatten fazla olduğu için randevunuz doğrudan güncellenecektir.' : 'Randevunuza 6 saatten az kaldığı için yeni saat talebiniz salon onayına gönderilecektir.'}
+          </p>
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Yeni Tarih</label>
+          <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+            <input type="date" id="resched-date" value="${tomorrowDate}" class="input-field" style="margin: 0;">
+          </div>
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Yeni Saat</label>
+          <input type="text" id="resched-time" value="14:00" class="input-field" placeholder="14:00">
+
+          <button onclick="window.submitCustomerReschedule('${aptId}')" class="btn btn-gold" style="width: 100%; margin-top: 8px;">
+            ⚡ ${is6HoursOrMore ? 'Tarihi Güncelle' : 'Talebi İlet'}
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitCustomerReschedule = async (aptId) => {
+    const newDate = document.getElementById('resched-date').value;
+    const newTime = document.getElementById('resched-time').value;
+
+    if (!newDate || !newTime) {
+      showErrorModal(t('errorTitle'), 'Lütfen geçerli bir tarih ve saat seçiniz.');
+      return;
+    }
+
+    const res = await fetch('/api/booking/reschedule-approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aptId, newDate, newTime, userUid: user.uid })
+    }).catch(() => null);
+
+    const data = res ? await res.json().catch(() => null) : null;
+    window.closeModal();
+
+    if (res && res.ok && data && data.success) {
+      showSuccessModal(t('successTitle'), data.message || '✅ Tarih/Saat güncellemesi tamamlandı.');
+      renderCustomerScreen(user, onTabChange);
+    } else {
+      showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'Tarih değişikliği gerçekleştirilemedi.');
+    }
+  };
+
+  // CUSTOMER CANCEL REQUEST (REQUIREMENT 7 - NO DIRECT CANCEL)
+  window.requestCancelCustomer = (aptId) => {
+    showConfirmModal('İptal Talebi Gönder', 'Randevunuz için salona iptal talebi iletilecektir. Emin misiniz?', async () => {
+      const res = await fetch('/api/booking/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aptId, newStatus: 'cancel_requested', userUid: user.uid })
+      }).catch(() => null);
+
+      const data = res ? await res.json().catch(() => null) : null;
+      if (res && res.ok && data && data.success) {
+        showSuccessModal(t('successTitle'), '📩 İptal talebiniz salona iletilmiştir. Salon onayı bekleniyor.');
+        renderCustomerScreen(user, onTabChange);
+      } else {
+        showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'İptal talebi gönderilemedi.');
+      }
+    });
+  };
+
+  // LOGOUT CONFIRM MODAL (REQUIREMENT 3)
+  window.promptUserLogout = () => {
+    showConfirmModal('Oturumu Kapat', 'Oturumunuzu kapatmak istediğinize emin misiniz?', () => {
+      logoutUserSession();
+      if (typeof onTabChange === 'function') onTabChange(null);
+    });
+  };
+
+  // SERVICE SELECTION BOTTOM SHEET MODAL
   window.openServiceSelectionModal = async () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -571,9 +863,9 @@ export async function renderCustomerScreen(user, onTabChange) {
     renderCustomerScreen(user, onTabChange);
   };
 
-  // GLOBAL BINDINGS
-  window.switchCustomerTab = (tab) => {
-    activeCustomerTab = tab;
+  window.selectSalonForBooking = (bizId) => {
+    bookingState.businessId = bizId;
+    activeCustomerTab = 'booking';
     renderCustomerScreen(user, onTabChange);
   };
 
@@ -594,22 +886,22 @@ export async function renderCustomerScreen(user, onTabChange) {
     renderCustomerScreen(user, onTabChange);
   };
 
-  window.showCustomerToast = (msg) => {
-    showSuccessModal('Bilgi', msg);
+  window.switchCustomerTab = (tab) => {
+    activeCustomerTab = tab;
+    renderCustomerScreen(user, onTabChange);
   };
 
-  window.logoutUserSession = () => {
-    localStorage.removeItem('ez2_session');
-    if (typeof onTabChange === 'function') onTabChange(null);
-  };
-
+  // SUBMIT CUSTOMER BOOKING WITH LOADING STATE & DOUBLE CLICK GUARD
   window.submitCustomerBooking = async () => {
-    const btnEl = document.getElementById("btn-submit-booking");
-    if (btnEl) { btnEl.disabled = true; btnEl.innerText = "⏳ Randevu Oluşturuluyor..."; }
-
     if (!bookingState.serviceId || !bookingState.time) {
       showErrorModal(t('errorTitle'), 'Lütfen hizmet ve müsait saat seçiniz.');
       return;
+    }
+
+    const btnEl = document.getElementById('btn-submit-booking');
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.innerText = '⏳ Randevu Oluşturuluyor...';
     }
 
     try {
@@ -617,11 +909,11 @@ export async function renderCustomerScreen(user, onTabChange) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          businessId: bookingState.businessId,
+          businessId: bookingState.businessId || 'biz_merkez_salon',
           customerUid: user.uid,
-          customerName: user.name,
+          customerName: displayName,
           customerPhone: user.phone,
-          staffId: bookingState.staffId,
+          staffId: bookingState.staffId || 'staff-any',
           serviceId: bookingState.serviceId,
           serviceName: bookingState.serviceName,
           servicePrice: bookingState.servicePrice,
@@ -641,7 +933,7 @@ export async function renderCustomerScreen(user, onTabChange) {
           serviceName: bookingState.serviceName,
           date: bookingState.date,
           time: bookingState.time,
-          customerName: user.name,
+          customerName: displayName,
           customerPhone: user.phone
         });
         activeCustomerTab = 'appointments';
@@ -651,16 +943,19 @@ export async function renderCustomerScreen(user, onTabChange) {
 
       if (res && res.status === 409) {
         showErrorModal(t('errorTitle'), (resData && resData.error) ? resData.error : '⚠️ Seçtiğiniz tarih ve saat aralığında berber doludur. Lütfen başka bir saat seçiniz.');
+        if (btnEl) { btnEl.disabled = false; btnEl.innerText = `⚡ ${t('confirmBooking', currentLang)}`; }
         return;
       }
 
       if (resData && resData.error) {
         showErrorModal(t('errorTitle'), `❌ Hata (${res ? res.status : 'API'}): ${resData.error}`);
+        if (btnEl) { btnEl.disabled = false; btnEl.innerText = `⚡ ${t('confirmBooking', currentLang)}`; }
         return;
       }
     } catch (e) {
       console.warn('Booking create error:', e);
       showErrorModal(t('errorTitle'), 'Sunucuya ulaşılamadı. Lütfen tekrar deneyiniz.');
+      if (btnEl) { btnEl.disabled = false; btnEl.innerText = `⚡ ${t('confirmBooking', currentLang)}`; }
     }
   };
 
@@ -669,7 +964,12 @@ export async function renderCustomerScreen(user, onTabChange) {
     const root = document.getElementById('modal-root');
     if (!root) return;
 
-    const messageText = `EZO STİLE Bildirimi:\nİşlem: ${actionType.toUpperCase()}\nMüşteri: ${details.customerName} (${details.customerPhone})\nHizmet: ${details.serviceName}\nTarih: ${details.date} @ ${details.time}\nEZO STİLE üzerinden oluşturuldu.`;
+    const messageText = `EZO STİLE Bildirimi:
+İşlem: ${actionType.toUpperCase()}
+Müşteri: ${details.customerName} (${details.customerPhone})
+Hizmet: ${details.serviceName}
+Tarih: ${details.date} @ ${details.time}
+EZO STİLE üzerinden oluşturuldu.`;
     const encodedText = encodeURIComponent(messageText);
 
     root.innerHTML = `
@@ -696,19 +996,5 @@ export async function renderCustomerScreen(user, onTabChange) {
         </div>
       </div>
     `;
-  };
-
-  window.cancelCustomerAppointment = (aptId) => {
-    showConfirmModal('Randevu İptali', 'Randevuyu iptal etmek istediğinize emin misiniz?', async () => {
-      await saveRecord(`appointments/${aptId}/status`, 'cancelled');
-      showSuccessModal(t('successTitle'), '✅ Randevunuz iptal edildi.');
-      renderCustomerScreen(user, onTabChange);
-    });
-  };
-
-  window.requestRescheduleAppointment = async (aptId) => {
-    await saveRecord(`appointments/${aptId}/status`, 'reschedule_requested');
-    showSuccessModal(t('successTitle'), '✅ Tarih/Saat değişiklik talebiniz iletildi.');
-    renderCustomerScreen(user, onTabChange);
   };
 }
