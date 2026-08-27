@@ -104,8 +104,10 @@ export default async function handler(req, res) {
     const assignedStatus = initialStatus || (isManual ? 'approved' : 'pending');
 
     // 4. SAVE NEW APPOINTMENT RECORD WITH PRICE & NAME SNAPSHOTS
+    const businessNameSnapshot = biz ? (biz.name || 'EZO Salon') : 'EZO Salon';
     const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const appointmentRecord = {
+      businessNameSnapshot,
       aptId,
       businessId,
       customerUid: effectiveCustomerUid,

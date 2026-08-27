@@ -282,22 +282,33 @@ export async function renderCustomerScreen(user, onTabChange) {
     `;
   } else if (activeCustomerTab === 'appointments') {
     const userApts = await getAppointmentsForCustomer(user.uid);
+    const allBusinessesData = await fetchRecord('businesses') || {};
+
+    // 1. ALL ACTIVE APPOINTMENTS (UNLIMITED VISIBILITY - REQUIREMENT 3)
     const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'cancel_requested' || apt.status === 'reschedule_requested'));
-    let pastApts = userApts.filter(apt => apt && (apt.status === 'completed' || apt.status === 'cancelled' || apt.status === 'rejected' || apt.status === 'no_show'));
-    
-    pastApts = pastApts.slice(0, 5);
+
+    // 2. PAST APPOINTMENTS (LIMITED TO LATEST 5 IN UI - REQUIREMENT 4)
+    const pastAptsAll = userApts.filter(apt => apt && (apt.status === 'completed' || apt.status === 'cancelled' || apt.status === 'rejected' || apt.status === 'no_show'));
+    pastAptsAll.sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || '')));
+    const pastAptsVisible = pastAptsAll.slice(0, 5);
 
     const activeHtml = activeApts.map(apt => {
-      const aptTimeMs = new Date(`${apt.date}T${apt.time}:00`).getTime();
+      const bizObj = allBusinessesData[apt.businessId];
+      const salonName = apt.businessNameSnapshot || (bizObj ? bizObj.name : 'EZO Salon');
+      const aptTimeMs = new Date(`${apt.date}T${apt.time || '00:00'}:00`).getTime();
       const hoursUntilApt = (aptTimeMs - Date.now()) / (1000 * 3600);
       const is6HoursOrMore = hoursUntilApt >= 6;
 
       return `
-        <div class="card card-gold" style="padding: 14px; margin-bottom: 10px;">
+        <div class="card card-gold animate-fade" style="padding: 14px; margin-bottom: 10px;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
+              <div style="font-size: 11px; color: var(--gold-primary); font-weight: 800; margin-bottom: 2px;">💈 ${t('salonLabel', currentLang)}: ${salonName}</div>
               <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
-              <div style="font-size: 12px; color: var(--gold-primary); margin-top: 2px;">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk)</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                💈 Berber: ${apt.staffName || 'Mustafa Usta'} • 💰 ${apt.servicePrice || 350} TL
+              </div>
+              <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700; margin-top: 2px;">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk)</div>
             </div>
             <span class="badge ${apt.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${t(apt.status, currentLang)}</span>
           </div>
@@ -314,26 +325,33 @@ export async function renderCustomerScreen(user, onTabChange) {
       `;
     }).join('');
 
-    const pastHtml = pastApts.map(apt => `
-      <div class="card" style="padding: 12px; margin-bottom: 8px; opacity: 0.8;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 13px; font-weight: 700; color: #fff;">✂️ ${apt.serviceName}</div>
-            <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time}</div>
+    const pastHtml = pastAptsVisible.map(apt => {
+      const bizObj = allBusinessesData[apt.businessId];
+      const salonName = apt.businessNameSnapshot || (bizObj ? bizObj.name : 'EZO Salon');
+
+      return `
+        <div class="card animate-fade" style="padding: 12px; margin-bottom: 8px; opacity: 0.85;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">💈 ${salonName}</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName} • ${apt.staffName || 'Mustafa Usta'}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time} • 💰 ${apt.servicePrice || 350} TL</div>
+            </div>
+            <span class="badge badge-secondary" style="font-size: 10px;">${t(apt.status, currentLang)}</span>
           </div>
-          <span class="badge badge-secondary" style="font-size: 10px;">${t(apt.status, currentLang)}</span>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     mainHtml = `
       <div class="card animate-fade">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 ${t('myAppointments', currentLang)}</h3>
-        <h4 style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px;">Aktif Randevular</h4>
+        
+        <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">${t('activeUpcomingAppointments', currentLang)} (${activeApts.length})</h4>
         ${activeApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">Aktif randevunuz bulunmamaktadır.</div>' : activeHtml}
 
-        <h4 style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 16px; margin-bottom: 8px;">Geçmiş Randevular (Son 5)</h4>
-        ${pastApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Geçmiş randevu kaydı yok.</div>' : pastHtml}
+        <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-top: 16px; margin-bottom: 8px;">${t('pastAppointmentsLimit', currentLang)}</h4>
+        ${pastAptsVisible.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Geçmiş randevu kaydı bulunmamaktadır.</div>' : pastHtml}
       </div>
     `;
   } else if (activeCustomerTab === 'ai') {

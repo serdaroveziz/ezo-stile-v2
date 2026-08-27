@@ -43,6 +43,9 @@ export function isRtl(lang) {
 
 export const DICTIONARY = {
   tr: {
+    activeUpcomingAppointments: '📅 Aktif / Yaklaşan Randevular',
+    pastAppointmentsLimit: '🕘 Geçmiş Randevular (Son 5)',
+    salonLabel: 'Salon',
     welcomeTitle: 'EZO STİLE v2',
     welcomeSub: 'VIP Berber & Güzellik Platformu',
     imCustomer: '👤 Müşteriyim',
@@ -135,6 +138,9 @@ export const DICTIONARY = {
     notArrived: '🚫 Gelmedi'
   },
   en: {
+    activeUpcomingAppointments: '📅 Active / Upcoming Appointments',
+    pastAppointmentsLimit: '🕘 Past Appointments (Last 5)',
+    salonLabel: 'Salon',
     welcomeTitle: 'EZO STİLE v2',
     welcomeSub: 'VIP Barber & Beauty Platform',
     imCustomer: '👤 I am a Customer',
@@ -227,6 +233,9 @@ export const DICTIONARY = {
     notArrived: '🚫 No-Show'
   },
   ru: {
+    activeUpcomingAppointments: '📅 Активные / Предстоящие Записи',
+    pastAppointmentsLimit: '🕘 Прошедшие Записи (Последние 5)',
+    salonLabel: 'Салон',
     welcomeTitle: 'EZO STİLE v2',
     welcomeSub: 'VIP Платформа для барбершопов',
     imCustomer: '👤 Я Клиент',
@@ -319,6 +328,9 @@ export const DICTIONARY = {
     notArrived: '🚫 Не пришел'
   },
   ar: {
+    activeUpcomingAppointments: '📅 المواعيد النشطة / القادمة',
+    pastAppointmentsLimit: '🕘 المواعيد السابقة (آخر 5)',
+    salonLabel: 'صالون',
     welcomeTitle: 'EZO STİLE v2',
     welcomeSub: 'منصة الصالونات الراقية',
     imCustomer: '👤 أنا عميل',

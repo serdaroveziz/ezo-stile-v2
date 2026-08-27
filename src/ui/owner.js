@@ -792,18 +792,10 @@ export async function renderOwnerScreen(user, onTabChange) {
     const root = document.getElementById('modal-root');
     if (!root) return;
 
-    manualBookingState = {
-      customerName: '',
-      customerPhone: '',
-      serviceId: null,
-      serviceName: null,
-      servicePrice: 0,
-      serviceDuration: 30,
-      staffId: 'staff-any',
-      staffName: 'Fark Etmez',
-      date: todayStr,
-      time: null
-    };
+    // PRESERVE DRAFT CUSTOMER NAME & PHONE IF ALREADY TYPED (REQUIREMENT 1)
+    if (!manualBookingState.date) {
+      manualBookingState.date = todayStr;
+    }
 
     window.renderManualBookingModalContent();
   };
@@ -1002,6 +994,19 @@ export async function renderOwnerScreen(user, onTabChange) {
     window.closeModal();
 
     if (res && res.ok && data && data.success) {
+      // CLEAR DRAFT STATE ONLY ON SUCCESSFUL CREATION (REQUIREMENT 1)
+      manualBookingState = {
+        customerName: '',
+        customerPhone: '',
+        serviceId: null,
+        serviceName: null,
+        servicePrice: 0,
+        serviceDuration: 30,
+        staffId: 'staff-any',
+        staffName: 'Fark Etmez',
+        date: todayStr,
+        time: null
+      };
       showSuccessModal(t('successTitle'), '✅ Manuel randevu müşteri UX ile onaylı olarak kaydedildi.');
       renderOwnerScreen(user, onTabChange);
     } else {
