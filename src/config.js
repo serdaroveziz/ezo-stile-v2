@@ -43,6 +43,16 @@ export function isRtl(lang) {
 
 export const DICTIONARY = {
   tr: {
+    serviceLabel: 'Hizmet',
+    barberLabel: 'Berber',
+    dateLabel: 'Tarih',
+    timeLabel: 'Saat',
+    priceLabel: 'Fiyat',
+    statusLabel: 'Durum',
+    cancelRequestBtn: '❌ İptal Talebi Gönder',
+    rescheduleRequestBtn: '🔄 Tarih/Saat Değiştir',
+    noActiveAppointments: 'Aktif randevunuz bulunmamaktadır.',
+    noPastAppointments: 'Geçmiş randevu kaydı bulunmamaktadır.',
     masterNotifLabel: '🔔 Tüm Bildirimleri Aç / Kapat',
     masterNotifSub: 'Ana bildirim anahtarı (alt tercihler korunur)',
     imageEditorTitle: '✂️ Görsel Düzenleme & Kırpma',

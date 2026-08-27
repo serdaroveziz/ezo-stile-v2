@@ -273,7 +273,8 @@ export async function renderOwnerScreen(user, onTabChange) {
           </div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- ALL 5 WORKING MANAGEMENT CARDS IN ORDER (REQUIREMENT 4) -->
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
           <div onclick="window.openStaffManagementModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
             <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">👥 Personel Kadrosu & İzinleri</h4>
             <span class="badge badge-approved">Yönet →</span>
@@ -287,6 +288,25 @@ export async function renderOwnerScreen(user, onTabChange) {
           <div onclick="window.openWeeklyScheduleModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
             <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">⏰ Çalışma Günleri & Saatleri</h4>
             <span class="badge badge-approved">Düzenle →</span>
+          </div>
+
+          <div onclick="window.openSalonContactModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">💬 Salon İletişim Numaraları</h4>
+            <span class="badge badge-approved">Düzenle →</span>
+          </div>
+
+          <!-- PAKET & LİSANS DURUMU AT THE VERY BOTTOM -->
+          <div class="card card-gold animate-fade" style="padding: 16px; margin-top: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">📦 Paket & Lisans Durumu</div>
+                <div style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 2px;">Mevcut Paket: ${planName}</div>
+                ${isGrant ? `<div style="font-size: 10px; color: #eab308; font-weight: 800; margin-top: 4px;">${t('superAdminGrantNotice', currentLang)}</div>` : ''}
+              </div>
+              <button onclick="window.openPackageUpgradeModal()" class="btn btn-gold" style="font-size: 11px; padding: 6px 12px;">
+                ${t('upgradePackageBtn', currentLang)}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -414,6 +434,15 @@ export async function renderOwnerScreen(user, onTabChange) {
     const todayDate = new Date().toISOString().split('T')[0];
     const tomorrowDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
+    // REQUIREMENT 1: SINGLE AVAILABILITY MOTOR CLOSED DAY GUARD
+    const selectedDateObj = new Date(manualBookingDraft.date);
+    const dayIdx = (selectedDateObj.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayKey = dayKeys[dayIdx];
+    const weeklySchedule = bizRecord.weeklySchedule || {};
+    const daySched = weeklySchedule[dayKey];
+    const isDayClosed = daySched && daySched.isOpen === false;
+
     const occupiedSlots = new Set();
     allApts.forEach(apt => {
       if (apt && apt.businessId === businessId &&
@@ -510,9 +539,15 @@ export async function renderOwnerScreen(user, onTabChange) {
             <input type="date" value="${manualBookingDraft.date}" onchange="window.selectManualBookingDate(this.value)" class="input-field" style="flex: 1; margin: 0; font-size: 11px; padding: 4px;">
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px;">
-            ${slotsHtml}
-          </div>
+          ${isDayClosed ? `
+            <div style="font-size: 13px; font-weight: 800; color: #ef4444; background: rgba(239,68,68,0.15); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 16px;">
+              🛑 Salon seçilen tarihte (${manualBookingDraft.date}) kapalıdır.
+            </div>
+          ` : `
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px;">
+              ${slotsHtml}
+            </div>
+          `}
 
           <button id="btn-submit-manual-booking" onclick="window.submitManualBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${(!manualBookingDraft.serviceId || !manualBookingDraft.time) ? 'disabled' : ''}>
             ⚡ Manuel Randevuyu Onayla & Kaydet
@@ -1004,3 +1039,11 @@ export async function renderOwnerScreen(user, onTabChange) {
     window.renderOwnerScreen(user, onTabChange);
   };
 }
+
+  window.toggleMasterNotificationOwner = (enabled) => {
+    const subCheckboxes = document.querySelectorAll('.sub-notif-pref');
+    subCheckboxes.forEach(cb => {
+      cb.disabled = !enabled;
+      if (!enabled) cb.checked = false;
+    });
+  };

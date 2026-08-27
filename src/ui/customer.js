@@ -329,9 +329,9 @@ export async function renderCustomerScreen(user, onTabChange) {
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
               <div style="font-size: 11px; color: var(--gold-primary); font-weight: 800; margin-bottom: 2px;">💈 ${t('salonLabel', currentLang)}: ${salonName}</div>
-              <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName}</div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${apt.serviceNameSnapshot || apt.serviceName}</div>
               <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-                💈 Berber: ${apt.staffName || 'Mustafa Usta'} • 💰 ${apt.servicePrice || 350} TL
+                💈 ${t('barberLabel', currentLang)}: ${apt.staffName || 'Mustafa Usta'} • 💰 ${apt.servicePriceSnapshot || apt.servicePrice || 350} TL
               </div>
               <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700; margin-top: 2px;">📅 ${apt.date} @ ${apt.time} (${apt.serviceDuration || 30} dk)</div>
             </div>
@@ -340,10 +340,10 @@ export async function renderCustomerScreen(user, onTabChange) {
 
           <div style="display: flex; gap: 8px; margin-top: 10px;">
             <button onclick="window.requestRescheduleCustomer('${apt.aptId}', ${is6HoursOrMore})" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px;">
-              ${is6HoursOrMore ? '🔄 Tarih/Saat Değiştir' : '📩 Değişiklik Talebi Gönder'}
+              ${t('rescheduleRequestBtn', currentLang)}
             </button>
             <button onclick="window.requestCancelCustomer('${apt.aptId}')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;" ${apt.status === 'cancel_requested' ? 'disabled' : ''}>
-              ${apt.status === 'cancel_requested' ? '⏳ İptal Talebi Alındı' : '❌ İptal Talebi Gönder'}
+              ${apt.status === 'cancel_requested' ? '⏳ İptal Talebi Alındı' : t('cancelRequestBtn', currentLang)}
             </button>
           </div>
         </div>
@@ -358,9 +358,9 @@ export async function renderCustomerScreen(user, onTabChange) {
         <div class="card animate-fade" style="padding: 12px; margin-bottom: 8px; opacity: 0.85;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-              <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">💈 ${salonName}</div>
-              <div style="font-size: 13px; font-weight: 800; color: #fff;">✂️ ${apt.serviceName} • ${apt.staffName || 'Mustafa Usta'}</div>
-              <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time} • 💰 ${apt.servicePrice || 350} TL</div>
+              <div style="font-size: 10px; color: var(--gold-primary); font-weight: 700;">💈 ${t('salonLabel', currentLang)}: ${salonName}</div>
+              <div style="font-size: 13px; font-weight: 800; color: #fff;">✂️ ${apt.serviceNameSnapshot || apt.serviceName} • ${apt.staffName || 'Mustafa Usta'}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">📅 ${apt.date} @ ${apt.time} • 💰 ${apt.servicePriceSnapshot || apt.servicePrice || 350} TL</div>
             </div>
             <span class="badge badge-secondary" style="font-size: 10px;">${t(apt.status, currentLang)}</span>
           </div>
@@ -373,10 +373,10 @@ export async function renderCustomerScreen(user, onTabChange) {
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 ${t('myAppointments', currentLang)}</h3>
         
         <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">${t('activeUpcomingAppointments', currentLang)} (${activeApts.length})</h4>
-        ${activeApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">Aktif randevunuz bulunmamaktadır.</div>' : activeHtml}
+        ${activeApts.length === 0 ? `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">${t('noActiveAppointments', currentLang)}</div>` : activeHtml}
 
         <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-top: 16px; margin-bottom: 8px;">${t('pastAppointmentsLimit', currentLang)}</h4>
-        ${pastAptsVisible.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Geçmiş randevu kaydı bulunmamaktadır.</div>' : pastHtml}
+        ${pastAptsVisible.length === 0 ? `<div style="font-size: 11px; color: var(--text-muted);">${t('noPastAppointments', currentLang)}</div>` : pastHtml}
       </div>
     `;
   } else if (activeCustomerTab === 'ai') {

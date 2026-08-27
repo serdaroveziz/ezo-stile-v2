@@ -42,8 +42,8 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Bu salon şu anda online randevu kabul etmiyor.' });
       }
 
-      // WEEKLY SCHEDULE DAY-OFF CHECK (Bypassed for Manual Bookings)
-      if (biz.weeklySchedule && !isManual) {
+      // WEEKLY SCHEDULE DAY-OFF CHECK (Strict for both Customer & Manual Bookings - Requirement 1)
+      if (biz.weeklySchedule) {
         const aptDateObj = new Date(date);
         const dayIdx = (aptDateObj.getDay() + 6) % 7; // Monday = 0, Sunday = 6
         const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
