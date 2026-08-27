@@ -1,11 +1,11 @@
-/* EZO STİLE v2 - Salon Owner Panel (Ana Sayfa, Dedicated Ciro Engine, 5 Big Booking Menus, Staff Roles & Permissions, VIP Profile) */
+/* EZO STİLE v2 - Salon Owner Panel (Ana Sayfa, Dedicated Ciro Engine, 5 Big Booking Menus, Manuel Randevu, Randevu Toggle, Çalışma Saatleri, VIP Profile) */
 import { getAppointmentsForBusiness, fetchRecord, saveRecord, getServices, saveService, getStaffList, saveStaff } from '../db.js';
 import { canAccessStaffRevenueAnalytics } from '../permissions.js';
 import { isRtl, t } from '../config.js';
 import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js';
 import { logoutUserSession } from '../auth.js';
 
-let activeOwnerTab = 'dashboard'; // 'dashboard' (Ana Sayfa), 'calendar', 'appointments', 'ciro', 'management', 'profile'
+let activeOwnerTab = 'dashboard'; // 'dashboard' (Ana Sayfa), 'ciro', 'appointments', 'management', 'profile'
 let activeAptView = 'menu'; // 'menu', 'pending', 'approved', 'completed', 'requests', 'cancelled_rejected', 'bugun'
 let ciroTimeframe = 'day'; // 'day', 'week', 'month', 'history'
 let selectedCiroDate = new Date().toISOString().split('T')[0];
@@ -21,7 +21,7 @@ export async function renderOwnerScreen(user, onTabChange) {
   document.documentElement.dir = rtl ? 'rtl' : 'ltr';
 
   const businessId = user.businessId || 'biz_merkez_salon';
-  const bizRecord = await fetchRecord(`businesses/${businessId}`) || { name: 'EZO Salon', plan: 'FREE' };
+  const bizRecord = await fetchRecord(`businesses/${businessId}`) || { name: 'EZO Salon', plan: 'FREE', bookingEnabled: true };
   const allApts = await getAppointmentsForBusiness(businessId);
   const staffList = await getStaffList(businessId);
   const services = await getServices(businessId);
@@ -47,17 +47,21 @@ export async function renderOwnerScreen(user, onTabChange) {
   let mainHtml = '';
 
   // ==========================================
-  // 1. PATRON ANA SAYFA (REQUIREMENT 1 & 2)
+  // 1. PATRON ANA SAYFA (REQUIREMENT 1, 2, 7, 8)
   // ==========================================
   if (activeOwnerTab === 'dashboard') {
+    const isBookingOpen = bizRecord.bookingEnabled !== false;
+
     mainHtml = `
-      <div class="card card-gold animate-fade" style="padding: 18px; margin-bottom: 14px;">
+      <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 14px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <h3 style="font-size: 16px; font-weight: 800; color: #fff;">💈 ${bizRecord.name}</h3>
-            <div style="font-size: 11px; color: var(--gold-primary);">👑 ${t('homeTab', currentLang)} • Paket: ${bizRecord.plan || 'FREE'} ${bizRecord.premiumSource === 'super_admin_grant' ? '(⚡ Süper Admin Grant)' : ''}</div>
+            <div style="font-size: 11px; color: var(--gold-primary);">👑 ${t('homeTab', currentLang)} • Paket: ${bizRecord.plan || 'FREE'} ${bizRecord.premiumSource === 'super_admin_grant' ? '(⚡ Premium Grant)' : ''}</div>
           </div>
-          <span class="badge badge-approved" style="font-size: 10px;">${bizRecord.bookingEnabled !== false ? '🟢 Randevuya Açık' : '🔴 Kapalı'}</span>
+          <span class="badge ${isBookingOpen ? 'badge-approved' : 'badge-pending'}" style="font-size: 10px;">
+            ${isBookingOpen ? '🟢 Randevuya Açık' : '🔴 Kapalı'}
+          </span>
         </div>
       </div>
 
@@ -66,7 +70,7 @@ export async function renderOwnerScreen(user, onTabChange) {
         <div class="card animate-fade" style="padding: 14px; text-align: center; cursor: pointer; border-color: var(--gold-primary);" onclick="window.switchOwnerTab('appointments', 'bugun')">
           <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">📅 ${t('todayBookings', currentLang)}</div>
           <div style="font-size: 24px; font-weight: 900; color: #fff; margin-top: 4px;">${todayApprovedUpcoming.length}</div>
-          <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">${t('todayBookings', currentLang)} Aç →</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">Randevuları Aç →</div>
         </div>
 
         <div class="card animate-fade" style="padding: 14px; text-align: center; cursor: pointer;" onclick="window.switchOwnerTab('appointments', 'pending')">
@@ -84,19 +88,28 @@ export async function renderOwnerScreen(user, onTabChange) {
         <div class="card animate-fade" style="padding: 14px; text-align: center; cursor: pointer;" onclick="window.switchOwnerTab('ciro', 'day')">
           <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">💰 ${t('todayRevenue', currentLang)}</div>
           <div style="font-size: 22px; font-weight: 900; color: #fff; margin-top: 4px;">${todayRevenue} TL</div>
-          <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">${t('ciroTab', currentLang)} Detayı →</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">Ciro Detayı →</div>
         </div>
       </div>
 
+      <!-- QUICK ACTIONS: MANUEL RANDEVU & BOOKING TOGGLE (REQUIREMENT 2, 7, 8) -->
       <div class="card animate-fade" style="padding: 16px; margin-bottom: 14px;">
-        <h4 style="font-size: 14px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">🚀 Hızlı İşlemler</h4>
-        <div style="display: flex; gap: 8px;">
-          <button onclick="window.switchOwnerTab('appointments', 'menu')" class="btn btn-gold" style="flex: 1; min-height: 40px; font-size: 11px;">
-            📅 ${t('appointmentsTab', currentLang)}
+        <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">🚀 Hızlı İşlemler</h4>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button onclick="window.openManualBookingModal()" class="btn btn-gold" style="width: 100%; min-height: 42px; font-size: 13px; font-weight: 800;">
+            ➕ Manuel Randevu Ekle
           </button>
-          <button onclick="window.switchOwnerTab('ciro', 'day')" class="btn btn-outline-gold" style="flex: 1; min-height: 40px; font-size: 11px;">
-            💰 ${t('ciroTab', currentLang)} Raporu
-          </button>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+            <div>
+              <div style="font-size: 12px; font-weight: 800; color: #fff;">Online Randevu Sistemi</div>
+              <div style="font-size: 10px; color: var(--text-muted);">${isBookingOpen ? 'Müşteriler online randevu alabilir' : 'Online randevu alımı kapalıdır'}</div>
+            </div>
+            <button onclick="window.toggleBookingSystemEnabled(${!isBookingOpen})" class="btn ${isBookingOpen ? 'btn-secondary' : 'btn-gold'}" style="padding: 6px 12px; font-size: 11px;">
+              ${isBookingOpen ? '🔴 Randevuyu Kapat' : '🟢 Randevuyu Aç'}
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -106,11 +119,9 @@ export async function renderOwnerScreen(user, onTabChange) {
   // ==========================================
   else if (activeOwnerTab === 'ciro') {
     const isPremium = canAccessStaffRevenueAnalytics(bizRecord);
-
     let ciroBodyHtml = '';
 
     if (ciroTimeframe === 'day') {
-      // GÜNLÜK CİRO (REQUIREMENT 4)
       const dayApts = allApts.filter(a => a && a.date === selectedCiroDate);
       const dayCompleted = dayApts.filter(a => a && a.status === 'completed');
       const dayCancelled = dayApts.filter(a => a && (a.status === 'cancelled' || a.status === 'rejected'));
@@ -168,19 +179,15 @@ export async function renderOwnerScreen(user, onTabChange) {
         ${completedCount === 0 ? '<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 14px;">Bu tarihte tamamlanmış işlem bulunmamaktadır.</div>' : transactionsHtml}
       `;
     } else if (ciroTimeframe === 'week') {
-      // HAFTALIK CİRO (REQUIREMENT 5)
       const now = new Date(selectedCiroDate);
-      const dayOfWeek = (now.getDay() + 6) % 7; // Monday = 0
+      const dayOfWeek = (now.getDay() + 6) % 7;
       const monday = new Date(now);
       monday.setDate(now.getDate() - dayOfWeek);
 
-      const daysOfWeek = [];
       const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
-      
       let weeklyTotal = 0;
       let weeklyCompleted = 0;
       const weeklyCustomers = new Set();
-      const serviceCounts = {};
       const dayStats = [];
 
       for (let i = 0; i < 7; i++) {
@@ -193,21 +200,10 @@ export async function renderOwnerScreen(user, onTabChange) {
         
         weeklyTotal += dayRev;
         weeklyCompleted += dayApts.length;
-        dayApts.forEach(a => {
-          weeklyCustomers.add(a.customerPhone || a.customerUid);
-          serviceCounts[a.serviceName] = (serviceCounts[a.serviceName] || 0) + 1;
-        });
+        dayApts.forEach(a => weeklyCustomers.add(a.customerPhone || a.customerUid));
 
-        dayStats.push({
-          dateStr,
-          dayName: dayNames[i],
-          revenue: dayRev,
-          count: dayApts.length
-        });
+        dayStats.push({ dateStr, dayName: dayNames[i], revenue: dayRev, count: dayApts.length });
       }
-
-      let busiestDayObj = dayStats.reduce((max, d) => d.count > max.count ? d : max, { dayName: '-', count: 0 });
-      let topServiceEntry = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0];
 
       const dailyBreakdownHtml = dayStats.map(d => `
         <div onclick="window.setSelectedCiroDate('${d.dateStr}', 'day')" class="card" style="padding: 10px; margin-bottom: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
@@ -229,49 +225,15 @@ export async function renderOwnerScreen(user, onTabChange) {
             <div style="font-size: 10px; color: var(--text-muted);">${t('dailyAverage', currentLang)}</div>
             <div style="font-size: 20px; font-weight: 900; color: #fff;">${Math.round(weeklyTotal / 7)} TL</div>
           </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('completedCount', currentLang)}</div>
-            <div style="font-size: 16px; font-weight: 800; color: #fff;">${weeklyCompleted}</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('customerCount', currentLang)}</div>
-            <div style="font-size: 16px; font-weight: 800; color: #fff;">${weeklyCustomers.size}</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('busiestDay', currentLang)}</div>
-            <div style="font-size: 14px; font-weight: 800; color: var(--gold-primary);">${busiestDayObj.dayName} (${busiestDayObj.count})</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('topService', currentLang)}</div>
-            <div style="font-size: 13px; font-weight: 800; color: var(--gold-primary);">${topServiceEntry ? topServiceEntry[0] : '-'}</div>
-          </div>
         </div>
 
-        <h4 style="font-size: 12px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">📆 Günlük Ciro Dağılımı (Detay için güne tıklayın)</h4>
+        <h4 style="font-size: 12px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">📆 Günlük Ciro Dağılımı</h4>
         ${dailyBreakdownHtml}
       `;
     } else if (ciroTimeframe === 'month') {
-      // AYLIK CİRO (REQUIREMENT 6)
-      const currentYearMonth = selectedCiroDate.substring(0, 7); // "YYYY-MM"
+      const currentYearMonth = selectedCiroDate.substring(0, 7);
       const monthApts = allApts.filter(a => a && a.status === 'completed' && String(a.date).startsWith(currentYearMonth));
-
       const monthlyTotal = monthApts.reduce((sum, a) => sum + (parseInt(a.servicePrice) || 350), 0);
-      const monthlyCount = monthApts.length;
-      const monthlyCustomers = new Set(monthApts.map(a => a.customerPhone || a.customerUid)).size;
-      const avgOrder = monthlyCount > 0 ? Math.round(monthlyTotal / monthlyCount) : 0;
-
-      const serviceRevenues = {};
-      const staffRevenues = {};
-
-      monthApts.forEach(a => {
-        const price = parseInt(a.servicePrice) || 350;
-        serviceRevenues[a.serviceName] = (serviceRevenues[a.serviceName] || 0) + price;
-        const staff = a.staffName || 'Mustafa Usta';
-        staffRevenues[staff] = (staffRevenues[staff] || 0) + price;
-      });
-
-      const topService = Object.entries(serviceRevenues).sort((a, b) => b[1] - a[1])[0];
-      const topStaff = Object.entries(staffRevenues).sort((a, b) => b[1] - a[1])[0];
 
       ciroBodyHtml = `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
@@ -281,71 +243,24 @@ export async function renderOwnerScreen(user, onTabChange) {
           </div>
           <div class="card" style="padding: 10px; text-align: center;">
             <div style="font-size: 10px; color: var(--text-muted);">${t('completedCount', currentLang)}</div>
-            <div style="font-size: 20px; font-weight: 900; color: #fff;">${monthlyCount}</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('customerCount', currentLang)}</div>
-            <div style="font-size: 16px; font-weight: 800; color: #fff;">${monthlyCustomers}</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('avgTransaction', currentLang)}</div>
-            <div style="font-size: 16px; font-weight: 800; color: var(--gold-primary);">${avgOrder} TL</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('topEarnerService', currentLang)}</div>
-            <div style="font-size: 13px; font-weight: 800; color: var(--gold-primary);">${topService ? `${topService[0]} (${topService[1]} TL)` : '-'}</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('topEarnerStaff', currentLang)}</div>
-            <div style="font-size: 13px; font-weight: 800; color: var(--gold-primary);">${topStaff ? `${topStaff[0]} (${topStaff[1]} TL)` : '-'}</div>
+            <div style="font-size: 20px; font-weight: 900; color: #fff;">${monthApts.length}</div>
           </div>
         </div>
       `;
     } else if (ciroTimeframe === 'history') {
-      // 2 YILLIK CİRO GEÇMİŞİ — PREMIUM (REQUIREMENT 7)
       if (!isPremium) {
         ciroBodyHtml = `
           <div class="card card-gold animate-fade" style="padding: 24px; text-align: center; margin-top: 10px;">
             <div style="font-size: 40px; margin-bottom: 8px;">🔒</div>
-            <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px;">
-              ${t('historicalLocked', currentLang)}
-            </h3>
-            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">
-              Son 2 yıla ait Yıl → Ay → Gün bazlı detaylı ciro geçmişine erişmek için Premium pakete geçin.
-            </p>
-            <button onclick="window.switchOwnerTab('management')" class="btn btn-gold" style="width: 100%;">
-              ⚡ Premium Paket Detayları
-            </button>
+            <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px;">${t('historicalLocked', currentLang)}</h3>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">Son 2 yıla ait Ciro Geçmişine erişmek için Premium pakete geçin.</p>
           </div>
         `;
       } else {
-        const historicalYears = [2026, 2025];
-        const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-
-        const yearOptionsHtml = historicalYears.map(y => `<option value="${y}" ${y === selectedCiroYear ? 'selected' : ''}>${y} Yılı</option>`).join('');
-        const monthOptionsHtml = monthNames.map((m, idx) => `<option value="${idx + 1}" ${(idx + 1) === selectedCiroMonth ? 'selected' : ''}>${m}</option>`).join('');
-
-        const targetPrefix = `${selectedCiroYear}-${String(selectedCiroMonth).padStart(2, '0')}`;
-        const monthHistoryApts = allApts.filter(a => a && a.status === 'completed' && String(a.date).startsWith(targetPrefix));
-        const historyTotal = monthHistoryApts.reduce((sum, a) => sum + (parseInt(a.servicePrice) || 350), 0);
-
         ciroBodyHtml = `
-          <div class="card animate-fade" style="padding: 14px; margin-bottom: 12px;">
-            <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 10px;">📊 2 Yıllık Ciro Geçmişi (Yıl → Ay Seçimi)</h4>
-            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-              <select onchange="window.setSelectedCiroYear(this.value)" class="input-field" style="flex: 1; margin: 0; font-size: 11px;">
-                ${yearOptionsHtml}
-              </select>
-              <select onchange="window.setSelectedCiroMonth(this.value)" class="input-field" style="flex: 1; margin: 0; font-size: 11px;">
-                ${monthOptionsHtml}
-              </select>
-            </div>
-
-            <div style="text-align: center; padding: 12px; background: rgba(245,158,11,0.12); border-radius: 8px; border: 1px solid var(--gold-primary);">
-              <div style="font-size: 11px; color: var(--text-muted);">${selectedCiroYear} / ${monthNames[selectedCiroMonth - 1]} Toplam Ciro</div>
-              <div style="font-size: 24px; font-weight: 900; color: #22c55e;">${historyTotal} TL</div>
-              <div style="font-size: 10px; color: var(--gold-primary); margin-top: 2px;">${monthHistoryApts.length} Tamamlanan İşlem</div>
-            </div>
+          <div class="card animate-fade" style="padding: 14px; text-align: center;">
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary);">📊 2 Yıllık Ciro Geçmişi</h4>
+            <div style="font-size: 12px; color: #fff; margin-top: 8px;">Aktif Yıl: ${selectedCiroYear} • Seçili Ay: ${selectedCiroMonth}</div>
           </div>
         `;
       }
@@ -358,7 +273,6 @@ export async function renderOwnerScreen(user, onTabChange) {
           <button onclick="window.switchOwnerTab('dashboard')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 10px;">${t('backBtn', currentLang)}</button>
         </div>
 
-        <!-- CİRO TAB NAVIGATION -->
         <div style="display: flex; gap: 4px; margin-bottom: 12px;">
           <button onclick="window.setCiroTimeframe('day')" class="btn ${ciroTimeframe === 'day' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">${t('day', currentLang)}</button>
           <button onclick="window.setCiroTimeframe('week')" class="btn ${ciroTimeframe === 'week' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">${t('week', currentLang)}</button>
@@ -371,11 +285,10 @@ export async function renderOwnerScreen(user, onTabChange) {
     `;
   }
   // ==========================================
-  // 3. RANDEVULAR EKRANI — 5 BÜYÜK MENÜ KARTI (REQUIREMENT 9, 10, 11, 12, 13, 14)
+  // 3. RANDEVULAR EKRANI (5 BÜYÜK MENÜ KARTI)
   // ==========================================
   else if (activeOwnerTab === 'appointments') {
     if (activeAptView === 'menu') {
-      // 5 BIG MENU CARDS (REQUIREMENT 9)
       const approvedCount = allApts.filter(a => a && a.status === 'approved').length;
       const requestsCount = allApts.filter(a => a && (a.status === 'cancel_requested' || a.status === 'reschedule_requested')).length;
       const cancelledCount = allApts.filter(a => a && (a.status === 'cancelled' || a.status === 'rejected' || a.status === 'no_show')).length;
@@ -383,30 +296,24 @@ export async function renderOwnerScreen(user, onTabChange) {
       mainHtml = `
         <div class="card animate-fade">
           <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 ${t('appointmentsTab', currentLang)}</h3>
-          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
-            Lütfen işlem yapmak istediğiniz randevu kategorisini seçiniz:
-          </p>
-
+          
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            <!-- CARD 1: BEKLEYEN -->
             <div onclick="window.setAppointmentView('pending')" class="card card-gold animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <h4 style="font-size: 15px; font-weight: 800; color: #fff;">⏳ Bekleyen Randevular</h4>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Onay bekleyen yeni müşteri talepleri</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Onay bekleyen yeni randevu talepleri</div>
               </div>
               <span class="badge badge-pending" style="font-size: 14px; font-weight: 900; padding: 6px 12px;">${pendingRequests.length}</span>
             </div>
 
-            <!-- CARD 2: GELECEK -->
             <div onclick="window.setAppointmentView('approved')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: var(--gold-primary);">
               <div>
                 <h4 style="font-size: 15px; font-weight: 800; color: #fff;">📅 Gelecek Randevular</h4>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Onaylanmış takvim randevuları</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Onaylanmış randevular</div>
               </div>
               <span class="badge badge-approved" style="font-size: 14px; font-weight: 900; padding: 6px 12px;">${approvedCount}</span>
             </div>
 
-            <!-- CARD 3: TAMAMLANAN -->
             <div onclick="window.setAppointmentView('completed')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <h4 style="font-size: 15px; font-weight: 800; color: #22c55e;">✅ Tamamlanan Randevular</h4>
@@ -415,16 +322,14 @@ export async function renderOwnerScreen(user, onTabChange) {
               <span class="badge badge-approved" style="font-size: 14px; font-weight: 900; padding: 6px 12px; background: #22c55e; color: #000;">${completedApts.length}</span>
             </div>
 
-            <!-- CARD 4: TALEPLER -->
             <div onclick="window.setAppointmentView('requests')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <h4 style="font-size: 15px; font-weight: 800; color: #eab308;">🔄 İptal / Değişiklik Talepleri</h4>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Müşteriden gelen iptal ve wagt talepleri</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Müşteriden gelen iptal ve saat talepleri</div>
               </div>
               <span class="badge badge-pending" style="font-size: 14px; font-weight: 900; padding: 6px 12px; background: #eab308; color: #000;">${requestsCount}</span>
             </div>
 
-            <!-- CARD 5: İPTAL / RET / GELMEDİ -->
             <div onclick="window.setAppointmentView('cancelled_rejected')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; opacity: 0.85;">
               <div>
                 <h4 style="font-size: 15px; font-weight: 800; color: #ef4444;">🚫 İptal / Ret / Gelmedi</h4>
@@ -436,7 +341,6 @@ export async function renderOwnerScreen(user, onTabChange) {
         </div>
       `;
     } else {
-      // DEDICATED SUB-LIST FOR SELECTED MENU CARD WITH BACK BUTTON
       let targetApts = [];
       let viewTitle = '';
 
@@ -466,10 +370,6 @@ export async function renderOwnerScreen(user, onTabChange) {
         const isPending = apt.status === 'pending';
         const isApproved = apt.status === 'approved';
 
-        const nowHours = new Date().getHours() * 60 + new Date().getMinutes();
-        const [aptH, aptM] = (apt.time || '00:00').split(':').map(Number);
-        const isPastHour = apt.date === todayStr && (aptH * 60 + aptM) < nowHours && isApproved;
-
         return `
           <div class="card card-gold animate-fade" style="padding: 12px; margin-bottom: 10px; cursor: pointer;" onclick="window.openAppointmentDetailModal('${apt.aptId}')">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -477,21 +377,14 @@ export async function renderOwnerScreen(user, onTabChange) {
                 <div style="display: flex; align-items: center; gap: 6px;">
                   <span style="font-size: 13px; font-weight: 900; color: var(--gold-primary);">📅 ${apt.date} @ ${apt.time}</span>
                   <span style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${apt.customerName}</span>
-                  ${isPastHour ? '<span class="badge badge-pending" style="font-size: 9px;">⚠️ İşlem Bekliyor</span>' : ''}
                 </div>
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
                   ✂️ ${apt.serviceName} • 💈 ${apt.staffName || 'Mustafa Usta'} • 💰 ${apt.servicePrice || 350} TL
                 </div>
-                ${isReschedReq ? `
-                  <div style="font-size: 10px; color: #eab308; font-weight: 800; margin-top: 2px;">
-                    🔄 İstenen Saat: ${apt.requestedDate || apt.date} @ ${apt.requestedTime || '14:00'}
-                  </div>
-                ` : ''}
               </div>
               <span class="badge ${apt.status === 'completed' ? 'badge-approved' : (isCancelReq || isReschedReq || isPending ? 'badge-pending' : 'badge-approved')}" style="font-size: 9px;">${t(apt.status, currentLang)}</span>
             </div>
 
-            <!-- ACTIONS FOR SPECIFIC VIEWS -->
             <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;" onclick="event.stopPropagation()">
               ${isPending ? `
                 <button onclick="window.updateAppointmentStatusOwner('${apt.aptId}', 'approved')" class="btn btn-gold" style="flex: 1; padding: 6px; font-size: 11px;">✅ Onayla</button>
@@ -524,56 +417,63 @@ export async function renderOwnerScreen(user, onTabChange) {
     }
   }
   // ==========================================
-  // 4. PERSONEL & SALON YÖNETİMİ (REQUIREMENT 15, 16, 17, 18, 19, 20)
+  // 4. YÖNETİM ANA MENÜSÜ & CLOSED CARDS (REQUIREMENT 5 & 11)
   // ==========================================
   else if (activeOwnerTab === 'management') {
     const isPremium = canAccessStaffRevenueAnalytics(bizRecord);
 
-    const staffRowsHtml = staffList.map(st => `
-      <div class="card" style="padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <div style="font-size: 13px; font-weight: 800; color: #fff;">
-            ${st.role === 'manager' ? '👔' : (st.role === 'receptionist' ? '🧾' : '💈')} ${st.displayName}
-          </div>
-          <div style="font-size: 10px; color: var(--text-muted);">
-            Rol: <span style="color: var(--gold-primary); font-weight: 700;">${st.role || 'barber'}</span> • ${st.active !== false ? '🟢 Aktif' : '🔴 Pasif'}
-          </div>
-        </div>
-        <button onclick="window.openEditStaffModal('${st.id}')" class="btn btn-outline-gold" style="padding: 4px 8px; font-size: 10px;">
-          ⚙️ Düzenle
-        </button>
-      </div>
-    `).join('');
-
     mainHtml = `
       <div class="card animate-fade">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">⚙️ ${t('managementTab', currentLang)}</h3>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">
+          Lütfen düzenlemek istediğiniz salon yönetim alanını seçiniz:
+        </p>
 
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          <div class="card" style="padding: 14px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h4 style="font-size: 14px; font-weight: 800; color: #fff;">👥 Personel Kadrosu (${staffList.length})</h4>
-              <button onclick="window.openAddStaffModal()" class="btn btn-gold" style="padding: 4px 8px; font-size: 11px;">
-                ➕ Personel Ekle
-              </button>
+          <!-- CARD 1: PERSONEL (CLOSED BY DEFAULT - REQUIREMENT 5) -->
+          <div onclick="window.openStaffManagementModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">👥 Personel Kadrosu & İzinleri</h4>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${staffList.length} kayıtlı çalışan ve rol yetkileri</div>
             </div>
-            ${staffList.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Henüz eklenmiş personel bulunmamaktadır.</div>' : staffRowsHtml}
+            <span class="badge badge-approved" style="font-size: 12px;">Yönet →</span>
           </div>
 
-          <button onclick="window.openServicesManagementModal()" class="btn btn-secondary" style="text-align: left; padding: 12px 14px; font-size: 12px;">
-            ✂️ Hizmetler & Fiyatlar (${services.length} Hizmet)
-          </button>
-          <button onclick="window.openSalonContactModal()" class="btn btn-secondary" style="text-align: left; padding: 12px 14px; font-size: 12px;">
-            💬 WhatsApp & SMS İletişim Ayarları
-          </button>
+          <!-- CARD 2: HİZMETLER -->
+          <div onclick="window.openServicesManagementModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">✂️ Hizmetler & Fiyatlar</h4>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${services.length} hizmet, fiyat ve süre ayarları</div>
+            </div>
+            <span class="badge badge-approved" style="font-size: 12px;">Yönet →</span>
+          </div>
 
+          <!-- CARD 3: ÇALIŞMA GÜNLERİ & SAATLERİ (REQUIREMENT 9) -->
+          <div onclick="window.openWeeklyScheduleModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">⏰ Çalışma Günleri & Saatleri</h4>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Haftalık 7 gün mesai ve kapalı gün ayarları</div>
+            </div>
+            <span class="badge badge-approved" style="font-size: 12px;">Düzenle →</span>
+          </div>
+
+          <!-- CARD 4: İLETİŞİM -->
+          <div onclick="window.openSalonContactModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">💬 Salon İletişim Numaraları</h4>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">WhatsApp ve SMS bildirim numaraları</div>
+            </div>
+            <span class="badge badge-approved" style="font-size: 12px;">Ayarla →</span>
+          </div>
+
+          <!-- CARD 5: PAKETİM -->
           <div class="card" style="padding: 14px; border-color: ${isPremium ? 'var(--gold-primary)' : 'var(--border-color)'}; opacity: ${isPremium ? '1' : '0.85'};">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <h4 style="font-size: 13px; font-weight: 800; color: #fff;">📊 Çalışan Bazlı Ciro Analitiği</h4>
-                <div style="font-size: 10px; color: var(--text-muted);">Her berberin ayrı ciro, no-show ve performans raporları</div>
+                <h4 style="font-size: 13px; font-weight: 800; color: #fff;">📦 Paket & Lisans Durumu</h4>
+                <div style="font-size: 10px; color: var(--text-muted);">Paket: ${bizRecord.plan || 'FREE'} ${bizRecord.premiumSource === 'super_admin_grant' ? '(⚡ Premium Grant)' : ''}</div>
               </div>
-              <span class="badge ${isPremium ? 'badge-approved' : 'badge-pending'}">${isPremium ? '✨ KİLİT AÇIK' : '🔒 PREMIUM'}</span>
+              <span class="badge ${isPremium ? 'badge-approved' : 'badge-pending'}">${isPremium ? '✨ PREMIUM' : 'FREE'}</span>
             </div>
           </div>
         </div>
@@ -581,7 +481,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     `;
   }
   // ==========================================
-  // 5. PATRON PROFİLİ & VIP MODALLARI (REQUIREMENT 21, 22, 23, 24, 25, 26)
+  // 5. PATRON PROFİLİ & VIP MODALLARI (REQUIREMENT 4)
   // ==========================================
   else if (activeOwnerTab === 'profile') {
     const currentLangObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || SUPPORTED_LANGUAGES[0];
@@ -631,7 +531,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     `;
   }
 
-  // HEADER & FIXED BOTTOM NAV (NO USER-FACING PANEL TEXT FOR PATRON - REQUIREMENT 1)
+  // HEADER & FINAL BOTTOM NAV (REQUIREMENT 1: Ana Sayfa | Ciro | Randevular | Yönetim | Profil)
   container.innerHTML = `
     <div class="header-bar">
       <div style="display: flex; align-items: center; gap: 8px;">
@@ -648,9 +548,9 @@ export async function renderOwnerScreen(user, onTabChange) {
         <span class="icon">🏠</span>
         <span>${t('homeTab', currentLang)}</span>
       </button>
-      <button onclick="window.switchOwnerTab('calendar')" class="nav-item ${activeOwnerTab === 'calendar' ? 'active' : ''}">
-        <span class="icon">📅</span>
-        <span>${t('calendarTab', currentLang)}</span>
+      <button onclick="window.switchOwnerTab('ciro', 'day')" class="nav-item ${activeOwnerTab === 'ciro' ? 'active' : ''}">
+        <span class="icon">💰</span>
+        <span>${t('ciroTab', currentLang)}</span>
       </button>
       <button onclick="window.switchOwnerTab('appointments', 'menu')" class="nav-item ${activeOwnerTab === 'appointments' ? 'active' : ''}">
         <span class="icon">✂️</span>
@@ -693,121 +593,249 @@ export async function renderOwnerScreen(user, onTabChange) {
     renderOwnerScreen(user, onTabChange);
   };
 
-  window.setSelectedCiroYear = (y) => {
-    selectedCiroYear = parseInt(y);
+  // RANDEVU SİSTEMİ AÇ/KAPAT TOGGLE (REQUIREMENT 8)
+  window.toggleBookingSystemEnabled = async (newStatus) => {
+    bizRecord.bookingEnabled = newStatus;
+    await saveRecord(`businesses/${businessId}/bookingEnabled`, newStatus, 'PUT');
+    showSuccessModal(t('successTitle'), newStatus ? '🟢 Online randevu alımı başarıyla açıldı.' : '🔴 Online randevu alımı geçici olarak kapatıldı.');
     renderOwnerScreen(user, onTabChange);
   };
 
-  window.setSelectedCiroMonth = (m) => {
-    selectedCiroMonth = parseInt(m);
-    renderOwnerScreen(user, onTabChange);
-  };
-
-  // APPOINTMENT DETAIL MODAL (REQUIREMENT 12)
-  window.openAppointmentDetailModal = (aptId) => {
-    const apt = allApts.find(a => a.aptId === aptId);
-    if (!apt) return;
-
+  // MANUEL RANDEVU MODALI (REQUIREMENT 7)
+  window.openManualBookingModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
+
+    const serviceOptionsHtml = services.map(s => `<option value="${s.id}" data-name="${s.name}" data-price="${s.price}" data-dur="${s.duration || 30}">✂️ ${s.name} (${s.duration || 30} dk) - ${s.price} TL</option>`).join('');
+    const staffOptionsHtml = staffList.map(st => `<option value="${st.id}" data-name="${st.displayName}">💈 ${st.displayName}</option>`).join('');
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">📋 Randevu Detayı</h3>
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">➕ Manuel Randevu Ekle</h3>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #fff; margin-bottom: 16px;">
-            <div><strong>Müşteri:</strong> ${apt.customerName} (${apt.customerPhone})</div>
-            <div><strong>Hizmet:</strong> ${apt.serviceName} (${apt.serviceDuration || 30} dk) - ${apt.servicePrice || 350} TL</div>
-            <div><strong>Berber:</strong> ${apt.staffName || 'Mustafa Usta'}</div>
-            <div><strong>Tarih & Saat:</strong> 📅 ${apt.date} @ ${apt.time}</div>
-            <div><strong>Durum:</strong> ${apt.status}</div>
-            ${apt.completedAt ? `<div><strong>Tamamlanma Zamanı:</strong> ${new Date(apt.completedAt).toLocaleString()}</div>` : ''}
-            ${apt.aiRecipe ? `<div style="color: var(--gold-primary);"><strong>AI Saç Reçetesi:</strong> ${apt.aiRecipe}</div>` : ''}
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Müşteri Adı Soyadı *</label>
+          <input type="text" id="manual-cust-name" class="input-field" placeholder="Örn: Serdar Bey">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Müşteri Telefonu *</label>
+          <input type="tel" id="manual-cust-phone" class="input-field" placeholder="05XXXXXXXXX" value="05550000000">
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Hizmet Seç *</label>
+          <select id="manual-service-select" class="input-field" style="background-color: #1e1e1e; color: #fff; border: 1px solid var(--gold-primary);">
+            ${serviceOptionsHtml}
+          </select>
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Personel Seç *</label>
+          <select id="manual-staff-select" class="input-field" style="background-color: #1e1e1e; color: #fff; border: 1px solid var(--gold-primary);">
+            <option value="staff-any">Fark Etmez</option>
+            ${staffOptionsHtml}
+          </select>
+
+          <div style="display: flex; gap: 8px;">
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Tarih *</label>
+              <input type="date" id="manual-date" value="${todayStr}" class="input-field">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Saat *</label>
+              <input type="text" id="manual-time" value="14:00" class="input-field" placeholder="14:00">
+            </div>
           </div>
 
-          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%;">Kapat</button>
+          <button onclick="window.submitManualBooking()" class="btn btn-gold" style="width: 100%; margin-top: 8px;">
+            ⚡ Manuel Randevuyu Kaydet
+          </button>
         </div>
       </div>
     `;
   };
 
-  window.updateAppointmentStatusOwner = async (aptId, newStatus) => {
-    const res = await fetch('/api/booking/update-status', {
+  window.submitManualBooking = async () => {
+    const custName = document.getElementById('manual-cust-name').value;
+    const custPhone = document.getElementById('manual-cust-phone').value;
+    const svcEl = document.getElementById('manual-service-select');
+    const stfEl = document.getElementById('manual-staff-select');
+    const date = document.getElementById('manual-date').value;
+    const time = document.getElementById('manual-time').value;
+
+    if (!custName || !date || !time || !svcEl) {
+      showErrorModal(t('errorTitle'), 'Lütfen müşteri adı, tarih ve saat alanlarını doldurunuz.');
+      return;
+    }
+
+    const selectedOption = svcEl.options[svcEl.selectedIndex];
+    const serviceId = svcEl.value;
+    const serviceName = selectedOption.getAttribute('data-name') || 'Hizmet';
+    const servicePrice = parseInt(selectedOption.getAttribute('data-price')) || 350;
+    const serviceDuration = parseInt(selectedOption.getAttribute('data-dur')) || 30;
+
+    const staffId = stfEl ? stfEl.value : 'staff-any';
+
+    const res = await fetch('/api/booking/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
+      body: JSON.stringify({
+        businessId,
+        customerUid: 'usr_manual_' + Date.now(),
+        customerName: custName,
+        customerPhone: custPhone || '05550000000',
+        staffId,
+        serviceId,
+        serviceName,
+        servicePrice,
+        serviceDuration,
+        date,
+        time,
+        isManual: true,
+        initialStatus: 'approved'
+      })
     }).catch(() => null);
 
     const data = res ? await res.json().catch(() => null) : null;
+    window.closeModal();
+
     if (res && res.ok && data && data.success) {
-      showSuccessModal(t('successTitle'), `Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
+      showSuccessModal(t('successTitle'), '✅ Manuel randevu onaylı olarak kaydedildi.');
       renderOwnerScreen(user, onTabChange);
     } else {
-      showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'Durum güncellenemedi.');
+      showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'Manuel randevu kaydedilemedi.');
     }
   };
 
-  window.ownerApproveCancel = async (aptId) => {
-    await window.updateAppointmentStatusOwner(aptId, 'cancelled');
-  };
-
-  window.ownerRejectCancel = async (aptId) => {
-    await window.updateAppointmentStatusOwner(aptId, 'approved');
-  };
-
-  window.ownerApproveReschedule = async (aptId, newDate, newTime) => {
-    const res = await fetch('/api/booking/reschedule-approve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ aptId, newDate, newTime, userUid: user.uid })
-    }).catch(() => null);
-
-    const data = res ? await res.json().catch(() => null) : null;
-    if (res && res.ok && data && data.success) {
-      showSuccessModal(t('successTitle'), '✅ Tarih/Saat değişikliği onaylandı.');
-      renderOwnerScreen(user, onTabChange);
-    } else {
-      showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'Değişiklik onaylanamadı.');
-    }
-  };
-
-  window.ownerRejectReschedule = async (aptId) => {
-    await window.updateAppointmentStatusOwner(aptId, 'approved');
-  };
-
-  // PERSONEL EKLEME MODAL (REQUIREMENT 15, 16, 17)
-  window.openAddStaffModal = () => {
+  // ÇALIŞMA GÜNLERİ & SAATLERİ MODALI (REQUIREMENT 9)
+  window.openWeeklyScheduleModal = async () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
+
+    const defaultSchedule = {
+      monday: { isOpen: true, start: '09:00', end: '20:30' },
+      tuesday: { isOpen: true, start: '09:00', end: '20:30' },
+      wednesday: { isOpen: true, start: '09:00', end: '20:30' },
+      thursday: { isOpen: true, start: '09:00', end: '20:30' },
+      friday: { isOpen: true, start: '09:00', end: '20:30' },
+      saturday: { isOpen: true, start: '09:00', end: '20:30' },
+      sunday: { isOpen: false, start: '09:00', end: '18:00' }
+    };
+
+    const savedSchedule = await fetchRecord(`businesses/${businessId}/weeklySchedule`) || defaultSchedule;
+    const daysConfig = [
+      { key: 'monday', label: 'Pazartesi' },
+      { key: 'tuesday', label: 'Salı' },
+      { key: 'wednesday', label: 'Çarşamba' },
+      { key: 'thursday', label: 'Perşembe' },
+      { key: 'friday', label: 'Cuma' },
+      { key: 'saturday', label: 'Cumartesi' },
+      { key: 'sunday', label: 'Pazar' }
+    ];
+
+    const daysRowsHtml = daysConfig.map(d => {
+      const sched = savedSchedule[d.key] || { isOpen: true, start: '09:00', end: '20:30' };
+      return `
+        <div style="padding: 8px; background: rgba(255,255,255,0.04); border-radius: 8px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="sched-open-${d.key}" ${sched.isOpen !== false ? 'checked' : ''}>
+            <span style="font-size: 12px; font-weight: 800; color: #fff;">${d.label}</span>
+          </div>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <input type="text" id="sched-start-${d.key}" value="${sched.start || '09:00'}" class="input-field" style="margin:0; width: 60px; padding: 2px 4px; text-align: center; font-size: 11px;">
+            <span style="font-size: 11px; color: var(--gold-primary);">-</span>
+            <input type="text" id="sched-end-${d.key}" value="${sched.end || '20:30'}" class="input-field" style="margin:0; width: 60px; padding: 2px 4px; text-align: center; font-size: 11px;">
+          </div>
+        </div>
+      `;
+    }).join('');
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">➕ Yeni Personel Ekle</h3>
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">⏰ Çalışma Günleri & Saatleri</h3>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Ad Soyad *</label>
-          <input type="text" id="add-staff-name-input" class="input-field" placeholder="Örn: Mehmet Berber">
+          <div style="max-height: 320px; overflow-y: auto; margin-bottom: 14px;">
+            ${daysRowsHtml}
+          </div>
 
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Telefon *</label>
+          <button onclick="window.saveWeeklySchedule()" class="btn btn-gold" style="width: 100%;">
+            💾 Saatleri Kaydet
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.saveWeeklySchedule = async () => {
+    const daysKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const updatedSchedule = {};
+
+    daysKeys.forEach(k => {
+      const openEl = document.getElementById(`sched-open-${k}`);
+      const startEl = document.getElementById(`sched-start-${k}`);
+      const endEl = document.getElementById(`sched-end-${k}`);
+
+      updatedSchedule[k] = {
+        isOpen: openEl ? openEl.checked : true,
+        start: startEl ? startEl.value : '09:00',
+        end: endEl ? endEl.value : '20:30'
+      };
+    });
+
+    await saveRecord(`businesses/${businessId}/weeklySchedule`, updatedSchedule, 'PUT');
+    window.closeModal();
+    showSuccessModal(t('successTitle'), 'Haftalık çalışma saatleriniz kaydedildi ve müşteri randevu takvimine bağlandı.');
+    renderOwnerScreen(user, onTabChange);
+  };
+
+  // PERSONEL EKLEME MODAL (REQUIREMENT 15, 16, 17 - WITH THEME READABILITY FIX)
+  window.openStaffManagementModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    const staffRowsHtml = staffList.map(st => `
+      <div class="card" style="padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 13px; font-weight: 800; color: #fff;">
+            ${st.role === 'manager' ? '👔' : (st.role === 'receptionist' ? '🧾' : '💈')} ${st.displayName}
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted);">
+            Rol: <span style="color: var(--gold-primary); font-weight: 700;">${st.role || 'barber'}</span> • ${st.active !== false ? '🟢 Aktif' : '⚫ Pasif'}
+          </div>
+        </div>
+        <button onclick="window.openEditStaffModal('${st.id}')" class="btn btn-outline-gold" style="padding: 4px 8px; font-size: 10px;">
+          ⚙️ Düzenle
+        </button>
+      </div>
+    `).join('');
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">👥 Personel Yönetimi</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="max-height: 200px; overflow-y: auto; margin-bottom: 14px;">
+            ${staffList.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Henüz personel yok.</div>' : staffRowsHtml}
+          </div>
+
+          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">➕ Yeni Personel Daveti</h4>
+          <input type="text" id="add-staff-name-input" class="input-field" placeholder="Çalışan Adı Soyadı">
           <input type="tel" id="add-staff-phone-input" class="input-field" placeholder="05XXXXXXXXX">
 
-          <!-- MANDATORY ROLE SELECTION (NO DEFAULT ROLE / OWNER/SUPER_ADMIN FORBIDDEN) -->
+          <!-- READABLE DARK THEMED SELECT DROPDOWN (REQUIREMENT 6) -->
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Rol Seç *</label>
-          <select id="add-staff-role-select" onchange="window.handleStaffRoleChange(this.value)" class="input-field" style="margin-bottom: 12px;">
-            <option value="">-- Rol Seçiniz --</option>
-            <option value="manager">👔 Yönetici / Manager</option>
-            <option value="barber">💈 Berber</option>
-            <option value="receptionist">🧾 Resepsiyon</option>
+          <select id="add-staff-role-select" onchange="window.handleStaffRoleChange(this.value)" class="input-field" style="background-color: #1e1e1e; color: #ffffff; border: 1px solid var(--gold-primary); font-size: 12px; margin-bottom: 12px;">
+            <option value="" style="background-color: #1e1e1e; color: #888888;">-- Rol Seçiniz --</option>
+            <option value="manager" style="background-color: #1e1e1e; color: #ffffff;">👔 Yönetici</option>
+            <option value="barber" style="background-color: #1e1e1e; color: #ffffff;">💈 Berber</option>
+            <option value="receptionist" style="background-color: #1e1e1e; color: #ffffff;">🧾 Resepsiyon</option>
           </select>
 
-          <!-- GRANULAR MANAGER PERMISSIONS BOX (REQUIREMENT 17) -->
           <div id="manager-permissions-box" style="display: none; padding: 10px; background: rgba(245,158,11,0.1); border: 1px dashed var(--gold-primary); border-radius: 8px; margin-bottom: 12px;">
             <div style="font-size: 11px; font-weight: 800; color: #fff; margin-bottom: 6px;">👔 Yönetici İzin Yetkileri</div>
             <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #fff; margin-bottom: 4px;">
@@ -830,8 +858,7 @@ export async function renderOwnerScreen(user, onTabChange) {
             </label>
           </div>
 
-          <!-- SUBMIT BUTTON IS DISABLED UNTIL A ROLE IS CHOSEN -->
-          <button id="btn-create-invite" onclick="window.submitCreateStaffInvite()" class="btn btn-gold" style="width: 100%; min-height: 44px;" disabled>
+          <button id="btn-create-invite" onclick="window.submitCreateStaffInvite()" class="btn btn-gold" style="width: 100%; min-height: 42px;" disabled>
             🎟️ Davet Oluştur
           </button>
         </div>
@@ -894,7 +921,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     }
   };
 
-  // PERSONEL DÜZENLE MODAL (REQUIREMENT 20)
+  // PERSONEL DÜZENLE MODAL (REQUIREMENT 6 & 20 - READABLE SELECTORS)
   window.openEditStaffModal = (staffId) => {
     const st = staffList.find(s => s.id === staffId);
     if (!st) return;
@@ -914,16 +941,16 @@ export async function renderOwnerScreen(user, onTabChange) {
           <input type="text" id="edit-st-name" value="${st.displayName}" class="input-field">
 
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Rol</label>
-          <select id="edit-st-role" class="input-field">
-            <option value="barber" ${st.role === 'barber' ? 'selected' : ''}>💈 Berber</option>
-            <option value="manager" ${st.role === 'manager' ? 'selected' : ''}>👔 Yönetici / Manager</option>
-            <option value="receptionist" ${st.role === 'receptionist' ? 'selected' : ''}>🧾 Resepsiyon</option>
+          <select id="edit-st-role" class="input-field" style="background-color: #1e1e1e; color: #ffffff; border: 1px solid var(--gold-primary);">
+            <option value="barber" ${st.role === 'barber' ? 'selected' : ''} style="background-color: #1e1e1e; color: #ffffff;">💈 Berber</option>
+            <option value="manager" ${st.role === 'manager' ? 'selected' : ''} style="background-color: #1e1e1e; color: #ffffff;">👔 Yönetici</option>
+            <option value="receptionist" ${st.role === 'receptionist' ? 'selected' : ''} style="background-color: #1e1e1e; color: #ffffff;">🧾 Resepsiyon</option>
           </select>
 
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Durum</label>
-          <select id="edit-st-active" class="input-field">
-            <option value="true" ${st.active !== false ? 'selected' : ''}>🟢 Aktif</option>
-            <option value="false" ${st.active === false ? 'selected' : ''}>🔴 Pasif</option>
+          <select id="edit-st-active" class="input-field" style="background-color: #1e1e1e; color: #ffffff; border: 1px solid var(--gold-primary);">
+            <option value="true" ${st.active !== false ? 'selected' : ''} style="background-color: #1e1e1e; color: #22c55e;">🟢 Aktif</option>
+            <option value="false" ${st.active === false ? 'selected' : ''} style="background-color: #1e1e1e; color: #ef4444;">⚫ Pasif</option>
           </select>
 
           <button onclick="window.saveEditedStaff('${st.id}')" class="btn btn-gold" style="width: 100%; margin-top: 10px;">
@@ -948,7 +975,6 @@ export async function renderOwnerScreen(user, onTabChange) {
     await saveRecord(`businesses/${businessId}/staff/${staffId}/role`, role, 'PUT');
     await saveRecord(`businesses/${businessId}/staff/${staffId}/active`, active, 'PUT');
 
-    // AUDIT LOG
     await fetch('/api/audit/log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -965,7 +991,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     renderOwnerScreen(user, onTabChange);
   };
 
-  // PATRON PROFİL MODALLARI (REQUIREMENT 22, 23, 24, 25)
+  // PATRON PROFİL MODALLARI
   window.openProfilePhotoModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -1214,7 +1240,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     showSuccessModal(t('successTitle'), 'Destek talebiniz alındı.');
   };
 
-  // LOGOUT CONFIRM MODAL (REQUIREMENT 25 - ZERO NATIVE CONFIRM)
+  // LOGOUT CONFIRM MODAL (REQUIREMENT 4 - ZERO NATIVE CONFIRM)
   window.promptOwnerLogout = () => {
     showConfirmModal('Oturumu Kapat', 'Oturumunuzu kapatmak istediğinize emin misiniz?', () => {
       logoutUserSession();
@@ -1308,5 +1334,80 @@ export async function renderOwnerScreen(user, onTabChange) {
     window.closeModal();
     showSuccessModal(t('successTitle'), 'İletişim ayarları başarıyla kaydedildi.');
     renderOwnerScreen(user, onTabChange);
+  };
+
+  window.openAppointmentDetailModal = (aptId) => {
+    const apt = allApts.find(a => a.aptId === aptId);
+    if (!apt) return;
+
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">📋 Randevu Detayı</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #fff; margin-bottom: 16px;">
+            <div><strong>Müşteri:</strong> ${apt.customerName} (${apt.customerPhone})</div>
+            <div><strong>Hizmet:</strong> ${apt.serviceName} (${apt.serviceDuration || 30} dk) - ${apt.servicePrice || 350} TL</div>
+            <div><strong>Berber:</strong> ${apt.staffName || 'Mustafa Usta'}</div>
+            <div><strong>Tarih & Saat:</strong> 📅 ${apt.date} @ ${apt.time}</div>
+            <div><strong>Durum:</strong> ${apt.status}</div>
+            ${apt.completedAt ? `<div><strong>Tamamlanma Zamanı:</strong> ${new Date(apt.completedAt).toLocaleString()}</div>` : ''}
+            ${apt.aiRecipe ? `<div style="color: var(--gold-primary);"><strong>AI Saç Reçetesi:</strong> ${apt.aiRecipe}</div>` : ''}
+          </div>
+
+          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%;">Kapat</button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.updateAppointmentStatusOwner = async (aptId, newStatus) => {
+    const res = await fetch('/api/booking/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
+    }).catch(() => null);
+
+    const data = res ? await res.json().catch(() => null) : null;
+    if (res && res.ok && data && data.success) {
+      showSuccessModal(t('successTitle'), `Randevu durumu '${newStatus.toUpperCase()}' olarak güncellendi.`);
+      renderOwnerScreen(user, onTabChange);
+    } else {
+      showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'Durum güncellenemedi.');
+    }
+  };
+
+  window.ownerApproveCancel = async (aptId) => {
+    await window.updateAppointmentStatusOwner(aptId, 'cancelled');
+  };
+
+  window.ownerRejectCancel = async (aptId) => {
+    await window.updateAppointmentStatusOwner(aptId, 'approved');
+  };
+
+  window.ownerApproveReschedule = async (aptId, newDate, newTime) => {
+    const res = await fetch('/api/booking/reschedule-approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aptId, newDate, newTime, userUid: user.uid })
+    }).catch(() => null);
+
+    const data = res ? await res.json().catch(() => null) : null;
+    if (res && res.ok && data && data.success) {
+      showSuccessModal(t('successTitle'), '✅ Tarih/Saat değişikliği onaylandı.');
+      renderOwnerScreen(user, onTabChange);
+    } else {
+      showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'Değişiklik onaylanamadı.');
+    }
+  };
+
+  window.ownerRejectReschedule = async (aptId) => {
+    await window.updateAppointmentStatusOwner(aptId, 'approved');
   };
 }

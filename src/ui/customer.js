@@ -123,6 +123,24 @@ export async function renderCustomerScreen(user, onTabChange) {
       </div>
     `;
   } else if (activeCustomerTab === 'booking') {
+    const bizRecord = await fetchRecord('businesses/' + bookingState.businessId) || {};
+    const isOnlineBookingClosed = bizRecord.bookingEnabled === false;
+
+    // WEEKLY SCHEDULE SLOT GENERATION (REQUIREMENT 10)
+    const aptDateObj = new Date(bookingState.date);
+    const dayIdx = (aptDateObj.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const dayKey = dayKeys[dayIdx];
+    const weeklySchedule = bizRecord.weeklySchedule || {
+      monday: { isOpen: true, start: '09:00', end: '20:30' },
+      tuesday: { isOpen: true, start: '09:00', end: '20:30' },
+      wednesday: { isOpen: true, start: '09:00', end: '20:30' },
+      thursday: { isOpen: true, start: '09:00', end: '20:30' },
+      friday: { isOpen: true, start: '09:00', end: '20:30' },
+      saturday: { isOpen: true, start: '09:00', end: '20:30' },
+      sunday: { isOpen: false, start: '09:00', end: '18:00' }
+    };
+    const daySched = weeklySchedule[dayKey] || { isOpen: true, start: '09:00', end: '20:30' };
     const services = await getServices(bookingState.businessId);
     const staffList = await getStaffList(bookingState.businessId);
     const allAptsData = await fetchRecord('appointments') || {};
@@ -149,7 +167,18 @@ export async function renderCustomerScreen(user, onTabChange) {
       }
     });
 
-    const allHours = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'];
+    let allHours = [];
+    if (daySched && daySched.isOpen !== false) {
+      const [sH, sM] = (daySched.start || '09:00').split(':').map(Number);
+      const [eH, eM] = (daySched.end || '20:30').split(':').map(Number);
+      const startTotal = sH * 60 + sM;
+      const endTotal = eH * 60 + eM;
+      for (let tM = startTotal; tM <= endTotal; tM += 30) {
+        const hStr = String(Math.floor(tM / 60)).padStart(2, '0');
+        const mStr = String(tM % 60).padStart(2, '0');
+        allHours.push(`${hStr}:${mStr}`);
+      }
+    }
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -190,6 +219,13 @@ export async function renderCustomerScreen(user, onTabChange) {
 
     mainHtml = `
       <div class="card card-gold animate-fade" style="padding: 18px;">
+        ${isOnlineBookingClosed ? `
+          <div class="card" style="padding: 16px; text-align: center; color: #ef4444; border-color: #ef4444; margin-bottom: 14px;">
+            <div style="font-size: 28px; margin-bottom: 4px;">🔴</div>
+            <h4 style="font-size: 14px; font-weight: 800; color: #fff;">Online Randevu Kabul Edilmiyor</h4>
+            <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Bu salon şu anda online randevu kabul etmiyor.</p>
+          </div>
+        ` : ''}
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">✂️ ${t('bookAppointment', currentLang)}</h3>
 
         <!-- STEP 1: INITIALLY CLOSED SERVICE SELECTOR -->
@@ -239,7 +275,7 @@ export async function renderCustomerScreen(user, onTabChange) {
           ${slotsHtml}
         </div>
 
-        <button id="btn-submit-booking" onclick="window.submitCustomerBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${(!bookingState.serviceId || !bookingState.time) ? 'disabled' : ''}>
+        <button id="btn-submit-booking" onclick="window.submitCustomerBooking()" class="btn btn-gold" style="width: 100%; min-height: 44px;" ${(!bookingState.serviceId || !bookingState.time || isOnlineBookingClosed || (daySched && daySched.isOpen === false)) ? 'disabled' : ''}>
           ⚡ ${t('confirmBooking', currentLang)}
         </button>
       </div>

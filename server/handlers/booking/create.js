@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Atomic Serverless Double Booking Prevention & Interval Overlap Check */
+/* EZO STİLE v2 - Serverless Booking Engine with Manual Booking, Weekly Schedule & Booking Enabled Guards */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -7,19 +7,53 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { businessId, customerUid, customerName, customerPhone, staffId, serviceId, serviceName, servicePrice, serviceDuration, date, time, source } = req.body || {};
+    const {
+      businessId,
+      customerUid,
+      customerName,
+      customerPhone,
+      staffId,
+      serviceId,
+      serviceName,
+      servicePrice,
+      serviceDuration,
+      date,
+      time,
+      source,
+      isManual,
+      initialStatus
+    } = req.body || {};
 
-    if (!businessId || !customerUid || !staffId || !serviceId || !date || !time) {
+    if (!businessId || !staffId || !serviceId || !date || !time) {
       return res.status(400).json({ error: 'Eksik randevu bilgileri' });
     }
 
-    // 1. SALON SUSPENSION GUARD CHECK
+    // 1. SALON PROFILE & BOOKING ENABLED GUARDS
     const bizRes = await fetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`);
     const biz = bizRes.ok ? await bizRes.json() : null;
 
-    if (biz && biz.status === 'suspended') {
-      console.warn(`[BOOKING BLOCKED] Attempted booking on suspended businessId: ${businessId}`);
-      return res.status(403).json({ error: 'Bu salon şu anda askıya alınmıştır. Yeni randevu oluşturulamaz.' });
+    if (biz) {
+      if (biz.status === 'suspended') {
+        return res.status(403).json({ error: 'Bu salon şu anda askıya alınmıştır. Yeni randevu oluşturulamaz.' });
+      }
+
+      // ONLINE BOOKING CLOSED CHECK (Bypassed for Manual Bookings)
+      if (biz.bookingEnabled === false && !isManual) {
+        return res.status(403).json({ error: 'Bu salon şu anda online randevu kabul etmiyor.' });
+      }
+
+      // WEEKLY SCHEDULE DAY-OFF CHECK (Bypassed for Manual Bookings)
+      if (biz.weeklySchedule && !isManual) {
+        const aptDateObj = new Date(date);
+        const dayIdx = (aptDateObj.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+        const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        const dayKey = dayKeys[dayIdx];
+        const daySched = biz.weeklySchedule[dayKey];
+
+        if (daySched && daySched.isOpen === false) {
+          return res.status(400).json({ error: 'Salon seçilen tarihte kapalıdır.' });
+        }
+      }
     }
 
     // 2. BACKEND INTERVAL OVERLAP CHECK (startTime -> endTime)
@@ -46,12 +80,10 @@ export default async function handler(req, res) {
       const exStartMins = exH * 60 + exM;
       const exEndMins = exStartMins + aptDuration;
 
-      // Interval overlap check: (newStart < exEnd && newEnd > exStart)
       return (newStartMins < exEndMins && newEndMins > exStartMins);
     });
 
     if (existingConflict) {
-      console.warn(`[DOUBLE BOOKING PREVENTED] Interval conflict detected for Business: ${businessId}, Staff: ${staffId}, Time Range: ${time}-${endTimeStr}`);
       return res.status(409).json({
         error: `Seçtiğiniz ${time} - ${endTimeStr} aralığında seçili berber doludur. Lütfen başka bir saat seçiniz.`,
         conflictAptId: existingConflict.aptId
@@ -59,22 +91,24 @@ export default async function handler(req, res) {
     }
 
     // 3. NEW CUSTOMER ATTRIBUTION CHECK
+    const effectiveCustomerUid = customerUid || ('usr_manual_' + Date.now());
     const priorCompletedApt = allApts.find(apt => 
       apt &&
-      apt.customerUid === customerUid &&
+      apt.customerUid === effectiveCustomerUid &&
       apt.businessId === businessId &&
       (apt.status === 'approved' || apt.status === 'completed')
     );
 
     const isNewCustomerForBusiness = !priorCompletedApt;
-    const bookingSource = source || 'ezo_discovery';
+    const bookingSource = source || (isManual ? 'owner_manual' : 'ezo_discovery');
+    const assignedStatus = initialStatus || (isManual ? 'approved' : 'pending');
 
-    // 4. SAVE NEW APPOINTMENT WITH START & END TIME AND DURATION
+    // 4. SAVE NEW APPOINTMENT RECORD
     const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const appointmentRecord = {
       aptId,
       businessId,
-      customerUid,
+      customerUid: effectiveCustomerUid,
       customerName: customerName || 'Müşteri',
       customerPhone: customerPhone || '05550000000',
       staffId,
@@ -86,8 +120,9 @@ export default async function handler(req, res) {
       time,
       startTime: time,
       endTime: endTimeStr,
-      status: 'pending',
+      status: assignedStatus,
       source: bookingSource,
+      isManual: Boolean(isManual),
       isNewCustomerForBusiness,
       createdAt: new Date().toISOString()
     };
@@ -105,7 +140,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       aptId,
-      status: 'pending',
+      status: assignedStatus,
       appointment: appointmentRecord
     });
 
