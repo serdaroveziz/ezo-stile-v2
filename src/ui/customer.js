@@ -1,3 +1,17 @@
+
+// TURKISH CHARACTER CASE-INSENSITIVE NORMALIZATION HELPER (REQUIREMENT 5)
+function trNormalize(str) {
+  return String(str || '')
+    .toLowerCase()
+    .replace(/İ/g, 'i')
+    .replace(/I/g, 'ı')
+    .replace(/ı/g, 'i')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c');
+}
 /* EZO STİLE v2 - Customer Final Panel (Notification Center, Photo Upload, Password Change, Cancel & 6-Hour Reschedule Requests, VIP Modals) */
 import { getAppointmentsForCustomer, fetchRecord, saveRecord, getServices, getStaffList } from '../db.js';
 import { updateUserLanguage, logoutUserSession } from '../auth.js';
@@ -94,12 +108,23 @@ export async function renderCustomerScreen(user, onTabChange) {
     });
 
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      salons = salons.filter(b => (b.name || '').toLowerCase().includes(q) || (b.district || '').toLowerCase().includes(q) || (b.city || '').toLowerCase().includes(q));
+      const q = trNormalize(searchQuery);
+      salons = salons.filter(b => {
+        const nameMatch = trNormalize(b.name).includes(q);
+        const cityMatch = trNormalize(b.city).includes(q);
+        const distMatch = trNormalize(b.district).includes(q);
+        
+        // Match service names offered by the salon
+        const servicesData = b.services ? Object.values(b.services) : [];
+        const serviceMatch = servicesData.some(s => s && trNormalize(s.name).includes(q));
+        
+        return nameMatch || cityMatch || distMatch || serviceMatch;
+      });
     }
 
     const salonCardsHtml = salons.map(b => `
-      <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 12px; cursor: pointer;" onclick="window.selectSalonForBooking('${b.businessId}')">
+      <div class="card card-gold animate-fade" style="padding: 12px; margin-bottom: 12px; cursor: pointer;" onclick="window.openSalonDetailsModal('${b.businessId}')">
+        <img src="${(b.media && (b.media.coverImageUrl || b.media.profileImageUrl)) || b.coverImageUrl || b.profileImageUrl || './assets/images/ezo_stile_logo.png'}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" alt="Cover">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
             <h4 style="font-size: 15px; font-weight: 800; color: #fff;">💈 ${b.name}</h4>
@@ -1052,3 +1077,82 @@ EZO STİLE üzerinden oluşturuldu.`;
     `;
   };
 }
+
+  // MÜŞTERİ SALON DETAY EKRANI (REQUIREMENT 9)
+  window.openSalonDetailsModal = async (businessId) => {
+    const allBusinessesData = await fetchRecord('businesses') || {};
+    const biz = allBusinessesData[businessId];
+    if (!biz) return;
+
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    const media = biz.media || {
+      profileImageUrl: biz.profileImageUrl || null,
+      coverImageUrl: biz.coverImageUrl || null,
+      gallery: biz.gallery || []
+    };
+
+    const coverUrl = media.coverImageUrl || media.profileImageUrl || biz.coverImageUrl || biz.profileImageUrl || './assets/images/ezo_stile_logo.png';
+    const profileUrl = media.profileImageUrl || biz.profileImageUrl || null;
+    const servicesList = await getServices(businessId);
+    const staffList = await getStaffList(businessId);
+
+    const servicesHtml = servicesList.map(s => `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.1); font-size: 12px;">
+        <span style="color: #fff;">✂️ ${s.name} (${s.duration || 30} dk)</span>
+        <span style="color: var(--gold-primary); font-weight: 800;">${s.price} TL</span>
+      </div>
+    `).join('');
+
+    const staffHtml = staffList.map(st => `
+      <span class="badge badge-secondary" style="font-size: 11px;">💈 ${st.displayName}</span>
+    `).join(' ');
+
+    const galleryHtml = (media.gallery || []).map(imgUrl => `
+      <img src="${imgUrl}" style="width: 100%; height: 75px; object-fit: cover; border-radius: 6px;">
+    `).join('');
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()" style="max-height: 90vh; overflow-y: auto;">
+          <div style="position: relative; margin-bottom: 14px;">
+            <img src="${coverUrl}" style="width: 100%; height: 140px; object-fit: cover; border-radius: 8px;" alt="Cover">
+            <button onclick="window.closeModal()" style="position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); color: #fff; border: none; border-radius: 50%; width: 26px; height: 26px; cursor: pointer;">✕</button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            ${profileUrl ? `<img src="${profileUrl}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold-primary);">` : ''}
+            <div>
+              <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin: 0;">💈 ${biz.name}</h3>
+              <div style="font-size: 11px; color: var(--text-muted);">📍 ${biz.district || 'Şişli'} / ${biz.city || 'İstanbul'} • ⭐ ${biz.averageRating || '4.9'}</div>
+            </div>
+          </div>
+
+          <!-- SERVICES -->
+          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 6px;">✂️ Hizmetler & Fiyatlar</h4>
+          <div style="margin-bottom: 14px;">
+            ${servicesList.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Hizmet bulunmuyor.</div>' : servicesHtml}
+          </div>
+
+          <!-- STAFF -->
+          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 6px;">👥 Berber Kadrosu</h4>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;">
+            ${staffList.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Personel bilgisi yok.</div>' : staffHtml}
+          </div>
+
+          <!-- GALLERY -->
+          ${(media.gallery || []).length > 0 ? `
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 6px;">📸 Fotoğraf Galerisi</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px;">
+              ${galleryHtml}
+            </div>
+          ` : ''}
+
+          <button onclick="window.selectSalonForBooking('${businessId}')" class="btn btn-gold" style="width: 100%; min-height: 44px; font-size: 13px; font-weight: 800;">
+            ✂️ Randevu Al →
+          </button>
+        </div>
+      </div>
+    `;
+  };
