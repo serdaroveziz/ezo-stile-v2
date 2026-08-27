@@ -43,6 +43,21 @@ export function isRtl(lang) {
 
 export const DICTIONARY = {
   tr: {
+    superAdminTitle: 'EZO STİLE — Süper Admin',
+    commandCenter: 'Komuta Merkezi',
+    totalSalons: 'Toplam Salon',
+    activeSalons: 'Aktif Salon',
+    pendingApps: 'Bekleyen Başvuru',
+    totalUsers: 'Toplam Kullanıcı',
+    todayPlatformApts: 'Bugünkü Randevu',
+    platformRevenue: 'Platform Geliri',
+    salonsTabAdmin: 'Salonlar',
+    applicationsTabAdmin: 'Başvurular',
+    usersTabAdmin: 'Kullanıcılar',
+    managementTabAdmin: 'Yönetim',
+    grantLimitNotice: 'Maksimum 2 Aktif Ücretsiz Premium Grant',
+    supportModeBanner: '⚠️ Süper Admin Destek Modu —',
+    exitSupportMode: 'Destek Modundan Çık',
     serviceLabel: 'Hizmet',
     barberLabel: 'Berber',
     dateLabel: 'Tarih',
