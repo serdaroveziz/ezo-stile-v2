@@ -10,16 +10,20 @@ export default async function handler(req, res) {
     const { uid, phone, password, isSessionRestore } = req.body || {};
     const cleanPhone = phone ? String(phone).trim() : '';
 
-    // SUPER ADMIN CREDENTIAL BOOTSTRAP IN DB (IF MISSING)
-    if (cleanPhone === '05550000000' || cleanPhone === '05320000000' || uid === 'usr_super_admin') {
-      const superUid = 'usr_super_admin';
+    // SUPER ADMIN CREDENTIAL BOOTSTRAP & DEDICATED RESOLVER (KUVVAT - 05538762588 & 05550000000)
+    const normPhone = cleanPhone.replace(/\D/g, '');
+    const isSuperAdminPhone = normPhone.includes('5538762588') || normPhone === '05538762588' || normPhone === '05550000000' || normPhone === '05320000000' || uid === 'usr_05538762588' || uid === 'usr_super_admin';
+
+    if (isSuperAdminPhone) {
+      const superUid = 'usr_05538762588';
       const superAdminRecord = {
         uid: superUid,
-        phone: cleanPhone || '05550000000',
+        phone: cleanPhone || '05538762588',
         name: 'Kuvvat',
         displayName: 'Kuvvat',
         role: 'super_admin',
         password: password || '1405',
+        disabled: false,
         updatedAt: new Date().toISOString()
       };
 

@@ -105,9 +105,9 @@ export async function loginUser(phone, password) {
   const cleanPhone = phone.replace(/\D/g, '');
   let uid = 'usr_' + cleanPhone;
 
-  // Dedicated Phone Resolvers for Super Admin & Owner
-  if (cleanPhone === '05550000000' || cleanPhone === '05320000000') {
-    uid = 'usr_super_admin';
+  // Dedicated Phone Resolvers for Super Admin (Kuvvat) & Owner
+  if (cleanPhone.includes('5538762588') || cleanPhone === '05538762588' || cleanPhone === '05550000000' || cleanPhone === '05320000000') {
+    uid = 'usr_05538762588';
   } else if (cleanPhone === '05550000002') {
     uid = 'usr_05550000002';
   }
