@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Serverless Booking Engine with Manual Booking, Weekly Schedule & Booking Enabled Guards */
+/* EZO STİLE v2 - Serverless Booking Engine with Manual Booking, Price Snapshots, Weekly Schedule & Booking Enabled Guards */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
     const bookingSource = source || (isManual ? 'owner_manual' : 'ezo_discovery');
     const assignedStatus = initialStatus || (isManual ? 'approved' : 'pending');
 
-    // 4. SAVE NEW APPOINTMENT RECORD
+    // 4. SAVE NEW APPOINTMENT RECORD WITH PRICE & NAME SNAPSHOTS
     const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const appointmentRecord = {
       aptId,
@@ -115,6 +115,8 @@ export default async function handler(req, res) {
       serviceId,
       serviceName: serviceName || 'Hizmet',
       servicePrice: parseInt(servicePrice) || 350,
+      servicePriceSnapshot: parseInt(servicePrice) || 350,
+      serviceNameSnapshot: serviceName || 'Hizmet',
       serviceDuration: durationMinutes,
       date,
       time,
