@@ -127,10 +127,26 @@ export async function getAppointmentsForBusiness(businessId) {
   return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
-export async function getAppointmentsForCustomer(customerUid) {
+export async function getAppointmentsForCustomer(customerUid, customerPhone = null) {
   const data = await fetchRecord('appointments');
   if (!data) return [];
-  const list = Object.values(data).filter(apt => apt && apt.customerUid === customerUid);
+
+  let userPhone = customerPhone;
+  if (!userPhone && customerUid) {
+    const userProf = await fetchRecord(`users/${customerUid}`);
+    if (userProf && userProf.phone) userPhone = userProf.phone;
+  }
+
+  const cleanPhone = (ph) => String(ph || '').replace(/\D/g, '').slice(-10);
+  const targetPhone = userPhone ? cleanPhone(userPhone) : null;
+
+  const list = Object.values(data).filter(apt => {
+    if (!apt) return false;
+    const matchesUid = apt.customerUid === customerUid;
+    const aptPhone = cleanPhone(apt.customerPhone);
+    const matchesPhone = targetPhone && aptPhone && aptPhone.length >= 10 && (aptPhone === targetPhone);
+    return matchesUid || matchesPhone;
+  });
   return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 

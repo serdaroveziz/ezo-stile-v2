@@ -306,7 +306,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       </div>
     `;
   } else if (activeCustomerTab === 'appointments') {
-    const userApts = await getAppointmentsForCustomer(user.uid);
+    const userApts = await getAppointmentsForCustomer(user.uid, user.phone);
     const allBusinessesData = await fetchRecord('businesses') || {};
 
     // 1. ALL ACTIVE APPOINTMENTS (UNLIMITED VISIBILITY - REQUIREMENT 3)

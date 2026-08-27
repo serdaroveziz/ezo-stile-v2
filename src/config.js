@@ -43,6 +43,18 @@ export function isRtl(lang) {
 
 export const DICTIONARY = {
   tr: {
+    masterNotifLabel: '🔔 Tüm Bildirimleri Aç / Kapat',
+    masterNotifSub: 'Ana bildirim anahtarı (alt tercihler korunur)',
+    imageEditorTitle: '✂️ Görsel Düzenleme & Kırpma',
+    zoomIn: 'Yakınlaştır (+)',
+    zoomOut: 'Uzaklaştır (-)',
+    previewKesfet: 'Keşfet Kartı Önizleme',
+    previewProfile: 'Profil/Logo Önizleme',
+    packageManagementTitle: '📦 Paket & Lisans Durumu',
+    currentPackage: 'Mevcut Paket',
+    upgradePackageBtn: 'Paketi Yükselt →',
+    superAdminGrantNotice: '⚡ Premium — Süper Admin Tarafından Tanımlandı',
+    sandboxPaymentNotice: 'ℹ️ Sandbox / Test Ödeme Altyapısı Aktiftir',
     personalDetails: 'Kişisel Bilgiler & Profil',
     salonMedia: 'Salon Görselleri & Galeri',
     editDisplayName: 'Ad Soyad Düzenle',

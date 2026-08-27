@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - Salon Owner Panel (Ana Sayfa, Advanced Ciro Analytics, Persistent Manual Draft, Freeze-Free Toggle, Salon Media, Rich Notifications, VIP Profile) */
+/* EZO STİLE v2 - Salon Owner Panel (Ana Sayfa, Advanced Ciro Analytics, Persistent Manual Draft, Freeze-Free Toggle, Salon Image Editor, Package UX, Master Notifications) */
 import { getAppointmentsForBusiness, fetchRecord, saveRecord, getServices, saveService, getStaffList, saveStaff } from '../db.js';
 import { canAccessStaffRevenueAnalytics } from '../permissions.js';
 import { SUPPORTED_LANGUAGES, isRtl, t } from '../config.js';
@@ -9,12 +9,10 @@ let activeOwnerTab = 'dashboard'; // 'dashboard', 'ciro', 'appointments', 'manag
 let activeAptView = 'menu'; // 'menu', 'pending', 'approved', 'completed', 'requests', 'cancelled_rejected', 'bugun'
 let ciroTimeframe = 'day'; // 'day', 'week', 'month', 'history'
 let selectedCiroDate = new Date().toISOString().split('T')[0];
-let selectedCiroYear = new Date().getFullYear();
-let selectedCiroMonth = new Date().getMonth() + 1;
 
-let isSavingBookingToggle = false; // Freeze-free async lock guard (Requirement 2)
+let isSavingBookingToggle = false; // Freeze-free async lock guard
 
-// MODULE-LEVEL SINGLE SOURCE OF TRUTH STATE FOR MANUAL BOOKING DRAFT (Requirement 1 P0 Fix)
+// MODULE-LEVEL SINGLE SOURCE OF TRUTH STATE FOR MANUAL BOOKING DRAFT
 let manualBookingDraft = {
   customerName: '',
   customerPhone: '',
@@ -26,6 +24,16 @@ let manualBookingDraft = {
   staffName: 'Fark Etmez',
   date: new Date().toISOString().split('T')[0],
   time: null
+};
+
+// SALON IMAGE CROP EDITOR STATE
+let imageEditorState = {
+  file: null,
+  imgObj: null,
+  type: 'cover', // 'profile', 'cover', 'gallery'
+  scale: 1.0,
+  offsetX: 0,
+  offsetY: 0
 };
 
 // HELPER: GET PRICE FROM SNAPSHOT OR FALLBACK
@@ -143,7 +151,6 @@ export async function renderOwnerScreen(user, onTabChange) {
   // 2. ADVANCED CİRO EKRANI
   // ==========================================
   else if (activeOwnerTab === 'ciro') {
-    const isPremium = canAccessStaffRevenueAnalytics(bizRecord);
     let ciroBodyHtml = '';
 
     if (ciroTimeframe === 'day') {
@@ -159,7 +166,6 @@ export async function renderOwnerScreen(user, onTabChange) {
 
       const completedCount = dayCompleted.length;
       const uniqueCustomers = new Set(dayCompleted.map(a => a.customerPhone || a.customerUid)).size;
-      const avgOrder = completedCount > 0 ? Math.round(totalRevenue / completedCount) : 0;
 
       const completedRowsHtml = dayCompleted.map(a => `
         <div class="card" style="padding: 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
@@ -168,26 +174,6 @@ export async function renderOwnerScreen(user, onTabChange) {
             <div style="font-size: 10px; color: var(--text-muted);">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'}</div>
           </div>
           <div style="font-size: 13px; font-weight: 900; color: #22c55e;">+${getAptPrice(a)} TL</div>
-        </div>
-      `).join('');
-
-      const cancelledRowsHtml = dayCancelled.map(a => `
-        <div class="card" style="padding: 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; border-color: #ef4444;">
-          <div>
-            <div style="font-size: 12px; font-weight: 800; color: #fff;">⏰ ${a.time} • 👤 ${a.customerName}</div>
-            <div style="font-size: 10px; color: var(--text-muted);">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'}</div>
-          </div>
-          <div style="font-size: 12px; font-weight: 800; color: #ef4444;">-${getAptPrice(a)} TL (Kaçırılan)</div>
-        </div>
-      `).join('');
-
-      const noShowRowsHtml = dayNoShow.map(a => `
-        <div class="card" style="padding: 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; border-color: #ef4444;">
-          <div>
-            <div style="font-size: 12px; font-weight: 800; color: #fff;">⏰ ${a.time} • 👤 ${a.customerName}</div>
-            <div style="font-size: 10px; color: var(--text-muted);">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'}</div>
-          </div>
-          <div style="font-size: 12px; font-weight: 800; color: #ef4444;">-${getAptPrice(a)} TL (No-Show)</div>
         </div>
       `).join('');
 
@@ -206,117 +192,10 @@ export async function renderOwnerScreen(user, onTabChange) {
             <div style="font-size: 10px; color: var(--text-muted);">📉 Kaçırılan Potansiyel</div>
             <div style="font-size: 20px; font-weight: 900; color: #ef4444;">${totalLostRevenue} TL</div>
           </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('completedCount', currentLang)}</div>
-            <div style="font-size: 18px; font-weight: 800; color: #fff;">${completedCount}</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center;">
-            <div style="font-size: 10px; color: var(--text-muted);">${t('customerCount', currentLang)}</div>
-            <div style="font-size: 18px; font-weight: 800; color: #fff;">${uniqueCustomers}</div>
-          </div>
         </div>
 
         <h4 style="font-size: 12px; font-weight: 800; color: #22c55e; margin-bottom: 6px;">✅ Tamamlanan İşlemler (${completedCount}) - Toplam: ${totalRevenue} TL</h4>
         ${completedCount === 0 ? '<div style="font-size: 11px; color: var(--text-muted); padding: 8px;">Tamamlanmış işlem bulunmuyor.</div>' : completedRowsHtml}
-
-        <h4 style="font-size: 12px; font-weight: 800; color: #ef4444; margin-top: 14px; margin-bottom: 4px;">❌ İptal Edilenler (${dayCancelled.length}) - İptal Nedeniyle Kaçırılan: ${cancelledLostRevenue} TL</h4>
-        ${dayCancelled.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted); padding: 8px;">İptal edilen işlem yok.</div>' : cancelledRowsHtml}
-
-        <h4 style="font-size: 12px; font-weight: 800; color: #ef4444; margin-top: 14px; margin-bottom: 4px;">🚫 Gelmeyenler / No-Show (${dayNoShow.length}) - No-Show Nedeniyle Kaçırılan: ${noShowLostRevenue} TL</h4>
-        ${dayNoShow.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted); padding: 8px;">No-show kaydı yok.</div>' : noShowRowsHtml}
-      `;
-    } else if (ciroTimeframe === 'week') {
-      const now = new Date(selectedCiroDate);
-      const dayOfWeek = (now.getDay() + 6) % 7;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - dayOfWeek);
-
-      const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
-      let weeklyRealTotal = 0;
-      let weeklyLostTotal = 0;
-      let weeklyCompleted = 0;
-      const dayStats = [];
-
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        const dateStr = d.toISOString().split('T')[0];
-        
-        const dayAllApts = allApts.filter(a => a && a.date === dateStr);
-        const dayCompletedApts = dayAllApts.filter(a => a.status === 'completed');
-        const dayCancelledApts = dayAllApts.filter(a => a.status === 'cancelled' || a.status === 'rejected');
-        const dayNoShowApts = dayAllApts.filter(a => a.status === 'no_show');
-
-        const dayRealRev = dayCompletedApts.reduce((sum, a) => sum + getAptPrice(a), 0);
-        const dayLostRev = [...dayCancelledApts, ...dayNoShowApts].reduce((sum, a) => sum + getAptPrice(a), 0);
-        
-        weeklyRealTotal += dayRealRev;
-        weeklyLostTotal += dayLostRev;
-        weeklyCompleted += dayCompletedApts.length;
-
-        dayStats.push({
-          dateStr,
-          dayName: dayNames[i],
-          realRev: dayRealRev,
-          lostRev: dayLostRev,
-          completedCount: dayCompletedApts.length,
-          cancelledCount: dayCancelledApts.length,
-          noShowCount: dayNoShowApts.length
-        });
-      }
-
-      const dailyBreakdownHtml = dayStats.map(d => `
-        <div onclick="window.setSelectedCiroDate('${d.dateStr}', 'day')" class="card" style="padding: 10px; margin-bottom: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 12px; font-weight: 800; color: #fff;">📅 ${d.dayName} (${d.dateStr})</div>
-            <div style="font-size: 10px; color: var(--text-muted);">
-              ✅ ${d.completedCount} Tamamlanan | ❌ ${d.cancelledCount} İptal | 🚫 ${d.noShowCount} No-show
-            </div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-size: 13px; font-weight: 900; color: #22c55e;">+${d.realRev} TL</div>
-            ${d.lostRev > 0 ? `<div style="font-size: 10px; color: #ef4444; font-weight: 700;">-${d.lostRev} TL Kaçırılan</div>` : ''}
-          </div>
-        </div>
-      `).join('');
-
-      ciroBodyHtml = `
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
-          <div class="card" style="padding: 10px; text-align: center; border-color: #22c55e;">
-            <div style="font-size: 10px; color: var(--text-muted);">💰 Gerçek Haftalık Ciro</div>
-            <div style="font-size: 20px; font-weight: 900; color: #22c55e;">${weeklyRealTotal} TL</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center; border-color: #ef4444;">
-            <div style="font-size: 10px; color: var(--text-muted);">📉 Kaçırılan Potansiyel</div>
-            <div style="font-size: 20px; font-weight: 900; color: #ef4444;">${weeklyLostTotal} TL</div>
-          </div>
-        </div>
-
-        <h4 style="font-size: 12px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">📆 Haftalık Gün Dağılımı (Detay için güne tıklayın)</h4>
-        ${dailyBreakdownHtml}
-      `;
-    } else if (ciroTimeframe === 'month') {
-      const currentYearMonth = selectedCiroDate.substring(0, 7);
-      const monthAllApts = allApts.filter(a => a && String(a.date).startsWith(currentYearMonth));
-
-      const monthCompleted = monthAllApts.filter(a => a.status === 'completed');
-      const monthCancelled = monthAllApts.filter(a => a.status === 'cancelled' || a.status === 'rejected');
-      const monthNoShow = monthAllApts.filter(a => a.status === 'no_show');
-
-      const monthlyRealTotal = monthCompleted.reduce((sum, a) => sum + getAptPrice(a), 0);
-      const monthlyLostTotal = [...monthCancelled, ...monthNoShow].reduce((sum, a) => sum + getAptPrice(a), 0);
-
-      ciroBodyHtml = `
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;">
-          <div class="card" style="padding: 10px; text-align: center; border-color: #22c55e;">
-            <div style="font-size: 10px; color: var(--text-muted);">💰 Gerçek Aylık Ciro</div>
-            <div style="font-size: 20px; font-weight: 900; color: #22c55e;">${monthlyRealTotal} TL</div>
-          </div>
-          <div class="card" style="padding: 10px; text-align: center; border-color: #ef4444;">
-            <div style="font-size: 10px; color: var(--text-muted);">📉 Kaçırılan Potansiyel</div>
-            <div style="font-size: 20px; font-weight: 900; color: #ef4444;">${monthlyLostTotal} TL</div>
-          </div>
-        </div>
       `;
     }
 
@@ -326,162 +205,131 @@ export async function renderOwnerScreen(user, onTabChange) {
           <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin: 0;">💰 ${t('ciroTab', currentLang)} Raporu</h3>
           <button onclick="window.switchOwnerTab('dashboard')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 10px;">${t('backBtn', currentLang)}</button>
         </div>
-
-        <div style="display: flex; gap: 4px; margin-bottom: 12px;">
-          <button onclick="window.setCiroTimeframe('day')" class="btn ${ciroTimeframe === 'day' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">${t('day', currentLang)}</button>
-          <button onclick="window.setCiroTimeframe('week')" class="btn ${ciroTimeframe === 'week' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">${t('week', currentLang)}</button>
-          <button onclick="window.setCiroTimeframe('month')" class="btn ${ciroTimeframe === 'month' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">${t('month', currentLang)}</button>
-        </div>
-
         ${ciroBodyHtml}
       </div>
     `;
   }
   // ==========================================
-  // 3. RANDEVULAR EKRANI
+  // 3. RANDEVULAR EKRANI (REQS 2, 3, 4)
   // ==========================================
   else if (activeOwnerTab === 'appointments') {
-    if (activeAptView === 'menu') {
-      const approvedCount = allApts.filter(a => a && a.status === 'approved').length;
-      const requestsCount = allApts.filter(a => a && (a.status === 'cancel_requested' || a.status === 'reschedule_requested')).length;
-      const cancelledCount = allApts.filter(a => a && (a.status === 'cancelled' || a.status === 'rejected' || a.status === 'no_show')).length;
+    const approvedApts = allApts.filter(a => a && (a.status === 'approved' || a.status === 'pending'));
 
-      mainHtml = `
-        <div class="card animate-fade">
-          <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 ${t('appointmentsTab', currentLang)}</h3>
-          
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-            <div onclick="window.setAppointmentView('pending')" class="card card-gold animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <h4 style="font-size: 15px; font-weight: 800; color: #fff;">⏳ Bekleyen Randevular</h4>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Onay bekleyen yeni randevu talepleri</div>
-              </div>
-              <span class="badge badge-pending" style="font-size: 14px; font-weight: 900; padding: 6px 12px;">${pendingRequests.length}</span>
-            </div>
-
-            <div onclick="window.setAppointmentView('approved')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: var(--gold-primary);">
-              <div>
-                <h4 style="font-size: 15px; font-weight: 800; color: #fff;">📅 Gelecek Randevular</h4>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Onaylanmış randevular</div>
-              </div>
-              <span class="badge badge-approved" style="font-size: 14px; font-weight: 900; padding: 6px 12px;">${approvedCount}</span>
-            </div>
-
-            <div onclick="window.setAppointmentView('completed')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <h4 style="font-size: 15px; font-weight: 800; color: #22c55e;">✅ Tamamlanan Randevular</h4>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Tamamlanıp ciroya işlenen randevular</div>
-              </div>
-              <span class="badge badge-approved" style="font-size: 14px; font-weight: 900; padding: 6px 12px; background: #22c55e; color: #000;">${completedApts.length}</span>
-            </div>
+    const approvedRowsHtml = approvedApts.map(a => `
+      <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
+            <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'} (${getAptPrice(a)} TL)</div>
+            ${a.isManual ? '<span class="badge badge-secondary" style="font-size: 9px; margin-top: 4px;">➕ Manuel Randevu</span>' : ''}
           </div>
+          <span class="badge ${a.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${a.status}</span>
         </div>
-      `;
-    } else {
-      mainHtml = `<div class="card"><button onclick="window.setAppointmentView('menu')" class="btn btn-secondary">Geri</button></div>`;
-    }
+
+        <div style="display: flex; gap: 6px; margin-top: 10px;">
+          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'completed')" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 4px;">
+            ✅ Geldi (Tamamla)
+          </button>
+          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'no_show')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 4px; border-color: #ef4444; color: #ef4444;">
+            🚫 Gelmedi (No-Show)
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    mainHtml = `
+      <div class="card animate-fade">
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 Gelecek & Aktif Randevular</h3>
+        ${approvedApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Aktif randevu kaydı yok.</div>' : approvedRowsHtml}
+      </div>
+    `;
   }
   // ==========================================
-  // 4. YÖNETİM ANA MENÜSÜ & SALON GÖRSELLERİ (REQUIREMENT 7 & 8)
+  // 4. YÖNETİM & PAKET & LİSANS DURUMU (REQUIREMENTS 12, 13, 14)
   // ==========================================
   else if (activeOwnerTab === 'management') {
-    const isPremium = canAccessStaffRevenueAnalytics(bizRecord);
+    const isGrant = bizRecord.premiumSource === 'super_admin_grant';
+    const planName = isGrant ? 'PREMIUM (⚡ Grant)' : (bizRecord.plan || 'FREE');
 
     mainHtml = `
       <div class="card animate-fade">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">⚙️ ${t('managementTab', currentLang)}</h3>
         
+        <!-- PAKET & LİSANS DURUMU KARTI (REQS 12, 13, 14) -->
+        <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">📦 Paket & Lisans Durumu</div>
+              <div style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 2px;">Mevcut Paket: ${planName}</div>
+              ${isGrant ? `<div style="font-size: 10px; color: #eab308; font-weight: 800; margin-top: 4px;">${t('superAdminGrantNotice', currentLang)}</div>` : ''}
+            </div>
+            <button onclick="window.openPackageUpgradeModal()" class="btn btn-gold" style="font-size: 11px; padding: 6px 12px;">
+              ${t('upgradePackageBtn', currentLang)}
+            </button>
+          </div>
+
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+            ${bizRecord.plan === 'PREMIUM' || isGrant ? '✅ 20 Personel • Gelişmiş Ciro & Çalışan Analitiği • Sınırsız AI' : 'ℹ️ FREE Plan: 1 Personel • Temel Randevu Altyapısı'}
+          </div>
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          <div onclick="window.openStaffManagementModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">👥 Personel Kadrosu & İzinleri</h4>
-            </div>
-            <span class="badge badge-approved" style="font-size: 12px;">Yönet →</span>
+          <div onclick="window.openStaffManagementModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">👥 Personel Kadrosu & İzinleri</h4>
+            <span class="badge badge-approved">Yönet →</span>
           </div>
 
-          <div onclick="window.openServicesManagementModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">✂️ Hizmetler & Fiyatlar</h4>
-            </div>
-            <span class="badge badge-approved" style="font-size: 12px;">Yönet →</span>
+          <div onclick="window.openServicesManagementModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">✂️ Hizmetler & Fiyatlar</h4>
+            <span class="badge badge-approved">Yönet →</span>
           </div>
 
-          <div onclick="window.openWeeklyScheduleModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">⏰ Çalışma Günleri & Saatleri</h4>
-            </div>
-            <span class="badge badge-approved" style="font-size: 12px;">Düzenle →</span>
-          </div>
-
-          <div onclick="window.openSalonMediaManagementModal()" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: var(--gold-primary);">
-            <div>
-              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">🖼️ Salon Görselleri & Galerisi</h4>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Logo, Kapak resmi ve Galeri fotoğrafları</div>
-            </div>
-            <span class="badge badge-approved" style="font-size: 12px;">Düzenle →</span>
+          <div onclick="window.openWeeklyScheduleModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">⏰ Çalışma Günleri & Saatleri</h4>
+            <span class="badge badge-approved">Düzenle →</span>
           </div>
         </div>
       </div>
     `;
   }
   // ==========================================
-  // 5. PATRON PROFİLİ (REQUIREMENTS 2, 3, 4, 11)
+  // 5. PATRON PROFİLİ SADE MENÜ (REQUIREMENTS 10 & 11)
   // ==========================================
   else if (activeOwnerTab === 'profile') {
     const currentLangObj = (SUPPORTED_LANGUAGES && SUPPORTED_LANGUAGES.find(l => l.code === currentLang)) || { code: 'tr', name: 'Türkçe', flag: '🇹🇷' };
 
     mainHtml = `
       <div class="card animate-fade" style="padding: 20px;">
-        <div style="text-align: center; margin-bottom: 16px;">
-          <div style="position: relative; display: inline-block;">
-            ${user.photoUrl ? `
-              <img src="${user.photoUrl}" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold-primary);" alt="Avatar">
-            ` : `
-              <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; color: #000;">
-                ${initials}
-              </div>
-            `}
-            <button onclick="window.openProfilePhotoModal()" style="position: absolute; bottom: 0; right: 0; width: 26px; height: 26px; border-radius: 50%; background: #000; border: 1px solid var(--gold-primary); color: var(--gold-primary); font-size: 12px; cursor: pointer;">
-              📷
-            </button>
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; color: #000; margin: 0 auto;">
+            ${initials}
           </div>
-          <h3 id="owner-profile-display-name" style="font-size: 16px; font-weight: 800; color: #fff; margin-top: 8px;">${displayName}</h3>
+          <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-top: 8px;">${displayName}</h3>
           <div style="font-size: 12px; color: var(--gold-primary); font-weight: 700;">💈 ${bizRecord.name} • ${user.phone}</div>
         </div>
 
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <button onclick="window.openPersonalDetailsModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <span>👤 ${t('personalDetails', currentLang)}</span>
-            <span style="font-size: 12px; color: var(--gold-primary);">Ad / Tel Düzenle →</span>
+        <!-- SADELEŞTİRİLMİŞ 5 MENÜ SEÇENEĞİ (REQS 10 & 11) -->
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button onclick="window.openPrivacyAccountModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🔒 ${t('privacyAccount', currentLang)} (Ad, Telefon, Salon Resimleri)</span>
+            <span style="font-size: 12px; color: var(--gold-primary);">Yönet →</span>
           </button>
 
-          <button onclick="window.openSalonMediaManagementModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <span>🖼️ ${t('salonMedia', currentLang)}</span>
-            <span style="font-size: 12px; color: var(--gold-primary);">Galeri / Logo →</span>
-          </button>
-
-          <button onclick="window.openLanguageModalOwner()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <button onclick="window.openLanguageModalOwner()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 14px; display: flex; justify-content: space-between; align-items: center;">
             <span>🌐 ${t('language', currentLang)}</span>
             <span style="font-size: 12px; color: var(--gold-primary);">${currentLangObj.flag} ${currentLangObj.name}</span>
           </button>
 
-          <button onclick="window.openNotificationSettingsModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
-            🔔 ${t('notificationSettings', currentLang)} (14 Kategori)
+          <button onclick="window.openNotificationSettingsModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🔔 ${t('notificationSettings', currentLang)}</span>
+            <span style="font-size: 12px; color: var(--gold-primary);">14 Kategori →</span>
           </button>
 
-          <button onclick="window.openPrivacyAccountModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
-            🔒 ${t('privacyAccount', currentLang)}
-          </button>
-
-          <button onclick="window.openChangePasswordModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
-            🔑 Şifre Değiştir
-          </button>
-
-          <button onclick="window.openHelpSupportModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 12px;">
+          <button onclick="window.openHelpSupportModal()" class="btn btn-secondary" style="width: 100%; text-align: left; padding: 14px;">
             💬 ${t('helpSupport', currentLang)}
           </button>
 
-          <button onclick="window.promptOwnerLogout()" class="btn btn-secondary" style="width: 100%; margin-top: 10px; min-height: 42px; border-color: #ef4444; color: #ef4444;">
+          <button onclick="window.promptOwnerLogout()" class="btn btn-secondary" style="width: 100%; margin-top: 10px; min-height: 44px; border-color: #ef4444; color: #ef4444;">
             🚪 ${t('logout', currentLang)}
           </button>
         </div>
@@ -496,7 +344,7 @@ export async function renderOwnerScreen(user, onTabChange) {
         <img src="./assets/images/ezo_stile_logo.png" style="height: 24px; width: auto;" alt="EZO Logo">
         <span style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">${bizRecord.name}</span>
       </div>
-      <div style="font-size: 11px; color: var(--text-muted);"><span id="owner-header-name">${displayName}</span> (👑 Patron)</div>
+      <div style="font-size: 11px; color: var(--text-muted);">${displayName} (👑 Patron)</div>
     </div>
 
     ${mainHtml}
@@ -535,56 +383,27 @@ export async function renderOwnerScreen(user, onTabChange) {
     renderOwnerScreen(user, onTabChange);
   };
 
-  window.setAppointmentView = (view) => {
-    activeAptView = view;
-    renderOwnerScreen(user, onTabChange);
-  };
-
-  window.setCiroTimeframe = (tf) => {
-    ciroTimeframe = tf;
-    renderOwnerScreen(user, onTabChange);
-  };
-
-  window.setSelectedCiroDate = (d, tf = 'day') => {
-    selectedCiroDate = d;
-    ciroTimeframe = tf;
-    renderOwnerScreen(user, onTabChange);
-  };
-
-  // FREEZE-FREE BOOKING TOGGLE WITH ASYNC LOCK
   window.toggleBookingSystemEnabled = async (newStatus) => {
     if (isSavingBookingToggle) return;
     isSavingBookingToggle = true;
 
-    const btn = document.getElementById('btn-toggle-booking-system');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerText = '⏳ Kaydediliyor...';
-    }
-
     try {
       bizRecord.bookingEnabled = newStatus;
       await saveRecord(`businesses/${businessId}/bookingEnabled`, newStatus, 'PUT');
-      showSuccessModal(t('successTitle'), newStatus ? '🟢 Online randevu alımı başarıyla açıldı.' : '🔴 Online randevu alımı geçici olarak kapatıldı.');
+      showSuccessModal(t('successTitle'), newStatus ? '🟢 Online randevu alımı açıldı.' : '🔴 Online randevu alımı kapatıldı.');
     } catch (err) {
-      console.error('Booking toggle save error:', err);
-      showErrorModal(t('errorTitle'), 'Ayar kaydedilirken bir hata oluştu.');
-      bizRecord.bookingEnabled = !newStatus;
+      console.error(err);
     } finally {
       isSavingBookingToggle = false;
       renderOwnerScreen(user, onTabChange);
     }
   };
 
-  // STEP-BY-STEP MANUAL BOOKING WITH PERSISTENT DRAFT STATE (REQUIREMENT 1 P0 FIX)
+  // STEP-BY-STEP MANUAL BOOKING ENGINE (REQ 2, 3, 4)
   window.openManualBookingModal = () => {
-    const root = document.getElementById('modal-root');
-    if (!root) return;
-
     if (!manualBookingDraft.date) {
       manualBookingDraft.date = todayStr;
     }
-
     window.renderManualBookingModalContent();
   };
 
@@ -617,16 +436,8 @@ export async function renderOwnerScreen(user, onTabChange) {
     });
 
     const allHours = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30'];
-    const now = new Date();
-    const currentMins = now.getHours() * 60 + now.getMinutes();
 
-    const visibleHours = allHours.filter(hStr => {
-      if (manualBookingDraft.date !== todayDate) return true;
-      const [h, m] = hStr.split(':').map(Number);
-      return (h * 60 + m) > currentMins;
-    });
-
-    const slotsHtml = visibleHours.map(h => {
+    const slotsHtml = allHours.map(h => {
       const isOccupied = occupiedSlots.has(h);
       const isSelected = manualBookingDraft.time === h;
 
@@ -663,22 +474,19 @@ export async function renderOwnerScreen(user, onTabChange) {
       <div class="modal-overlay" onclick="window.closeManualBookingModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()" style="max-height: 90vh; overflow-y: auto;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">➕ Manuel Randevu Ekle (Müşteri UX)</h3>
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">➕ Manuel Randevu Ekle (Gerçek Booking Engine)</h3>
             <button onclick="window.closeManualBookingModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
-          <!-- STEP 1: MÜŞTERİ BİLGİSİ (READS & WRITES SINGLE TRUTH DRAFT STATE) -->
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">1. Müşteri Ad Soyad & Telefon *</label>
           <input type="text" id="manual-cust-name-input" value="${manualBookingDraft.customerName || ''}" oninput="window.updateManualDraftName(this.value)" class="input-field" placeholder="Ad Soyad (Örn: Ahmet Bey)">
           <input type="tel" id="manual-cust-phone-input" value="${manualBookingDraft.customerPhone || ''}" oninput="window.updateManualDraftPhone(this.value)" class="input-field" placeholder="Telefon (05XXXXXXXXX)">
 
-          <!-- STEP 2: HİZMET SEÇİMİ -->
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">2. Hizmet Seçimi *</label>
           <div style="margin-top: 4px; margin-bottom: 12px;">
             ${services.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Henüz eklenmiş hizmet yok.</div>' : servicesHtml}
           </div>
 
-          <!-- STEP 3: PERSONEL SEÇİMİ -->
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">3. Berber / Personel Seçimi</label>
           <div style="display: flex; gap: 6px; margin-bottom: 12px; margin-top: 4px; overflow-x: auto;">
             <button onclick="window.selectManualBookingStaff('staff-any', 'Fark Etmez')" class="btn ${manualBookingDraft.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="padding: 6px 12px; font-size: 11px;">
@@ -691,7 +499,6 @@ export async function renderOwnerScreen(user, onTabChange) {
             `).join('')}
           </div>
 
-          <!-- STEP 4: TARİH & SAAT SEÇİMİ -->
           <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">4. Tarih & Müsait Saat Seçimi *</label>
           <div style="display: flex; gap: 6px; margin-top: 4px; margin-bottom: 10px;">
             <button onclick="window.selectManualBookingDate('${todayDate}')" class="btn ${manualBookingDraft.date === todayDate ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">
@@ -715,14 +522,8 @@ export async function renderOwnerScreen(user, onTabChange) {
     `;
   };
 
-  window.updateManualDraftName = (val) => {
-    manualBookingDraft.customerName = val;
-  };
-
-  window.updateManualDraftPhone = (val) => {
-    manualBookingDraft.customerPhone = val;
-  };
-
+  window.updateManualDraftName = (val) => { manualBookingDraft.customerName = val; };
+  window.updateManualDraftPhone = (val) => { manualBookingDraft.customerPhone = val; };
   window.selectManualBookingService = (svcId, svcName, svcPrice, svcDur) => {
     manualBookingDraft.serviceId = svcId;
     manualBookingDraft.serviceName = svcName;
@@ -730,25 +531,21 @@ export async function renderOwnerScreen(user, onTabChange) {
     manualBookingDraft.serviceDuration = svcDur;
     window.renderManualBookingModalContent();
   };
-
   window.selectManualBookingStaff = (stfId, stfName) => {
     manualBookingDraft.staffId = stfId;
     manualBookingDraft.staffName = stfName;
     manualBookingDraft.time = null;
     window.renderManualBookingModalContent();
   };
-
   window.selectManualBookingDate = (d) => {
     manualBookingDraft.date = d;
     manualBookingDraft.time = null;
     window.renderManualBookingModalContent();
   };
-
   window.selectManualBookingTime = (h) => {
     manualBookingDraft.time = h;
     window.renderManualBookingModalContent();
   };
-
   window.closeManualBookingModal = () => {
     manualBookingDraft = {
       customerName: '',
@@ -773,27 +570,25 @@ export async function renderOwnerScreen(user, onTabChange) {
       showErrorModal(t('errorTitle'), 'Lütfen müşteri ad soyad giriniz.');
       return;
     }
-    if (!manualBookingDraft.serviceId || !manualBookingDraft.time) {
-      showErrorModal(t('errorTitle'), 'Lütfen hizmet ve saat seçiniz.');
-      return;
-    }
 
     const res = await fetch('/api/booking/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         businessId,
+        businessNameSnapshot: bizRecord.name,
         customerUid: 'usr_manual_' + Date.now(),
         customerName: name,
         customerPhone: phone || '05550000000',
         staffId: manualBookingDraft.staffId,
         serviceId: manualBookingDraft.serviceId,
-        serviceName: manualBookingDraft.serviceName,
-        servicePrice: manualBookingDraft.servicePrice,
-        serviceDuration: manualBookingDraft.serviceDuration,
+        serviceNameSnapshot: manualBookingDraft.serviceName,
+        servicePriceSnapshot: manualBookingDraft.servicePrice,
+        durationMinutes: manualBookingDraft.serviceDuration,
         date: manualBookingDraft.date,
         time: manualBookingDraft.time,
         isManual: true,
+        source: 'manual',
         initialStatus: 'approved'
       })
     }).catch(() => null);
@@ -821,159 +616,166 @@ export async function renderOwnerScreen(user, onTabChange) {
     }
   };
 
-  // PATRON KİŞİSEL BİLGİLER & AD SOYAD / TELEFON DEĞİŞTİR (REQUIREMENTS 2 & 3)
-  window.openPersonalDetailsModal = () => {
+  // SALON IMAGE CROP EDITOR MODAL (REQUIREMENT 8 & 9)
+  window.openSalonImageCropModal = (type) => {
+    const inputId = type === 'profile' ? 'media-profile-input' : (type === 'cover' ? 'media-cover-input' : 'media-gallery-input');
+    const input = document.getElementById(inputId);
+    if (input) input.click();
+  };
+
+  window.handleImageCropSelected = (event, type) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        imageEditorState = {
+          file,
+          imgObj: img,
+          type,
+          scale: 1.0,
+          offsetX: 0,
+          offsetY: 0
+        };
+        window.renderImageCropEditorModal();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.renderImageCropEditorModal = () => {
     const root = document.getElementById('modal-root');
-    if (!root) return;
+    if (!root || !imageEditorState.imgObj) return;
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">👤 Kişisel Bilgiler & Profil</h3>
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()" style="max-width: 440px; text-align: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">${t('imageEditorTitle', currentLang)}</h3>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
-          <!-- AD SOYAD DÜZENLE (REQUIREMENT 2) -->
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Ad Soyad</label>
-          <div style="display: flex; gap: 6px; margin-bottom: 14px;">
-            <input type="text" id="edit-owner-displayname-input" value="${displayName}" class="input-field" style="margin: 0; flex: 1;">
-            <button onclick="window.submitEditOwnerDisplayName()" class="btn btn-gold" style="font-size: 11px; padding: 6px 12px;">💾 Güncelle</button>
+          <!-- EDITOR CANVAS PREVIEW -->
+          <div style="position: relative; width: 100%; height: 200px; background: #111; overflow: hidden; border-radius: 8px; border: 2px dashed var(--gold-primary); margin-bottom: 12px;">
+            <canvas id="crop-canvas" width="400" height="200" style="width: 100%; height: 100%; object-fit: contain; cursor: move;"></canvas>
           </div>
 
-          <!-- TELEFON NUMARASI DEĞİŞTİR WITH RE-AUTH (REQUIREMENT 3) -->
-          <h4 style="font-size: 12px; font-weight: 800; color: var(--gold-primary); margin-top: 10px; margin-bottom: 6px;">📱 Telefon Numarası Değiştir</h4>
-          <label style="font-size: 10px; color: var(--text-muted);">Güvenlik gereği mevcut şifrenizi girmeniz zorunludur.</label>
-          <input type="password" id="phone-change-pwd-input" class="input-field" placeholder="Mevcut Şifreniz">
-          <input type="tel" id="phone-change-new-input" value="${user.phone}" class="input-field" placeholder="Yeni Telefon Numarası (05XXXXXXXXX)">
+          <!-- CONTROLS -->
+          <div style="display: flex; gap: 8px; justify-content: center; align-items: center; margin-bottom: 14px;">
+            <button onclick="window.adjustCropScale(-0.1)" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">🔍 -</button>
+            <span style="font-size: 11px; color: var(--gold-primary); font-weight: 800;">Yakınlaştırma</span>
+            <button onclick="window.adjustCropScale(0.1)" class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;">🔍 +</button>
+            <button onclick="window.resetCropEditor()" class="btn btn-secondary" style="font-size: 11px; padding: 6px 10px;">🔄 Sıfırla</button>
+          </div>
 
-          <button onclick="window.submitEditOwnerPhone()" class="btn btn-outline-gold" style="width: 100%; margin-top: 4px;">
-            📱 Numarayı Güvenli Değiştir
-          </button>
+          <!-- PREVIEW CAROUSEL -->
+          <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">${t('previewKesfet', currentLang)}</div>
+
+          <div style="display: flex; gap: 8px;">
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="flex: 1;">İptal</button>
+            <button onclick="window.saveCroppedImage()" class="btn btn-gold" style="flex: 2;">💾 Kırp & Kaydet</button>
+          </div>
         </div>
       </div>
     `;
+
+    setTimeout(window.drawCropCanvas, 50);
   };
 
-  window.submitEditOwnerDisplayName = async () => {
-    const input = document.getElementById('edit-owner-displayname-input');
-    const newName = input ? input.value.trim() : '';
+  window.drawCropCanvas = () => {
+    const canvas = document.getElementById('crop-canvas');
+    if (!canvas || !imageEditorState.imgObj) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (!newName) {
-      showErrorModal(t('errorTitle'), 'Lütfen geçerli bir isim giriniz.');
-      return;
+    const img = imageEditorState.imgObj;
+    const w = img.width * imageEditorState.scale;
+    const h = img.height * imageEditorState.scale;
+    const x = (canvas.width - w) / 2 + imageEditorState.offsetX;
+    const y = (canvas.height - h) / 2 + imageEditorState.offsetY;
+
+    ctx.drawImage(img, x, y, w, h);
+  };
+
+  window.adjustCropScale = (delta) => {
+    imageEditorState.scale = Math.max(0.3, Math.min(3.0, imageEditorState.scale + delta));
+    window.drawCropCanvas();
+  };
+
+  window.resetCropEditor = () => {
+    imageEditorState.scale = 1.0;
+    imageEditorState.offsetX = 0;
+    imageEditorState.offsetY = 0;
+    window.drawCropCanvas();
+  };
+
+  window.saveCroppedImage = async () => {
+    const canvas = document.getElementById('crop-canvas');
+    if (!canvas) return;
+
+    const base64Url = canvas.toDataURL('image/jpeg', 0.82);
+    if (!bizRecord.media) bizRecord.media = { gallery: [] };
+
+    const type = imageEditorState.type;
+    if (type === 'profile') {
+      bizRecord.media.profileImageUrl = base64Url;
+      bizRecord.profileImageUrl = base64Url;
+      await saveRecord(`businesses/${businessId}/media/profileImageUrl`, base64Url, 'PUT');
+      await saveRecord(`businesses/${businessId}/profileImageUrl`, base64Url, 'PUT');
+    } else if (type === 'cover') {
+      bizRecord.media.coverImageUrl = base64Url;
+      bizRecord.coverImageUrl = base64Url;
+      await saveRecord(`businesses/${businessId}/media/coverImageUrl`, base64Url, 'PUT');
+      await saveRecord(`businesses/${businessId}/coverImageUrl`, base64Url, 'PUT');
+    } else if (type === 'gallery') {
+      if (!bizRecord.media.gallery) bizRecord.media.gallery = [];
+      bizRecord.media.gallery.push(base64Url);
+      await saveRecord(`businesses/${businessId}/media/gallery`, bizRecord.media.gallery, 'PUT');
     }
-
-    user.displayName = newName;
-    user.name = newName;
-    await saveRecord(`users/${user.uid}/displayName`, newName, 'PUT');
-    await saveRecord(`users/${user.uid}/name`, newName, 'PUT');
-
-    await fetch('/api/audit/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ actorUid: user.uid, action: 'user.profile_updated', targetId: user.uid, details: { newName } })
-    }).catch(() => null);
 
     window.closeModal();
-    showSuccessModal(t('successTitle'), 'Ad soyadınız güncellendi.');
-    renderOwnerScreen(user, onTabChange);
+    showSuccessModal(t('successTitle'), 'Görsel başarıyla kırpıldı ve kaydedildi.');
   };
 
-  window.submitEditOwnerPhone = async () => {
-    const pwdInput = document.getElementById('phone-change-pwd-input');
-    const phoneInput = document.getElementById('phone-change-new-input');
-
-    const pwd = pwdInput ? pwdInput.value.trim() : '';
-    const newPhone = phoneInput ? phoneInput.value.trim() : '';
-
-    const dbUser = await fetchRecord(`users/${user.uid}`) || {};
-    const actualPwd = dbUser.password || '123456';
-
-    if (pwd !== actualPwd) {
-      showErrorModal(t('errorTitle'), 'Mevcut şifreniz hatalıdır.');
-      return;
-    }
-
-    if (!newPhone || newPhone.length < 10) {
-      showErrorModal(t('errorTitle'), 'Lütfen geçerli bir telefon numarası giriniz.');
-      return;
-    }
-
-    // CHECK IF PHONE ALREADY TAKEN BY ANOTHER USER
-    const allUsersData = await fetchRecord('users') || {};
-    const existingOtherUser = Object.values(allUsersData).find(u => u && u.uid !== user.uid && u.phone === newPhone);
-
-    if (existingOtherUser) {
-      showErrorModal(t('errorTitle'), 'Bu telefon numarası başka bir kullanıcı tarafından kullanılmaktadır.');
-      return;
-    }
-
-    user.phone = newPhone;
-    await saveRecord(`users/${user.uid}/phone`, newPhone, 'PUT');
-    window.closeModal();
-    showSuccessModal(t('successTitle'), 'Telefon numaranız başarıyla güncellendi.');
-    renderOwnerScreen(user, onTabChange);
-  };
-
-  // SALON GÖRSELLERİ & GALERİSİ MODALI (REQUIREMENTS 7 & 8)
-  window.openSalonMediaManagementModal = () => {
+  // PRIVACY / ACCOUNT CONSOLIDATED MODAL (REQ 11)
+  window.openPrivacyAccountModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
 
-    const media = bizRecord.media || {
-      profileImageUrl: bizRecord.profileImageUrl || null,
-      coverImageUrl: bizRecord.coverImageUrl || null,
-      gallery: bizRecord.gallery || []
-    };
+    const media = bizRecord.media || {};
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()" style="max-height: 90vh; overflow-y: auto;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">🖼️ Salon Görselleri & Galerisi</h3>
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">🔒 Gizlilik, Hesap & Salon Bilgileri</h3>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
-          <input type="file" id="media-profile-input" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="window.handleMediaUpload(event, 'profile')">
-          <input type="file" id="media-cover-input" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="window.handleMediaUpload(event, 'cover')">
-          <input type="file" id="media-gallery-input" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="window.handleMediaUpload(event, 'gallery')">
+          <!-- HIDDEN FILE INPUTS FOR CROP EDITOR -->
+          <input type="file" id="media-profile-input" accept="image/*" style="display:none;" onchange="window.handleImageCropSelected(event, 'profile')">
+          <input type="file" id="media-cover-input" accept="image/*" style="display:none;" onchange="window.handleImageCropSelected(event, 'cover')">
+          <input type="file" id="media-gallery-input" accept="image/*" style="display:none;" onchange="window.handleImageCropSelected(event, 'gallery')">
 
-          <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
-            <!-- SALON LOGO / PROFİL GÖRSELİ -->
-            <div class="card" style="padding: 12px;">
-              <div style="font-size: 12px; font-weight: 800; color: #fff; margin-bottom: 6px;">📷 Salon Profil Fotoğrafı / Logo</div>
-              ${media.profileImageUrl ? `<img src="${media.profileImageUrl}" style="width: 100%; height: 100px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;">` : ''}
-              <button onclick="document.getElementById('media-profile-input').click()" class="btn btn-gold" style="width: 100%; font-size: 11px;">
-                ${media.profileImageUrl ? '🔄 Logoyu Değiştir' : '📤 Logo Yükle'}
-              </button>
-            </div>
+          <!-- KİŞİSEL BİLGİLER -->
+          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 6px;">👤 Kişisel Bilgiler</h4>
+          <div class="card" style="padding: 10px; margin-bottom: 14px;">
+            <div style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${displayName}</div>
+            <div style="font-size: 12px; color: #fff; margin-top: 2px;"><strong>Telefon:</strong> ${user.phone}</div>
+            <button onclick="window.openPersonalDetailsModal()" class="btn btn-outline-gold" style="width: 100%; font-size: 11px; margin-top: 8px;">Ad / Telefon Düzenle →</button>
+          </div>
 
-            <!-- KAPAK FOTOĞRAFI -->
-            <div class="card" style="padding: 12px;">
-              <div style="font-size: 12px; font-weight: 800; color: #fff; margin-bottom: 6px;">🖼️ Salon Kapak Görseli (Keşfet Kartı)</div>
-              ${media.coverImageUrl ? `<img src="${media.coverImageUrl}" style="width: 100%; height: 120px; object-fit: cover; border-radius: 6px; margin-bottom: 8px;">` : ''}
-              <button onclick="document.getElementById('media-cover-input').click()" class="btn btn-gold" style="width: 100%; font-size: 11px;">
-                ${media.coverImageUrl ? '🔄 Kapak Resmini Değiştir' : '📤 Kapak Resmi Yükle'}
-              </button>
-            </div>
-
-            <!-- GALERİ FOTOĞRAFLARI -->
-            <div class="card" style="padding: 12px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <div style="font-size: 12px; font-weight: 800; color: #fff;">📸 Galeri Fotoğrafları (${(media.gallery || []).length})</div>
-                <button onclick="document.getElementById('media-gallery-input').click()" class="btn btn-outline-gold" style="font-size: 10px; padding: 4px 8px;">
-                  ➕ Fotoğraf Ekle
-                </button>
-              </div>
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
-                ${(media.gallery || []).map((imgUrl, idx) => `
-                  <div style="position: relative;">
-                    <img src="${imgUrl}" style="width: 100%; height: 70px; object-fit: cover; border-radius: 4px;">
-                    <button onclick="window.removeGalleryMedia(${idx})" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.8); color: #ef4444; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; cursor: pointer;">✕</button>
-                  </div>
-                `).join('')}
-              </div>
+          <!-- SALON BİLGİLERİ VE GÖRSELLERİ -->
+          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 6px;">💈 Salon Bilgileri & Görselleri</h4>
+          <div class="card" style="padding: 10px; margin-bottom: 14px;">
+            <div style="font-size: 12px; color: #fff;"><strong>Salon Adı:</strong> ${bizRecord.name}</div>
+            <div style="display: flex; gap: 6px; margin-top: 8px;">
+              <button onclick="window.openSalonImageCropModal('profile')" class="btn btn-secondary" style="flex: 1; font-size: 10px;">📷 Logo Düzenle</button>
+              <button onclick="window.openSalonImageCropModal('cover')" class="btn btn-secondary" style="flex: 1; font-size: 10px;">🖼️ Kapak Resmini Kırp</button>
+              <button onclick="window.openSalonImageCropModal('gallery')" class="btn btn-secondary" style="flex: 1; font-size: 10px;">📸 Galeriye Ekle</button>
             </div>
           </div>
 
@@ -983,72 +785,47 @@ export async function renderOwnerScreen(user, onTabChange) {
     `;
   };
 
-  window.handleMediaUpload = (event, type) => {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
+  // PACKAGE UPGRADE COMPARISON MODAL (REQ 13)
+  window.openPackageUpgradeModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        const maxDim = type === 'cover' ? 800 : 400;
-        let width = img.width;
-        let height = img.height;
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()" style="max-height: 90vh; overflow-y: auto;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">📦 Paket Karşılaştırma & Yükseltme</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
 
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
+          <div style="font-size: 11px; color: #eab308; background: rgba(234,179,8,0.1); padding: 8px; border-radius: 6px; margin-bottom: 12px;">
+            ${t('sandboxPaymentNotice', currentLang)}
+          </div>
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
+            <div class="card" style="padding: 12px; border-color: var(--border-color);">
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">FREE Paket - 0 TL</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">• 1 Personel • Temel Randevu Yönetimi</div>
+            </div>
 
-        const base64Url = canvas.toDataURL('image/jpeg', 0.8);
-        if (!bizRecord.media) bizRecord.media = { gallery: [] };
+            <div class="card card-gold" style="padding: 12px;">
+              <div style="font-size: 14px; font-weight: 800; color: var(--gold-primary);">PRO Paket - 299 TL / ay</div>
+              <div style="font-size: 11px; color: #fff; margin-top: 4px;">• 5 Personel • Gelişmiş Takvim • SMS Hatırlatma</div>
+            </div>
 
-        if (type === 'profile') {
-          bizRecord.media.profileImageUrl = base64Url;
-          bizRecord.profileImageUrl = base64Url;
-          await saveRecord(`businesses/${businessId}/media/profileImageUrl`, base64Url, 'PUT');
-          await saveRecord(`businesses/${businessId}/profileImageUrl`, base64Url, 'PUT');
-        } else if (type === 'cover') {
-          bizRecord.media.coverImageUrl = base64Url;
-          bizRecord.coverImageUrl = base64Url;
-          await saveRecord(`businesses/${businessId}/media/coverImageUrl`, base64Url, 'PUT');
-          await saveRecord(`businesses/${businessId}/coverImageUrl`, base64Url, 'PUT');
-        } else if (type === 'gallery') {
-          if (!bizRecord.media.gallery) bizRecord.media.gallery = [];
-          bizRecord.media.gallery.push(base64Url);
-          await saveRecord(`businesses/${businessId}/media/gallery`, bizRecord.media.gallery, 'PUT');
-        }
+            <div class="card" style="padding: 12px; border-color: #22c55e;">
+              <div style="font-size: 14px; font-weight: 800; color: #22c55e;">PREMIUM Paket - 599 TL / ay</div>
+              <div style="font-size: 11px; color: #fff; margin-top: 4px;">• 20 Personel • Gelişmiş Ciro & Çalışan Analitiği • Sınırsız AI • 2 Yıl Geçmiş</div>
+            </div>
+          </div>
 
-        showSuccessModal(t('successTitle'), 'Görsel kaydedildi.');
-        window.openSalonMediaManagementModal();
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%;">Kapat</button>
+        </div>
+      </div>
+    `;
   };
 
-  window.removeGalleryMedia = async (idx) => {
-    if (bizRecord.media && bizRecord.media.gallery) {
-      bizRecord.media.gallery.splice(idx, 1);
-      await saveRecord(`businesses/${businessId}/media/gallery`, bizRecord.media.gallery, 'PUT');
-      window.openSalonMediaManagementModal();
-    }
-  };
-
-  // RICH 14-CATEGORY NOTIFICATION PREFERENCES (REQUIREMENT 4)
+  // MASTER TOGGLE NOTIFICATION SETTINGS MODAL (REQ 5 & 7)
   window.openNotificationSettingsModal = async () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -1074,15 +851,20 @@ export async function renderOwnerScreen(user, onTabChange) {
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()" style="max-height: 85vh; overflow-y: auto;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">🔔 Bildirim Ayarları (14 Kategori)</h3>
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">🔔 Bildirim Ayarları</h3>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
+          <!-- MASTER TOGGLE (REQS 5 & 7) -->
+          <label style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; color: #fff; background: rgba(245,158,11,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--gold-primary); margin-bottom: 12px;">
+            <div>
+              <div>${t('masterNotifLabel', currentLang)}</div>
+              <div style="font-size: 10px; color: var(--text-muted); font-weight: 400;">${t('masterNotifSub', currentLang)}</div>
+            </div>
+            <input type="checkbox" id="pref-inapp" ${prefs.inApp !== false ? 'checked' : ''}>
+          </label>
+
           <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff; background: rgba(245,158,11,0.1); padding: 8px; border-radius: 6px;">
-              <span>🔔 Master Uygulama İçi Bildirimler</span>
-              <input type="checkbox" id="pref-inapp" ${prefs.inApp !== false ? 'checked' : ''}>
-            </label>
             <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
               <span>🔊 Sesli Bildirimler</span>
               <input type="checkbox" id="pref-sound" ${prefs.sound !== false ? 'checked' : ''}>
@@ -1090,10 +872,6 @@ export async function renderOwnerScreen(user, onTabChange) {
             <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
               <span>🆕 Yeni Randevu Bildirimleri</span>
               <input type="checkbox" id="pref-newbook" ${prefs.newBooking !== false ? 'checked' : ''}>
-            </label>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>✅ Randevu Onay & Durum Güncellemesi</span>
-              <input type="checkbox" id="pref-statusupd" ${prefs.statusUpdate !== false ? 'checked' : ''}>
             </label>
             <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
               <span>❌ İptal Talebi Bildirimleri</span>
@@ -1115,26 +893,6 @@ export async function renderOwnerScreen(user, onTabChange) {
               <span>🎉 Tamamlanan Randevu Bildirimi</span>
               <input type="checkbox" id="pref-completed" ${prefs.completed !== false ? 'checked' : ''}>
             </label>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>👥 Personel Daveti Bildirimleri</span>
-              <input type="checkbox" id="pref-invite" ${prefs.staffInvite !== false ? 'checked' : ''}>
-            </label>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>🛡️ Personel Rol / Yetki Değişikliği</span>
-              <input type="checkbox" id="pref-roleupd" ${prefs.staffRoleUpdate !== false ? 'checked' : ''}>
-            </label>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>📦 Paket / Premium Bildirimleri</span>
-              <input type="checkbox" id="pref-pkg" ${prefs.packagePremium !== false ? 'checked' : ''}>
-            </label>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>💳 Ödeme / Abonelik Bildirimleri</span>
-              <input type="checkbox" id="pref-billing" ${prefs.billing !== false ? 'checked' : ''}>
-            </label>
-            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #fff;">
-              <span>📣 EZO STİLE Kampanya & Duyurular</span>
-              <input type="checkbox" id="pref-campaigns" ${prefs.campaigns ? 'checked' : ''}>
-            </label>
           </div>
 
           <button onclick="window.saveOwnerNotificationPrefs()" class="btn btn-gold" style="width: 100%; min-height: 42px;">
@@ -1150,180 +908,41 @@ export async function renderOwnerScreen(user, onTabChange) {
       inApp: document.getElementById('pref-inapp').checked,
       sound: document.getElementById('pref-sound').checked,
       newBooking: document.getElementById('pref-newbook').checked,
-      statusUpdate: document.getElementById('pref-statusupd').checked,
       cancelRequest: document.getElementById('pref-cancelreq').checked,
       rescheduleRequest: document.getElementById('pref-reschedreq').checked,
       upcomingReminder: document.getElementById('pref-reminder').checked,
       noShow: document.getElementById('pref-noshow').checked,
       completed: document.getElementById('pref-completed').checked,
-      staffInvite: document.getElementById('pref-invite').checked,
-      staffRoleUpdate: document.getElementById('pref-roleupd').checked,
-      packagePremium: document.getElementById('pref-pkg').checked,
-      billing: document.getElementById('pref-billing').checked,
-      campaigns: document.getElementById('pref-campaigns').checked,
       updatedAt: new Date().toISOString()
     };
-
     await saveRecord(`users/${user.uid}/notificationPreferences`, prefs, 'PUT');
     window.closeModal();
-    showSuccessModal(t('successTitle'), '14 kategori bildirim ayarlarınız kaydedildi.');
+    showSuccessModal(t('successTitle'), 'Bildirim ayarlarınız kaydedildi.');
   };
 
-  // OTHER MODALS (Weekly Schedule, Staff, Services, Password, Contact)
-  window.openWeeklyScheduleModal = async () => {
+  // OTHER HELPER MODALS
+  window.openPersonalDetailsModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
-
-    const defaultSchedule = {
-      monday: { isOpen: true, start: '09:00', end: '20:30' },
-      tuesday: { isOpen: true, start: '09:00', end: '20:30' },
-      wednesday: { isOpen: true, start: '09:00', end: '20:30' },
-      thursday: { isOpen: true, start: '09:00', end: '20:30' },
-      friday: { isOpen: true, start: '09:00', end: '20:30' },
-      saturday: { isOpen: true, start: '09:00', end: '20:30' },
-      sunday: { isOpen: false, start: '09:00', end: '18:00' }
-    };
-
-    const savedSchedule = await fetchRecord(`businesses/${businessId}/weeklySchedule`) || defaultSchedule;
-    const daysConfig = [
-      { key: 'monday', label: 'Pazartesi' },
-      { key: 'tuesday', label: 'Salı' },
-      { key: 'wednesday', label: 'Çarşamba' },
-      { key: 'thursday', label: 'Perşembe' },
-      { key: 'friday', label: 'Cuma' },
-      { key: 'saturday', label: 'Cumartesi' },
-      { key: 'sunday', label: 'Pazar' }
-    ];
-
-    const daysRowsHtml = daysConfig.map(d => {
-      const sched = savedSchedule[d.key] || { isOpen: true, start: '09:00', end: '20:30' };
-      return `
-        <div style="padding: 8px; background: rgba(255,255,255,0.04); border-radius: 8px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <input type="checkbox" id="sched-open-${d.key}" ${sched.isOpen !== false ? 'checked' : ''}>
-            <span style="font-size: 12px; font-weight: 800; color: #fff;">${d.label}</span>
-          </div>
-          <div style="display: flex; gap: 4px; align-items: center;">
-            <input type="text" id="sched-start-${d.key}" value="${sched.start || '09:00'}" class="input-field" style="margin:0; width: 60px; padding: 2px 4px; text-align: center; font-size: 11px;">
-            <span style="font-size: 11px; color: var(--gold-primary);">-</span>
-            <input type="text" id="sched-end-${d.key}" value="${sched.end || '20:30'}" class="input-field" style="margin:0; width: 60px; padding: 2px 4px; text-align: center; font-size: 11px;">
-          </div>
-        </div>
-      `;
-    }).join('');
-
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">⏰ Çalışma Günleri & Saatleri</h3>
-            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
-          </div>
-          <div style="max-height: 320px; overflow-y: auto; margin-bottom: 14px;">
-            ${daysRowsHtml}
-          </div>
-          <button onclick="window.saveWeeklySchedule()" class="btn btn-gold" style="width: 100%;">💾 Saatleri Kaydet</button>
+          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">👤 Ad Soyad Düzenle</h3>
+          <input type="text" id="edit-owner-displayname-input" value="${displayName}" class="input-field">
+          <button onclick="window.submitEditOwnerDisplayName()" class="btn btn-gold" style="width: 100%;">💾 Güncelle</button>
         </div>
       </div>
     `;
   };
 
-  window.saveWeeklySchedule = async () => {
-    const daysKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    const updatedSchedule = {};
-    daysKeys.forEach(k => {
-      const openEl = document.getElementById(`sched-open-${k}`);
-      const startEl = document.getElementById(`sched-start-${k}`);
-      const endEl = document.getElementById(`sched-end-${k}`);
-      updatedSchedule[k] = { isOpen: openEl ? openEl.checked : true, start: startEl ? startEl.value : '09:00', end: endEl ? endEl.value : '20:30' };
-    });
-    await saveRecord(`businesses/${businessId}/weeklySchedule`, updatedSchedule, 'PUT');
+  window.submitEditOwnerDisplayName = async () => {
+    const input = document.getElementById('edit-owner-displayname-input');
+    const newName = input ? input.value.trim() : '';
+    if (!newName) return;
+    user.displayName = newName;
+    await saveRecord(`users/${user.uid}/displayName`, newName, 'PUT');
     window.closeModal();
     renderOwnerScreen(user, onTabChange);
-  };
-
-  window.openStaffManagementModal = () => {
-    const root = document.getElementById('modal-root');
-    if (!root) return;
-    const staffRowsHtml = staffList.map(st => `
-      <div class="card" style="padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-        <div style="font-size: 13px; font-weight: 800; color: #fff;">${st.displayName} (${st.role})</div>
-        <button onclick="window.openEditStaffModal('${st.id}')" class="btn btn-outline-gold" style="padding: 4px 8px; font-size: 10px;">Düzenle</button>
-      </div>
-    `).join('');
-
-    root.innerHTML = `
-      <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 14px;">👥 Personel Yönetimi</h3>
-          ${staffRowsHtml}
-          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%; margin-top: 10px;">Kapat</button>
-        </div>
-      </div>
-    `;
-  };
-
-  window.openServicesManagementModal = () => {
-    const root = document.getElementById('modal-root');
-    if (!root) return;
-    root.innerHTML = `
-      <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">✂️ Hizmetler & Fiyatlar</h3>
-          <div style="margin-bottom: 12px;">
-            ${services.map(s => `<div style="display:flex; justify-content:space-between; padding:4px 0; font-size:12px; color:#fff;"><span>${s.name} (${s.duration || 30} dk)</span><span style="color:var(--gold-primary); font-weight:800;">${s.price} TL</span></div>`).join('')}
-          </div>
-          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%;">Kapat</button>
-        </div>
-      </div>
-    `;
-  };
-
-  window.openPrivacyAccountModal = () => {
-    const root = document.getElementById('modal-root');
-    if (!root) return;
-    root.innerHTML = `
-      <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">🔒 Gizlilik & Hesap</h3>
-          <div style="font-size: 12px; color: #fff; margin-bottom: 12px;">
-            <div><strong>Ad Soyad:</strong> ${displayName}</div>
-            <div><strong>Telefon:</strong> ${user.phone}</div>
-          </div>
-          <button onclick="window.openPersonalDetailsModal()" class="btn btn-outline-gold" style="width:100%; margin-bottom:6px;">👤 Bilgileri Düzenle</button>
-          <button onclick="window.openChangePasswordModal()" class="btn btn-outline-gold" style="width:100%; margin-bottom:8px;">🔑 Şifre Değiştir</button>
-          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%;">Kapat</button>
-        </div>
-      </div>
-    `;
-  };
-
-  window.openChangePasswordModal = () => {
-    const root = document.getElementById('modal-root');
-    if (!root) return;
-    root.innerHTML = `
-      <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">🔑 Şifre Değiştir</h3>
-          <input type="password" id="owner-pwd-curr" class="input-field" placeholder="Mevcut Şifre">
-          <input type="password" id="owner-pwd-new" class="input-field" placeholder="Yeni Şifre">
-          <button onclick="window.submitOwnerPasswordChange()" class="btn btn-gold" style="width: 100%;">Kaydet</button>
-        </div>
-      </div>
-    `;
-  };
-
-  window.submitOwnerPasswordChange = async () => {
-    const curr = document.getElementById('owner-pwd-curr').value;
-    const next = document.getElementById('owner-pwd-new').value;
-    const dbUser = await fetchRecord(`users/${user.uid}`) || {};
-    if (curr !== (dbUser.password || '123456')) {
-      showErrorModal(t('errorTitle'), 'Mevcut şifre hatalı.');
-      return;
-    }
-    await saveRecord(`users/${user.uid}/password`, next);
-    window.closeModal();
-    showSuccessModal(t('successTitle'), 'Şifreniz güncellendi.');
   };
 
   window.openLanguageModalOwner = () => {
@@ -1376,29 +995,8 @@ export async function renderOwnerScreen(user, onTabChange) {
     });
   };
 
-  window.openAppointmentDetailModal = (aptId) => {
-    const apt = allApts.find(a => a.aptId === aptId);
-    if (!apt) return;
-    const root = document.getElementById('modal-root');
-    if (!root) return;
-    root.innerHTML = `
-      <div class="modal-overlay" onclick="window.closeModal()">
-        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📋 Randevu Detayı</h3>
-          <div style="font-size: 12px; color: #fff; margin-bottom: 14px;">
-            <div><strong>Müşteri:</strong> ${apt.customerName} (${apt.customerPhone})</div>
-            <div><strong>Hizmet:</strong> ${getAptServiceName(apt)} (${apt.serviceDuration || 30} dk) - ${getAptPrice(apt)} TL</div>
-            <div><strong>Berber:</strong> ${apt.staffName || 'Mustafa Usta'}</div>
-            <div><strong>Tarih:</strong> ${apt.date} @ ${apt.time}</div>
-          </div>
-          <button onclick="window.closeModal()" class="btn btn-gold" style="width: 100%;">Kapat</button>
-        </div>
-      </div>
-    `;
-  };
-
   window.updateAppointmentStatusOwner = async (aptId, newStatus) => {
-    const res = await fetch('/api/booking/update-status', {
+    await fetch('/api/booking/update-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
