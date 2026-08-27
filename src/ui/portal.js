@@ -267,29 +267,57 @@ export function renderPortalScreen(onAuthenticated) {
     `;
   };
 
-  window.openSalonChoiceModal = () => {
+    window.openSalonChoiceModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">
-              💈 ${t('iHaveSalon', currentLang)}
-            </h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">
+                ← Geri
+              </button>
+              <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">
+                💈 Salonum Var
+              </h3>
+            </div>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button onclick="window.openSalonLoginModal()" class="btn btn-gold" style="width: 100%; min-height: 44px; text-align: left; padding-left: 16px;">
-              🔑 1. ${t('salonLoginTitle', currentLang)}
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button onclick="window.openSalonLoginModal()" class="btn btn-gold" style="width: 100%; min-height: 48px; text-align: left; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🔑</span>
+                <div>
+                  <div style="font-size: 13px; font-weight: 800;">Hesabım Var</div>
+                  <div style="font-size: 10px; opacity: 0.85;">Salon, Yönetici & Süper Admin Girişi</div>
+                </div>
+              </div>
+              <span style="font-weight: 900;">→</span>
             </button>
-            <button onclick="window.openSalonApplyModal()" class="btn btn-outline-gold" style="width: 100%; min-height: 44px; text-align: left; padding-left: 16px;">
-              📋 2. ${t('salonApplyTitle', currentLang)}
+
+            <button onclick="window.openSalonApplyModal()" class="btn btn-outline-gold" style="width: 100%; min-height: 48px; text-align: left; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">📝</span>
+                <div>
+                  <div style="font-size: 13px; font-weight: 800;">Yeni Salon Başvurusu</div>
+                  <div style="font-size: 10px; color: var(--text-muted);">EZO STİLE v2 Platformuna Katılın</div>
+                </div>
+              </div>
+              <span style="font-weight: 900;">→</span>
             </button>
-            <button onclick="window.openStaffInviteModal()" class="btn btn-secondary" style="width: 100%; min-height: 44px; text-align: left; padding-left: 16px; border: 1px dashed var(--border-gold);">
-              🎟️ 3. ${t('staffInviteTitle', currentLang)}
+
+            <button onclick="window.openStaffInviteModal()" class="btn btn-secondary" style="width: 100%; min-height: 48px; text-align: left; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border: 1px dashed var(--border-gold);">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">👥</span>
+                <div>
+                  <div style="font-size: 13px; font-weight: 800;">Çalışan Davet Kodum Var</div>
+                  <div style="font-size: 10px; color: var(--text-muted);">Davet Kodu ile Salona Katıl</div>
+                </div>
+              </div>
+              <span style="font-weight: 900;">→</span>
             </button>
           </div>
         </div>
@@ -297,28 +325,37 @@ export function renderPortalScreen(onAuthenticated) {
     `;
   };
 
-  window.openSalonLoginModal = () => {
+    window.openSalonLoginModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
 
     root.innerHTML = `
       <div class="modal-overlay" onclick="window.closeModal()">
         <div class="modal-card animate-fade" onclick="event.stopPropagation()">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">
-              🔑 ${t('salonLoginTitle', currentLang)}
-            </h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button onclick="window.openSalonChoiceModal()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;">
+                ← Geri
+              </button>
+              <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">
+                🔑 Hesabım Var
+              </h3>
+            </div>
             <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
           </div>
 
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${t('phoneLabel', currentLang)}</label>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+            Patron, Yönetici, Resepsiyon, Çalışan veya Süper Admin hesabınızla giriş yapınız.
+          </p>
+
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Telefon Numarası</label>
           <input type="tel" id="salon-phone" class="input-field" placeholder="05XXXXXXXXX" value="05550000002">
 
-          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">${t('passwordLabel', currentLang)}</label>
+          <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Şifre</label>
           <input type="password" id="salon-password" class="input-field" placeholder="••••••••" value="123456">
 
-          <button onclick="window.submitSalonLogin()" class="btn btn-gold" style="width: 100%; margin-top: 8px; min-height: 44px;">
-            ⚡ ${t('loginBtn', currentLang)}
+          <button onclick="window.submitSalonLogin()" class="btn btn-gold" style="width: 100%; margin-top: 10px; min-height: 44px;">
+            ⚡ Giriş Yap
           </button>
         </div>
       </div>
