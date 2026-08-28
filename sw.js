@@ -1,5 +1,5 @@
-// EZO STİLE v2 Service Worker - P0 iOS Safari Fetch Fix (v2.1.3)
-const CACHE_NAME = 'ezo-stile-v2.1.5-clean-baseline';
+// EZO STİLE v2 Service Worker - MASTER FINAL BASELINE (v2.1.5)
+const CACHE_NAME = 'ezo-stile-v2.1.5-master-baseline';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

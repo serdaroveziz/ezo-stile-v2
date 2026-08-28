@@ -13,6 +13,26 @@
 <body>
 
   <!-- MAIN APP CONTAINER & SPLASH SCREEN -->
+    <!-- FIRST-LAUNCH PREMIUM BRANDING SPLASH OVERLAY -->
+  <div id="first-launch-splash" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #040711; z-index: 100000; align-items: center; justify-content: center; flex-direction: column; text-align: center;" class="animate-fade">
+    <div style="position: relative; margin-bottom: 16px;">
+      <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; background: radial-gradient(circle, rgba(245,158,11,0.25) 0%, rgba(4,7,17,0) 70%); border-radius: 50%; pointer-events: none;"></div>
+      <div style="width: 84px; height: 84px; border-radius: 50%; background: #000; border: 2px solid var(--gold-primary); display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 0 20px rgba(245,158,11,0.4);">
+        <span style="font-size: 34px; color: var(--gold-primary); font-weight: 900; letter-spacing: -1px;">E/S</span>
+      </div>
+    </div>
+    <h2 style="font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 2px; margin-bottom: 6px;">EZO STİLE</h2>
+    <p style="font-size: 11px; color: var(--gold-primary); font-weight: 700; letter-spacing: 1px; margin-bottom: 20px;">VIP KUAFÖR & GÜZELLİK PLATFORMU</p>
+    
+    <!-- 5 GOLD STARS (CENTER STAR LARGER) -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; color: var(--gold-primary);">
+      <span>★</span>
+      <span>★</span>
+      <span style="font-size: 26px; transform: translateY(-2px);">★</span>
+      <span>★</span>
+      <span>★</span>
+    </div>
+  </div>
   <main id="app-container">
     <div style="text-align: center; padding: 60px 20px;" class="animate-fade">
       <img src="./assets/images/ezo_stile_logo.png" style="max-width: 150px; height: auto; margin-bottom: 16px; filter: drop-shadow(0 0 10px rgba(245,158,11,0.3));" alt="EZO STİLE Official Logo">
@@ -24,15 +44,32 @@
   <!-- MODAL ROOT -->
   <div id="modal-root"></div>
 
-    <!-- APPLICATION ENTRY MODULE -->
+      <!-- APPLICATION ENTRY MODULE -->
   <script type="module">
-    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.0.3-logoutfix';
-    import { renderPortalScreen } from './src/ui/portal.js?v=2.0.3-logoutfix';
-    import { renderCustomerScreen } from './src/ui/customer.js?v=2.0.3-logoutfix';
-    import { renderOwnerScreen } from './src/ui/owner.js?v=2.0.3-logoutfix';
-    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.0.3-logoutfix';
+    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.1.5-master-baseline';
+    import { renderPortalScreen } from './src/ui/portal.js?v=2.1.5-master-baseline';
+    import { renderCustomerScreen } from './src/ui/customer.js?v=2.1.5-master-baseline';
+    import { renderOwnerScreen } from './src/ui/owner.js?v=2.1.5-master-baseline';
+    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.1.5-master-baseline';
+
+    async function checkFirstLaunchSplash() {
+      const isFirstLaunch = !localStorage.getItem('ezo_first_launch_completed');
+      if (isFirstLaunch) {
+        const splashEl = document.getElementById('first-launch-splash');
+        if (splashEl) {
+          splashEl.style.display = 'flex';
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          splashEl.style.opacity = '0';
+          splashEl.style.transition = 'opacity 0.3s ease';
+          await new Promise(resolve => setTimeout(resolve, 300));
+          splashEl.style.display = 'none';
+        }
+        localStorage.setItem('ezo_first_launch_completed', 'true');
+      }
+    }
 
     async function initApp() {
+      await checkFirstLaunchSplash();
       const user = await restoreSession();
 
       if (!user) {
@@ -65,12 +102,12 @@
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=2.0.3-logoutfix').catch(e => console.log('SW Load:', e));
+      navigator.serviceWorker.register('./sw.js?v=2.1.5-master-baseline').catch(e => console.log('SW Load:', e));
     }
 
     document.addEventListener('DOMContentLoaded', initApp);
   </script>
 
   <!-- VISIBLE BUILD VERSION TAG -->
-  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.1.5 (clean-baseline)</div>
+  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.1.5 (master-baseline)</div>
 </html>
