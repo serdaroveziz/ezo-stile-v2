@@ -107,12 +107,12 @@ export default async function handler(req, res) {
 
     console.log(`[API ROUTER] Incoming Request -> Method: ${req.method}, URL: ${req.url}, Extracted Route: '${routePath}'`);
 
-    if (!routePath || routePath === 'index' || routePath === 'api' || routePath === 'version') {
+        if (!routePath || routePath === 'index' || routePath === 'api' || routePath === 'version') {
       return res.status(200).json({
         status: 'online',
         service: 'EZO STİLE v2 Central API Router',
-        version: 'v2.0.8',
-        commit: 'v2.0.8-p0-safari-handler-fix',
+        version: 'v2.0.9-master-final-baseline',
+        commit: process.env.VERCEL_GIT_COMMIT_SHA || 'v2.0.9-master-final-baseline',
         environment: 'VERCEL_FUNCTIONS_SINGLE_ROUTER',
         timestamp: new Date().toISOString()
       });

@@ -7,12 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const {
-      businessId,
-      customerUid,
-      customerName,
-      customerPhone,
-      staffId,
+    const { businessId, customerUid, customerName, customerPhone, staffId, staffName,
       serviceId,
       serviceName,
       servicePrice,
@@ -103,22 +98,28 @@ export default async function handler(req, res) {
     const bookingSource = source || (isManual ? 'owner_manual' : 'ezo_discovery');
     const assignedStatus = initialStatus || (isManual ? 'approved' : 'pending');
 
-    // 4. SAVE NEW APPOINTMENT RECORD WITH PRICE & NAME SNAPSHOTS
+        // 4. SAVE NEW APPOINTMENT RECORD WITH CANONICAL SCHEMA & SNAPSHOTS
     const businessNameSnapshot = biz ? (biz.name || 'EZO Salon') : 'EZO Salon';
     const aptId = 'apt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const appointmentRecord = {
-      businessNameSnapshot,
-      aptId,
+      appointmentId: aptId,
+      aptId: aptId,
       businessId,
+      businessNameSnapshot,
       customerUid: effectiveCustomerUid,
+      customerNameSnapshot: customerName || 'Müşteri',
+      customerPhoneSnapshot: customerPhone || '05550000000',
       customerName: customerName || 'Müşteri',
       customerPhone: customerPhone || '05550000000',
       staffId,
+      staffNameSnapshot: staffName || 'Uzman',
+      staffName: staffName || 'Uzman',
       serviceId,
-      serviceName: serviceName || 'Hizmet',
-      servicePrice: parseInt(servicePrice) || 350,
-      servicePriceSnapshot: parseInt(servicePrice) || 350,
       serviceNameSnapshot: serviceName || 'Hizmet',
+      serviceName: serviceName || 'Hizmet',
+      servicePriceSnapshot: parseInt(servicePrice) || 350,
+      servicePrice: parseInt(servicePrice) || 350,
+      durationMinutes: durationMinutes,
       serviceDuration: durationMinutes,
       date,
       time,
@@ -128,7 +129,8 @@ export default async function handler(req, res) {
       source: bookingSource,
       isManual: Boolean(isManual),
       isNewCustomerForBusiness,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     const saveRes = await fetch(`${FIREBASE_DB_URL}/appointments/${aptId}.json`, {

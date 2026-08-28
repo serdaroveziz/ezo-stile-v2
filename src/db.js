@@ -149,14 +149,14 @@ export async function saveStaff(businessId, staffData) {
 }
 
 export async function getAppointmentsForBusiness(businessId) {
-  const data = await fetchRecord('appointments', true); // ALWAYS BYPASS CACHE FOR OWNER VIEW
+  const data = await fetchRecord('appointments', true);
   if (!data) return [];
   const list = Object.values(data).filter(apt => apt && apt.businessId === businessId);
   return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
 export async function getAppointmentsForCustomer(customerUid, customerPhone = null) {
-  const data = await fetchRecord('appointments', true); // ALWAYS BYPASS CACHE FOR CUSTOMER VIEW
+  const data = await fetchRecord('appointments', true);
   if (!data) return [];
 
   let userPhone = customerPhone;
@@ -172,44 +172,11 @@ export async function getAppointmentsForCustomer(customerUid, customerPhone = nu
   const list = Object.values(data).filter(apt => {
     if (!apt) return false;
     
-    // Canonical UID Match
     const matchesUid = apt.customerUid === customerUid || (targetUidDigits && cleanDigits(apt.customerUid) === targetUidDigits);
-    
-    // Phone Fallback Match
-    const aptPhone = cleanDigits(apt.customerPhone);
+    const aptPhone = cleanDigits(apt.customerPhone || apt.customerPhoneSnapshot);
     const matchesPhone = targetPhone && aptPhone && aptPhone.length >= 10 && (aptPhone === targetPhone);
 
     return matchesUid || matchesPhone;
   });
   return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-}
-
-/* --- 2-YEAR REVENUE SUMMARY ARCHIVE ENGINE --- */
-
-export async function getDailyRevenueSummaries(businessId) {
-  const data = await fetchRecord(`businesses/${businessId}/revenue_daily`);
-  if (!data) return [];
-  return Object.values(data);
-}
-
-export async function getMonthlyRevenueSummaries(businessId) {
-  const data = await fetchRecord(`businesses/${businessId}/revenue_monthly`);
-  if (!data) return [];
-  return Object.values(data);
-}
-
-export async function saveDailyRevenueSummary(businessId, dateStr, summaryData) {
-  return await saveRecord(`businesses/${businessId}/revenue_daily/${dateStr}`, {
-    date: dateStr,
-    updatedAt: new Date().toISOString(),
-    ...summaryData
-  });
-}
-
-export async function saveMonthlyRevenueSummary(businessId, monthStr, summaryData) {
-  return await saveRecord(`businesses/${businessId}/revenue_monthly/${monthStr}`, {
-    month: monthStr,
-    updatedAt: new Date().toISOString(),
-    ...summaryData
-  });
 }

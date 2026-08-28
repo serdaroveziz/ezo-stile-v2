@@ -1,5 +1,5 @@
-// EZO STİLE v2 Service Worker v2.0.8-p0-safari-handler-fix
-const CACHE_NAME = 'ezo-stile-v2.0.8-p0-safari-handler-fix';
+// EZO STİLE v2 Service Worker - MASTER FINAL BASELINE (v2.0.9)
+const CACHE_NAME = 'ezo-stile-v2.0.9-master-final-baseline';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -10,7 +10,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
-          console.log('[SW Evicting Stale Cache]', cache);
+          console.log('[SW Evicting Cache]', cache);
           return caches.delete(cache);
         })
       );
