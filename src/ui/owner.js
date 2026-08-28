@@ -1,5 +1,5 @@
 /* EZO STİLE v2 - Salon Owner Panel (Ana Sayfa, Advanced Ciro Analytics, Persistent Manual Draft, Freeze-Free Toggle, Salon Image Editor, Package UX, Master Notifications) */
-import { getAppointmentsForBusiness, fetchRecord, saveRecord, getServices, saveService, getStaffList, saveStaff } from '../db.js';
+import { getAppointmentsForBusiness, fetchRecord, saveRecord, getServices, saveService, getStaffList, saveStaff, subscribeToPath } from '../db.js';
 import { canAccessStaffRevenueAnalytics } from '../permissions.js';
 import { SUPPORTED_LANGUAGES, isRtl, t } from '../config.js';
 import { showSuccessModal, showErrorModal, showConfirmModal } from './portal.js';
@@ -77,7 +77,19 @@ export async function renderOwnerScreen(user, onTabChange) {
     ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
     : displayName.substring(0, 2).toUpperCase();
 
-  let mainHtml = '';
+  
+    // Attach True Realtime Database SSE Listener for Owner Appointments & Business
+    if (typeof window._unsubscribeOwnerRealtime === 'function') {
+      window._unsubscribeOwnerRealtime();
+    }
+    window._unsubscribeOwnerRealtime = subscribeToPath('appointments', () => {
+      console.log('⚡ [Realtime SSE] Owner appointments updated via Firebase stream');
+      if (typeof window._currentRenderOwnerScreen === 'function') {
+        window._currentRenderOwnerScreen();
+      }
+    });
+
+    let mainHtml = '';
 
   // ==========================================
   // 1. PATRON ANA SAYFA

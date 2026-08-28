@@ -180,3 +180,51 @@ export async function getAppointmentsForCustomer(customerUid, customerPhone = nu
   });
   return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
+
+
+/* --- REALTIME EVENTSOURCE (SSE) SUBSCRIPTION ENGINE --- */
+const activeSubscriptions = new Map();
+
+export function subscribeToPath(path, callback) {
+  if (typeof window === 'undefined' || !window.EventSource) {
+    return () => {};
+  }
+
+  const rootKey = path.split('/')[0];
+  if (activeSubscriptions.has(path)) {
+    try { activeSubscriptions.get(path).close(); } catch(e) {}
+  }
+
+  const url = `${CONFIG.FIREBASE_DB_URL}/${path}.json`;
+  const es = new EventSource(url);
+
+  es.onmessage = (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      if (payload && payload.data !== undefined) {
+        invalidateDbCache(rootKey);
+        callback(payload.data, payload.path);
+      }
+    } catch (err) {
+      console.warn('[SSE Parse Error]:', err);
+    }
+  };
+
+  es.onerror = () => {
+    // EventSource auto-reconnects natively
+  };
+
+  activeSubscriptions.set(path, es);
+
+  return () => {
+    try { es.close(); } catch(e) {}
+    activeSubscriptions.delete(path);
+  };
+}
+
+export function cleanupAllSubscriptions() {
+  for (const [path, es] of activeSubscriptions.entries()) {
+    try { es.close(); } catch(e) {}
+  }
+  activeSubscriptions.clear();
+}

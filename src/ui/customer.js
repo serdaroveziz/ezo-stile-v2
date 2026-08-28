@@ -124,7 +124,19 @@ export async function renderCustomerScreen(user, onTabChange) {
     ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
     : displayName.substring(0, 2).toUpperCase();
 
-  let mainHtml = '';
+  
+    // Attach True Realtime Database SSE Listener for appointments
+    if (typeof window._unsubscribeCustomerRealtime === 'function') {
+      window._unsubscribeCustomerRealtime();
+    }
+    window._unsubscribeCustomerRealtime = subscribeToPath('appointments', () => {
+      console.log('⚡ [Realtime SSE] Customer appointments updated via Firebase stream');
+      if (typeof window._currentRenderCustomerScreen === 'function') {
+        window._currentRenderCustomerScreen();
+      }
+    });
+
+    let mainHtml = '';
 
   if (activeCustomerTab === 'home') {
     mainHtml = `
