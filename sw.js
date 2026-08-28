@@ -1,5 +1,5 @@
-// EZO STİLE v2 Service Worker - WATCHDOG & AUTO MIGRATION (v2.1.8)
-const CACHE_NAME = 'ezo-stile-v2.1.9-real-user-functional-fix';
+// EZO STİLE v2 Service Worker - MASTER VERSION ALIGNMENT (v2.2.0)
+const CACHE_NAME = 'ezo-stile-v2.2.0-master-fix';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -10,7 +10,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
-          console.log('[SW Evicting Legacy Cache]', cache);
+          console.log('[SW Evicting Cache Key]', cache);
           return caches.delete(cache);
         })
       );
@@ -19,13 +19,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Explicit pass-through for API requests
+  // Pass-through API requests
   if (event.request.url.includes('/api/')) {
     event.respondWith(fetch(event.request));
     return;
   }
-  // Never cache HTML root index to prevent stale module import locks
-  if (event.request.mode === 'navigate' || event.request.url.endsWith('index.html')) {
+  // Always fetch fresh HTML & JS module entries
+  if (event.request.mode === 'navigate' || event.request.url.endsWith('index.html') || event.request.url.includes('?v=')) {
     event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
     return;
   }

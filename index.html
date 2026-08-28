@@ -14,7 +14,7 @@
   <script>
     window.__EZO_BOOTED__ = false;
     window.__EZO_STAGE__ = 'BOOT_HTML';
-    window.__EZO_FE_VERSION__ = 'v2.1.9-real-user-functional-fix';
+    window.__EZO_FE_VERSION__ = 'v2.2.0-master-fix';
     console.log('⚡ [EZO BOOT] Initialized stage:', window.__EZO_STAGE__);
 
     // Standalone 4-second watchdog timer
@@ -73,11 +73,11 @@
   <script type="module">
     window.__EZO_STAGE__ = 'MAIN_MODULE_LOADING';
     
-    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.1.8-watchdog-migration';
-    import { renderPortalScreen } from './src/ui/portal.js?v=2.1.8-watchdog-migration';
-    import { renderCustomerScreen } from './src/ui/customer.js?v=2.1.8-watchdog-migration';
-    import { renderOwnerScreen } from './src/ui/owner.js?v=2.1.8-watchdog-migration';
-    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.1.8-watchdog-migration';
+    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.2.0-master-fix';
+    import { renderPortalScreen } from './src/ui/portal.js?v=2.2.0-master-fix';
+    import { renderCustomerScreen } from './src/ui/customer.js?v=2.2.0-master-fix';
+    import { renderOwnerScreen } from './src/ui/owner.js?v=2.2.0-master-fix';
+    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.2.0-master-fix';
 
     window.__EZO_STAGE__ = 'MAIN_MODULE_LOADED';
 
@@ -139,33 +139,40 @@
       console.log('⚡ [EZO BOOT] Complete! Stage:', window.__EZO_STAGE__);
     }
 
-    function handleUserRouting(user) {
-      if (!user) {
-        logoutUserSession();
+        function handleUserRouting(user) {
+      try {
+        if (!user) {
+          logoutUserSession();
+          renderPortalScreen(handleUserRouting);
+          window.__EZO_BOOTED__ = true;
+          window.__EZO_STAGE__ = 'APP_MOUNTED';
+          return;
+        }
+
+        console.log('⚡ [EZO v2] Resolved User & Role:', user);
+        window.onAppLanguageChanged = (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser());
+
+        if (user.role === 'super_admin') {
+          renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+        } else if (user.role === 'owner' || user.role === 'manager' || user.role === 'barber' || user.role === 'receptionist') {
+          renderOwnerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+        } else {
+          renderCustomerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+        }
+
+        window.__EZO_BOOTED__ = true;
+        window.__EZO_STAGE__ = 'APP_MOUNTED';
+      } catch (err) {
+        console.error('Error in handleUserRouting, falling back to Portal:', err);
         renderPortalScreen(handleUserRouting);
         window.__EZO_BOOTED__ = true;
         window.__EZO_STAGE__ = 'APP_MOUNTED';
-        return;
       }
-
-      console.log('⚡ [EZO v2] Resolved User & Role:', user);
-      window.onAppLanguageChanged = (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser());
-
-      if (user.role === 'super_admin') {
-        renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
-      } else if (user.role === 'owner' || user.role === 'manager' || user.role === 'barber' || user.role === 'receptionist') {
-        renderOwnerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
-      } else {
-        renderCustomerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
-      }
-
-      window.__EZO_BOOTED__ = true;
-      window.__EZO_STAGE__ = 'APP_MOUNTED';
     }
 
     // Register & Auto-Upgrade Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=2.1.8-watchdog-migration').then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=2.2.0-master-fix').then(reg => {
         reg.onupdatefound = () => {
           const installingWorker = reg.installing;
           if (installingWorker) {
@@ -184,6 +191,6 @@
   </script>
 
   <!-- VISIBLE BUILD VERSION TAG -->
-  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.1.9 (real-user-functional-fix)</div>
+  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.2.0 (master-fix)</div>
 </body>
 </html>
