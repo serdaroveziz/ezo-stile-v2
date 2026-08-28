@@ -1,5 +1,5 @@
-﻿// EZO STİLE v2 Service Worker v2.0.1
-const CACHE_NAME = 'ezo-stile-v2.0.1';
+// EZO STİLE v2 Service Worker v2.0.2-9d56699
+const CACHE_NAME = 'ezo-stile-v2.0.2-9d56699';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -11,6 +11,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
+            console.log('[SW Evicting Stale Cache]', cache);
             return caches.delete(cache);
           }
         })

@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Central Vercel Catch-All Router (1 Single Function for Vercel Hobby Limit) */
+/* EZO STİLE v2 - Central Vercel Catch-All Router (1 Single Function for Vercel Hobby Limit) */
 import url from 'url';
 
 // EXPLICIT STATIC HANDLER REGISTRY (REQUIRED FOR VERCEL NFT BUNDLING)
@@ -107,10 +107,12 @@ export default async function handler(req, res) {
 
     console.log(`[API ROUTER] Incoming Request -> Method: ${req.method}, URL: ${req.url}, Extracted Route: '${routePath}'`);
 
-    if (!routePath || routePath === 'index' || routePath === 'api') {
+    if (!routePath || routePath === 'index' || routePath === 'api' || routePath === 'version') {
       return res.status(200).json({
         status: 'online',
         service: 'EZO STİLE v2 Central API Router',
+        version: 'v2.0.2',
+        commit: '9d56699',
         environment: 'VERCEL_FUNCTIONS_SINGLE_ROUTER',
         timestamp: new Date().toISOString()
       });
