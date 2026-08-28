@@ -212,90 +212,200 @@ export async function renderOwnerScreen(user, onTabChange) {
   // ==========================================
   // 3. RANDEVULAR EKRANI (REQS 2, 3, 4)
   // ==========================================
-  else if (activeOwnerTab === 'appointments') {
-    const approvedApts = allApts.filter(a => a && (a.status === 'approved' || a.status === 'pending'));
+    else if (activeOwnerTab === 'appointments') {
+    const pendingApts = allApts.filter(a => a && a.status === 'pending');
+    const approvedApts = allApts.filter(a => a && a.status === 'approved');
+    const completedAptsList = allApts.filter(a => a && a.status === 'completed');
+    const requestApts = allApts.filter(a => a && (a.status === 'cancel_requested' || a.status === 'reschedule_requested'));
+    const inactiveApts = allApts.filter(a => a && (a.status === 'cancelled' || a.status === 'rejected' || a.status === 'no_show'));
 
-    const approvedRowsHtml = approvedApts.map(a => `
+    const pendingHtml = pendingApts.map(a => `
       <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div>
-            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
+            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName} (${a.customerPhone || ''})</div>
+            <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'} (${getAptPrice(a)} TL)</div>
+          </div>
+          <span class="badge badge-pending">Bekliyor</span>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 10px;">
+          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'approved', this)" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 6px;">
+            ✅ Onayla
+          </button>
+          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'rejected', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;">
+            ❌ Reddet
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    const approvedHtml = approvedApts.map(a => `
+      <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName} (${a.customerPhone || ''})</div>
             <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'} (${getAptPrice(a)} TL)</div>
             ${a.isManual ? '<span class="badge badge-secondary" style="font-size: 9px; margin-top: 4px;">➕ Manuel Randevu</span>' : ''}
           </div>
-          <span class="badge ${a.status === 'approved' ? 'badge-approved' : 'badge-pending'}">${a.status}</span>
+          <span class="badge badge-approved">Onaylı</span>
         </div>
-
         <div style="display: flex; gap: 6px; margin-top: 10px;">
-          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'completed')" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 4px;">
+          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'completed', this)" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 6px;">
             ✅ Geldi (Tamamla)
           </button>
-          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'no_show')" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 4px; border-color: #ef4444; color: #ef4444;">
+          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'no_show', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;">
             🚫 Gelmedi (No-Show)
           </button>
         </div>
       </div>
     `).join('');
 
+    const completedHtml = completedAptsList.slice(0, 10).map(a => `
+      <div class="card" style="padding: 10px; margin-bottom: 6px; opacity: 0.9;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 12px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">✂️ ${getAptServiceName(a)} • 💰 ${getAptPrice(a)} TL</div>
+          </div>
+          <span class="badge badge-approved" style="font-size: 10px;">Tamamlandı</span>
+        </div>
+      </div>
+    `).join('');
+
+    const requestHtml = requestApts.map(a => `
+      <div class="card" style="padding: 12px; margin-bottom: 8px; border-color: #eab308;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
+            <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">✂️ ${getAptServiceName(a)}</div>
+          </div>
+          <span class="badge badge-pending" style="font-size: 10px;">${a.status === 'cancel_requested' ? '📩 İptal Talebi' : '🔄 Değişiklik Talebi'}</span>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 10px;">
+          ${a.status === 'cancel_requested' ? `
+            <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'cancelled', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 4px; border-color: #ef4444; color: #ef4444;">
+              ✅ İptali Onayla
+            </button>
+          ` : `
+            <button onclick="window.openRescheduleApproveModal('${a.aptId}')" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 4px;">
+              🔄 Değişiklik İncele
+            </button>
+          `}
+        </div>
+      </div>
+    `).join('');
+
+    const inactiveHtml = inactiveApts.slice(0, 10).map(a => `
+      <div class="card" style="padding: 10px; margin-bottom: 6px; opacity: 0.7;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 12px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">✂️ ${getAptServiceName(a)}</div>
+          </div>
+          <span class="badge badge-secondary" style="font-size: 10px;">${a.status}</span>
+        </div>
+      </div>
+    `).join('');
+
     mainHtml = `
       <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">📅 Gelecek & Aktif Randevular</h3>
-        ${approvedApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Aktif randevu kaydı yok.</div>' : approvedRowsHtml}
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 14px;">📅 Salon Randevu Yönetimi</h3>
+
+        <!-- CARD 1: BEKLEYEN RANDEVULAR -->
+        <details class="card animate-fade" style="margin-bottom: 10px;" ${pendingApts.length > 0 ? 'open' : ''}>
+          <summary style="font-size: 14px; font-weight: 800; color: var(--gold-primary); cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>⏳ 1. Bekleyen Randevular</span>
+            <span class="badge badge-pending">${pendingApts.length}</span>
+          </summary>
+          <div style="padding: 10px 0;">
+            ${pendingApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Bekleyen randevu talebi yok.</div>' : pendingHtml}
+          </div>
+        </details>
+
+        <!-- CARD 2: GELECEK RANDEVULAR -->
+        <details class="card animate-fade" style="margin-bottom: 10px;" ${approvedApts.length > 0 ? 'open' : ''}>
+          <summary style="font-size: 14px; font-weight: 800; color: #fff; cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>📅 2. Gelecek Randevular</span>
+            <span class="badge badge-approved">${approvedApts.length}</span>
+          </summary>
+          <div style="padding: 10px 0;">
+            ${approvedApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Gelecek onaylı randevu yok.</div>' : approvedHtml}
+          </div>
+        </details>
+
+        <!-- CARD 3: TAMAMLANA RANDEVULAR -->
+        <details class="card animate-fade" style="margin-bottom: 10px;">
+          <summary style="font-size: 14px; font-weight: 800; color: #22c55e; cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>✅ 3. Tamamlanan Randevular</span>
+            <span class="badge badge-approved">${completedAptsList.length}</span>
+          </summary>
+          <div style="padding: 10px 0;">
+            ${completedAptsList.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Tamamlanan randevu kaydı yok.</div>' : completedHtml}
+          </div>
+        </details>
+
+        <!-- CARD 4: İPTAL / DEĞİŞİKLİK TALEPLERİ -->
+        <details class="card animate-fade" style="margin-bottom: 10px;" ${requestApts.length > 0 ? 'open' : ''}>
+          <summary style="font-size: 14px; font-weight: 800; color: #eab308; cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🔄 4. İptal / Değişiklik Talepleri</span>
+            <span class="badge badge-pending">${requestApts.length}</span>
+          </summary>
+          <div style="padding: 10px 0;">
+            ${requestApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Müşteriden gelen talep bulunmuyor.</div>' : requestHtml}
+          </div>
+        </details>
+
+        <!-- CARD 5: İPTAL / RET / GELMEDİ -->
+        <details class="card animate-fade" style="margin-bottom: 10px;">
+          <summary style="font-size: 14px; font-weight: 800; color: var(--text-muted); cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <span>🚫 5. İptal / Ret / Gelmedi (Geçmiş)</span>
+            <span class="badge badge-secondary">${inactiveApts.length}</span>
+          </summary>
+          <div style="padding: 10px 0;">
+            ${inactiveApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Kayıt bulunmuyor.</div>' : inactiveHtml}
+          </div>
+        </details>
       </div>
     `;
   }
   // ==========================================
   // 4. YÖNETİM & PAKET & LİSANS DURUMU (REQUIREMENTS 12, 13, 14)
   // ==========================================
-  else if (activeOwnerTab === 'management') {
+    else if (activeOwnerTab === 'management') {
     const isGrant = bizRecord.premiumSource === 'super_admin_grant';
     const planName = isGrant ? 'PREMIUM (⚡ Grant)' : (bizRecord.plan || 'FREE');
 
     mainHtml = `
       <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 12px;">⚙️ ${t('managementTab', currentLang)}</h3>
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 14px;">⚙️ ${t('managementTab', currentLang)}</h3>
         
-        <!-- PAKET & LİSANS DURUMU KARTI (REQS 12, 13, 14) -->
-        <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 14px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">📦 Paket & Lisans Durumu</div>
-              <div style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 2px;">Mevcut Paket: ${planName}</div>
-              ${isGrant ? `<div style="font-size: 10px; color: #eab308; font-weight: 800; margin-top: 4px;">${t('superAdminGrantNotice', currentLang)}</div>` : ''}
-            </div>
-            <button onclick="window.openPackageUpgradeModal()" class="btn btn-gold" style="font-size: 11px; padding: 6px 12px;">
-              ${t('upgradePackageBtn', currentLang)}
-            </button>
-          </div>
-
-          <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
-            ${bizRecord.plan === 'PREMIUM' || isGrant ? '✅ 20 Personel • Gelişmiş Ciro & Çalışan Analitiği • Sınırsız AI' : 'ℹ️ FREE Plan: 1 Personel • Temel Randevu Altyapısı'}
-          </div>
-        </div>
-
-        <!-- ALL 5 WORKING MANAGEMENT CARDS IN ORDER (REQUIREMENT 4) -->
+        <!-- EXACT 5 WORKING MANAGEMENT CARDS IN ORDER (SECTION 14) -->
         <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
+          <!-- CARD 1: PERSONEL -->
           <div onclick="window.openStaffManagementModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
             <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">👥 Personel Kadrosu & İzinleri</h4>
             <span class="badge badge-approved">Yönet →</span>
           </div>
 
+          <!-- CARD 2: HİZMETLER -->
           <div onclick="window.openServicesManagementModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
             <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">✂️ Hizmetler & Fiyatlar</h4>
             <span class="badge badge-approved">Yönet →</span>
           </div>
 
+          <!-- CARD 3: SAATLER -->
           <div onclick="window.openWeeklyScheduleModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
             <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">⏰ Çalışma Günleri & Saatleri</h4>
             <span class="badge badge-approved">Düzenle →</span>
           </div>
 
+          <!-- CARD 4: İLETİŞİM -->
           <div onclick="window.openSalonContactModal()" class="card animate-fade" style="padding: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-            <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">💬 Salon İletişim Numaraları</h4>
+            <h4 style="font-size: 14px; font-weight: 800; color: #fff; margin: 0;">💬 Salon İletİŞİm Numaraları</h4>
             <span class="badge badge-approved">Düzenle →</span>
           </div>
 
-          <!-- PAKET & LİSANS DURUMU AT THE VERY BOTTOM -->
+          <!-- CARD 5: PAKET & LİSANS DURUMU (ONLY ONCE AT THE VERY BOTTOM!) -->
           <div class="card card-gold animate-fade" style="padding: 16px; margin-top: 6px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
               <div>
@@ -306,6 +416,9 @@ export async function renderOwnerScreen(user, onTabChange) {
               <button onclick="window.openPackageUpgradeModal()" class="btn btn-gold" style="font-size: 11px; padding: 6px 12px;">
                 ${t('upgradePackageBtn', currentLang)}
               </button>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+              ${bizRecord.plan === 'PREMIUM' || isGrant ? '✅ 20 Personel • Gelişmiş Ciro & Çalışan Analitiği • Sınırsız AI' : 'ℹ️ FREE Plan: 1 Personel • Temel Randevu Altyapısı'}
             </div>
           </div>
         </div>

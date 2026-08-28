@@ -709,6 +709,7 @@ export async function renderCustomerScreen(user, onTabChange) {
   };
 
   // GİZLİLİK VE HESAP MODAL
+    // GİZLİLİK VE HESAP MODAL (SECTION 5 - NAME & PHONE EDIT + FORGOT PWD)
   window.openPrivacyAccountModal = () => {
     const root = document.getElementById('modal-root');
     if (!root) return;
@@ -722,16 +723,90 @@ export async function renderCustomerScreen(user, onTabChange) {
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
-            <div style="font-size: 12px; color: #fff;"><strong>Ad Soyad:</strong> ${displayName}</div>
-            <div style="font-size: 12px; color: #fff;"><strong>Telefon:</strong> ${user.phone} (Güvenlik gereği salt okunurdur)</div>
-            
-            <button onclick="window.openChangePasswordModal()" class="btn btn-outline-gold" style="margin-top: 4px;">
-              🔒 Şifre Değiştir
+            <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Ad Soyad</label>
+            <input type="text" id="cust-edit-name" value="${displayName}" class="input-field" placeholder="Ad Soyad">
+
+            <label style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">Telefon Numarası</label>
+            <input type="tel" id="cust-edit-phone" value="${user.phone || ''}" class="input-field" placeholder="05XXXXXXXXX">
+
+            <button onclick="window.submitCustomerProfileUpdate()" class="btn btn-gold" style="width: 100%;">
+              💾 Bilgileri Güncelle
             </button>
+
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <button onclick="window.openChangePasswordModal()" class="btn btn-outline-gold" style="flex: 1; font-size: 11px;">
+                🔒 Şifre Değiştir
+              </button>
+              <button onclick="window.openForgotPasswordModal()" class="btn btn-secondary" style="flex: 1; font-size: 11px;">
+                ❓ Şifremi Unuttum
+              </button>
+            </div>
           </div>
 
-          <button onclick="window.requestDeleteAccount()" class="btn btn-secondary" style="width: 100%; border-color: #ef4444; color: #ef4444;">
+          <button onclick="window.requestDeleteAccount()" class="btn btn-secondary" style="width: 100%; border-color: #ef4444; color: #ef4444; font-size: 11px;">
             ⚠️ Hesabı Silme Talebi Gönder
+          </button>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitCustomerProfileUpdate = async () => {
+    const nameInput = document.getElementById('cust-edit-name');
+    const phoneInput = document.getElementById('cust-edit-phone');
+    const newName = nameInput ? nameInput.value.trim() : displayName;
+    const newPhone = phoneInput ? phoneInput.value.trim() : user.phone;
+
+    if (!newName) {
+      showErrorModal(t('errorTitle'), 'Lütfen geçerli bir ad soyad giriniz.');
+      return;
+    }
+
+    const cleanPhone = (ph) => String(ph || '').replace(/\D/g, '');
+    const targetPhoneClean = cleanPhone(newPhone);
+
+    if (targetPhoneClean && targetPhoneClean !== cleanPhone(user.phone)) {
+      const allUsersData = await fetchRecord('users') || {};
+      const existingUser = Object.values(allUsersData).find(u => u && u.uid !== user.uid && cleanPhone(u.phone) === targetPhoneClean);
+
+      if (existingUser) {
+        showErrorModal('Telefon Kullanımda', 'Girdiğiniz telefon numarası başka bir kullanıcı hesabına kayıtlıdır.');
+        return;
+      }
+      user.phone = newPhone;
+      await saveRecord(`users/${user.uid}/phone`, newPhone, 'PUT');
+    }
+
+    user.displayName = newName;
+    user.name = newName;
+    await saveRecord(`users/${user.uid}/displayName`, newName, 'PUT');
+    await saveRecord(`users/${user.uid}/name`, newName, 'PUT');
+
+    // Update active session
+    localStorage.setItem('ezo_user_data', JSON.stringify(user));
+    window.closeModal();
+    showSuccessModal(t('successTitle'), 'Profil bilgileriniz başarıyla güncellendi.');
+    renderCustomerScreen(user, onTabChange);
+  };
+
+  window.openForgotPasswordModal = () => {
+    const root = document.getElementById('modal-root');
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="modal-overlay" onclick="window.closeModal()">
+        <div class="modal-card animate-fade" onclick="event.stopPropagation()">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--gold-primary); margin: 0;">❓ Şifremi Unuttum</h3>
+            <button onclick="window.closeModal()" class="btn btn-secondary" style="padding: 4px 10px;">✕</button>
+          </div>
+
+          <div style="font-size: 12px; color: #fff; background: rgba(245,158,11,0.12); padding: 12px; border-radius: 8px; line-height: 1.5; margin-bottom: 14px;">
+            ℹ️ Güvenliğiniz için SMS şifre sıfırlama altyapısı aktifleşene kadar şifre yenileme talepleri Destek Ekibimiz veya randevu aldığınız salon yöneticisi üzerinden gerçekleştirilmektedir.
+          </div>
+
+          <button onclick="window.closeModal(); window.openHelpSupportModal();" class="btn btn-gold" style="width: 100%;">
+            💬 Destek Talebi İlet
           </button>
         </div>
       </div>
@@ -872,10 +947,21 @@ export async function renderCustomerScreen(user, onTabChange) {
   };
 
   // LOGOUT CONFIRM MODAL (REQUIREMENT 3)
+    // LOGOUT CONFIRM MODAL (SECTION 4 - NO FREEZE STABLE LOGOUT)
   window.promptUserLogout = () => {
-    showConfirmModal('Oturumu Kapat', 'Oturumunuzu kapatmak istediğinize emin misiniz?', () => {
-      logoutUserSession();
-      if (typeof onTabChange === 'function') onTabChange(null);
+    showConfirmModal('Çıkış Yap', 'Çıkış yapmak istediğinize emin misiniz?', async () => {
+      try {
+        logoutUserSession();
+        const root = document.getElementById('modal-root');
+        if (root) root.innerHTML = '';
+        if (typeof onTabChange === 'function') {
+          onTabChange(null);
+        }
+      } catch (err) {
+        console.error('Logout error:', err);
+        logoutUserSession();
+        location.reload();
+      }
     });
   };
 

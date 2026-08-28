@@ -1,11 +1,35 @@
-﻿/* EZO STİLE v2 - Firebase Realtime Database Data Provider & Performance Index Engine */
+/* EZO STİLE v2 - Firebase Realtime Database Data Provider & In-Memory TTL Cache Engine */
 import { CONFIG } from './config.js';
 
-export async function fetchRecord(path) {
+const cacheStore = new Map();
+const CACHE_TTL_MS = 3000; // 3 seconds TTL for list queries to eliminate whole-db read lag
+
+export function invalidateDbCache(pattern = '') {
+  if (!pattern) {
+    cacheStore.clear();
+    return;
+  }
+  for (const key of cacheStore.keys()) {
+    if (key.includes(pattern)) {
+      cacheStore.delete(key);
+    }
+  }
+}
+
+export async function fetchRecord(path, bypassCache = false) {
+  if (!bypassCache && cacheStore.has(path)) {
+    const cached = cacheStore.get(path);
+    if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+  }
+
   try {
     const res = await fetch(`${CONFIG.FIREBASE_DB_URL}/${path}.json`);
     if (!res.ok) return null;
-    return await res.json();
+    const data = await res.json();
+    cacheStore.set(path, { data, timestamp: Date.now() });
+    return data;
   } catch (err) {
     console.warn('DB Fetch Error [' + path + ']:', err);
     return null;
@@ -19,6 +43,8 @@ export async function saveRecord(path, data, method = 'PUT') {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
+    const rootKey = path.split('/')[0];
+    invalidateDbCache(rootKey);
     return res.ok;
   } catch (err) {
     console.warn('DB Save Error [' + path + ']:', err);
@@ -65,7 +91,9 @@ export async function approveSalonApplication(appId) {
     instagram: app.instagram,
     photoUrl: app.photoUrl,
     serviceTypes: app.serviceTypes || ['Erkek Saç Kesimi', 'Sakal Tıraşı'],
-    bookingEnabled: false,
+    bookingEnabled: true,
+    discoveryEnabled: true,
+    plan: 'FREE',
     ownerUid: app.applicantUid,
     createdAt: new Date().toISOString()
   };

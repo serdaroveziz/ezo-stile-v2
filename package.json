@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "EZO STİLE v2 - Modern, Secure, Multi-Tenant Barber & Beauty SaaS Platform",
   "main": "index.html",
+  "type": "module",
   "scripts": {
     "start": "npx serve .",
     "test": "node test_v2_syntax.cjs",

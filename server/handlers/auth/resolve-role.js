@@ -1,4 +1,4 @@
-﻿/* EZO STİLE v2 - Serverless Backend Role Resolution & Authentication API */
+/* EZO STİLE v2 - Serverless Backend Role Resolution & Authentication API */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -112,6 +112,10 @@ export default async function handler(req, res) {
     const dbUser = dbRes.ok ? await dbRes.json() : null;
 
     if (dbUser && dbUser.role) {
+      if (dbUser.disabled === true) {
+        return res.status(403).json({ error: 'Hesabınız geçici olarak devre dışı bırakılmıştır. Lütfen destek ekibi ile iletişime geçiniz.' });
+      }
+
       const allowedRoles = ['super_admin', 'owner', 'manager', 'barber', 'receptionist', 'customer'];
       const verifiedRole = allowedRoles.includes(dbUser.role) ? dbUser.role : 'customer';
 

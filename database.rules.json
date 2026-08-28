@@ -1,6 +1,7 @@
-﻿{
+{
   "rules": {
     "users": {
+      ".indexOn": ["role", "phone"],
       "$uid": {
         ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin' || root.child('users').child(auth.uid).child('businessId').val() === data.child('businessId').val())",
         ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
@@ -51,6 +52,7 @@
       }
     },
     "salon_applications": {
+      ".indexOn": ["status", "applicantUid"],
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'super_admin'",
       "$appId": {
         ".read": "auth != null && (data.child('applicantUid').val() === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
@@ -61,6 +63,7 @@
       }
     },
     "appointments": {
+      ".indexOn": ["businessId", "customerUid", "customerPhone", "date", "status"],
       ".read": "auth != null",
       "$aptId": {
         ".read": "auth != null && (data.child('customerUid').val() === auth.uid || root.child('users').child(auth.uid).child('businessId').val() === data.child('businessId').val() || root.child('users').child(auth.uid).child('role').val() === 'super_admin')",
