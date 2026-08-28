@@ -1,5 +1,5 @@
 // EZO STİLE v2 Service Worker - MASTER FINAL BASELINE (v2.0.9)
-const CACHE_NAME = 'ezo-stile-v2.0.9-master-final-baseline';
+const CACHE_NAME = 'ezo-stile-v2.1.0-p0-customer-booking-open-fix';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

@@ -41,41 +41,56 @@ let cachedCurrentServices = [];
 let cachedCurrentStaff = [];
 
 export async function beginNewBookingFromSalonById(businessId) {
-  let businessName = 'Salon';
   try {
-    const bizData = await fetchRecord('businesses/' + businessId) || {};
-    businessName = bizData.name || 'Salon';
-  } catch (e) {}
+    let businessName = 'Salon';
+    try {
+      const bizData = await fetchRecord('businesses/' + businessId) || {};
+      businessName = bizData.name || 'Salon';
+    } catch (e) {}
 
-  customerBookingDraft = {
-    flowId: 'flw_' + Date.now(),
-    businessId: businessId,
-    businessName: businessName,
-    serviceId: null,
-    serviceName: null,
-    servicePrice: null,
-    serviceDuration: 30,
-    staffId: null,
-    staffName: null,
-    date: null,
-    time: null
-  };
+    customerBookingDraft = {
+      flowId: 'flw_' + Date.now(),
+      businessId: businessId,
+      businessName: businessName,
+      serviceId: null,
+      serviceName: null,
+      servicePrice: null,
+      serviceDuration: 30,
+      staffId: null,
+      staffName: null,
+      date: null,
+      time: null
+    };
 
-  // Cleanly close modal & body scroll locks
-  window.closeModal();
-  const modalRoot = document.getElementById('modal-root');
-  if (modalRoot) modalRoot.innerHTML = '';
-  document.body.classList.remove('modal-open');
-  document.body.style.overflow = '';
+    // Cleanly close modal & body scroll locks
+    try {
+      window.closeModal();
+    } catch (e) {}
 
-  activeCustomerTab = 'booking';
-  if (typeof window._currentRenderCustomerScreen === 'function') {
-    window._currentRenderCustomerScreen();
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot) modalRoot.innerHTML = '';
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+
+    activeCustomerTab = 'booking';
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
+    }
+  } catch (err) {
+    console.error('Error in beginNewBookingFromSalonById:', err);
+    try {
+      window.closeModal();
+    } catch (e) {}
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot) modalRoot.innerHTML = '';
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
   }
 }
 window.beginNewBookingFromSalonById = beginNewBookingFromSalonById;
 window.beginNewBookingFromSalon = beginNewBookingFromSalonById;
 window.startSalonBookingFromDiscovery = beginNewBookingFromSalonById;
+window.selectSalonForBooking = beginNewBookingFromSalonById;
 
 let searchQuery = '';
 
@@ -1025,11 +1040,7 @@ export async function renderCustomerScreen(user, onTabChange) {
     renderCustomerScreen(user, onTabChange);
   };
 
-  window.selectSalonForBooking = (bizId) => {
-    bookingState.businessId = bizId;
-    activeCustomerTab = 'booking';
-    renderCustomerScreen(user, onTabChange);
-  };
+  window.selectSalonForBooking = (bizId) => { window.beginNewBookingFromSalonById(bizId); };
 
   window.selectBookingStaff = (id, name) => {
     bookingState.staffId = id;
@@ -1235,7 +1246,7 @@ EZO STİLE üzerinden oluşturuldu.`;
             </div>
           ` : ''}
 
-          <button onclick="window.selectSalonForBooking('${businessId}')" class="btn btn-gold" style="width: 100%; min-height: 44px; font-size: 13px; font-weight: 800;">
+          <button onclick="window.beginNewBookingFromSalonById('${businessId}')" class="btn btn-gold" style="width: 100%; min-height: 44px; font-size: 13px; font-weight: 800;">
             ✂️ Randevu Al →
           </button>
         </div>
