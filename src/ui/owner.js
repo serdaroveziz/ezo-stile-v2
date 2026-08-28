@@ -1142,13 +1142,45 @@ export async function renderOwnerScreen(user, onTabChange) {
     });
   };
 
-  window.updateAppointmentStatusOwner = async (aptId, newStatus) => {
-    await fetch('/api/booking/update-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
-    }).catch(() => null);
-    window.renderOwnerScreen(user, onTabChange);
+    window.updateAppointmentStatusOwner = async (aptId, newStatus, btnEl) => {
+    if (!aptId || !newStatus) return;
+
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.dataset.origText = btnEl.innerHTML;
+      btnEl.innerHTML = '⏳ İşleniyor...';
+    }
+
+    try {
+      const res = await fetch('/api/booking/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aptId, newStatus, userUid: user.uid })
+      });
+
+      const data = res.ok ? await res.json().catch(() => null) : null;
+
+      if (res.ok && data && data.success) {
+        // Instantly update local appointment object status
+        const targetApt = allApts.find(a => a && a.aptId === aptId);
+        if (targetApt) targetApt.status = newStatus;
+
+        // Instantly re-render Patron screen without requiring F5
+        renderOwnerScreen(user, onTabChange);
+      } else {
+        showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'İşlem gerçekleştirilemedi.');
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.innerHTML = btnEl.dataset.origText || 'Dene';
+        }
+      }
+    } catch (err) {
+      showErrorModal(t('errorTitle'), 'Sunucu bağlantı hatası.');
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerHTML = btnEl.dataset.origText || 'Dene';
+      }
+    }
   };
 }
 

@@ -22,16 +22,31 @@ import { renderAiConsultantScreen } from './ai-consultant.js';
 let activeCustomerTab = 'home';
 let bookingState = {
   businessId: 'biz_merkez_salon',
+  businessName: 'EZO Merkez Salon',
   serviceId: null,
   serviceName: null,
-  servicePrice: 0,
+  servicePrice: null,
   serviceDuration: 30,
-  staffId: 'staff-any',
-  staffName: 'Fark Etmez',
-  date: new Date().toISOString().split('T')[0],
+  staffId: null,
+  staffName: null,
+  date: null,
   time: null
 };
 
+export function resetBookingState(targetBusinessId = null, targetBusinessName = null) {
+  bookingState = {
+    businessId: targetBusinessId || 'biz_merkez_salon',
+    businessName: targetBusinessName || 'EZO Merkez Salon',
+    serviceId: null,
+    serviceName: null,
+    servicePrice: null,
+    serviceDuration: 30,
+    staffId: null,
+    staffName: null,
+    date: null,
+    time: null
+  };
+}
 let searchQuery = '';
 
 export async function renderCustomerScreen(user, onTabChange) {
@@ -1039,22 +1054,37 @@ export async function renderCustomerScreen(user, onTabChange) {
     renderCustomerScreen(user, onTabChange);
   };
 
-  window.switchCustomerTab = (tab) => {
+      window.switchCustomerTab = (tab, targetBizId = null, targetBizName = null) => {
     activeCustomerTab = tab;
+    if (tab === 'booking') {
+      resetBookingState(targetBizId, targetBizName);
+    }
     renderCustomerScreen(user, onTabChange);
   };
 
   // SUBMIT CUSTOMER BOOKING WITH LOADING STATE & DOUBLE CLICK GUARD
-  window.submitCustomerBooking = async () => {
-    if (!bookingState.serviceId || !bookingState.time) {
-      showErrorModal(t('errorTitle'), 'Lütfen hizmet ve müsait saat seçiniz.');
+      window.submitCustomerBooking = async () => {
+    if (!bookingState.serviceId) {
+      showErrorModal('Hizmet Seçimi Zorunlu', 'Lütfen bir hizmet seçiniz.');
+      return;
+    }
+    if (!bookingState.staffId) {
+      showErrorModal('Personel Seçimi Zorunlu', 'Lütfen bir berber/uzman seçiniz veya "Fark Etmez" seçeneğini işaretleyiniz.');
+      return;
+    }
+    if (!bookingState.date) {
+      showErrorModal('Tarih Seçimi Zorunlu', 'Lütfen randevu tarihi seçiniz.');
+      return;
+    }
+    if (!bookingState.time) {
+      showErrorModal('Saat Seçimi Zorunlu', 'Lütfen müsait bir randevu saati seçiniz.');
       return;
     }
 
-    const btnEl = document.getElementById('btn-submit-booking');
-    if (btnEl) {
-      btnEl.disabled = true;
-      btnEl.innerText = '⏳ Randevu Oluşturuluyor...';
+    const btnSubmit = document.getElementById('btn-submit-booking');
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '⏳ Randevunuz Oluşturuluyor...';
     }
 
     try {
@@ -1062,53 +1092,41 @@ export async function renderCustomerScreen(user, onTabChange) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          businessId: bookingState.businessId || 'biz_merkez_salon',
+          businessId: bookingState.businessId,
           customerUid: user.uid,
-          customerName: displayName,
+          customerName: user.displayName || user.name || 'Müşteri',
           customerPhone: user.phone,
-          staffId: bookingState.staffId || 'staff-any',
           serviceId: bookingState.serviceId,
           serviceName: bookingState.serviceName,
           servicePrice: bookingState.servicePrice,
           serviceDuration: bookingState.serviceDuration,
+          staffId: bookingState.staffId,
+          staffName: bookingState.staffName,
           date: bookingState.date,
-          time: bookingState.time,
-          source: 'ezo_discovery'
+          time: bookingState.time
         })
       });
 
-      const resData = await res.json().catch(() => null);
+      const data = await res.json().catch(() => null);
 
-      if (res.ok && resData && resData.success && (resData.aptId || resData.appointment)) {
-        const aptId = resData.aptId || (resData.appointment ? resData.appointment.aptId : 'apt_new');
-        window.openWhatsAppSmsModal('create', {
-          aptId,
-          serviceName: bookingState.serviceName,
-          date: bookingState.date,
-          time: bookingState.time,
-          customerName: displayName,
-          customerPhone: user.phone
-        });
+      if (res.ok && data && data.success) {
+        resetBookingState();
+        showSuccessModal(t('successTitle'), '✅ Randevunuz başarıyla oluşturuldu!');
         activeCustomerTab = 'appointments';
         renderCustomerScreen(user, onTabChange);
-        return;
+      } else {
+        showErrorModal(t('errorTitle'), (data && data.error) ? data.error : 'Randevu oluşturulamadı.');
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = '⚡ ' + t('confirmBooking', currentLang);
+        }
       }
-
-      if (res && res.status === 409) {
-        showErrorModal(t('errorTitle'), (resData && resData.error) ? resData.error : '⚠️ Seçtiğiniz tarih ve saat aralığında berber doludur. Lütfen başka bir saat seçiniz.');
-        if (btnEl) { btnEl.disabled = false; btnEl.innerText = `⚡ ${t('confirmBooking', currentLang)}`; }
-        return;
+    } catch (err) {
+      showErrorModal(t('errorTitle'), 'Sunucu bağlantı hatası.');
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '⚡ ' + t('confirmBooking', currentLang);
       }
-
-      if (resData && resData.error) {
-        showErrorModal(t('errorTitle'), `❌ Hata (${res ? res.status : 'API'}): ${resData.error}`);
-        if (btnEl) { btnEl.disabled = false; btnEl.innerText = `⚡ ${t('confirmBooking', currentLang)}`; }
-        return;
-      }
-    } catch (e) {
-      console.warn('Booking create error:', e);
-      showErrorModal(t('errorTitle'), 'Sunucuya ulaşılamadı. Lütfen tekrar deneyiniz.');
-      if (btnEl) { btnEl.disabled = false; btnEl.innerText = `⚡ ${t('confirmBooking', currentLang)}`; }
     }
   };
 
@@ -1229,4 +1247,20 @@ EZO STİLE üzerinden oluşturuldu.`;
         </div>
       </div>
     `;
+  };
+
+    window.startSalonBookingFromDiscovery = (bizId, bizName) => {
+    // 1. Cleanly close any active modal overlay (e.g. salon detail modal)
+    window.closeModal();
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot) modalRoot.innerHTML = '';
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+
+    // 2. Reset booking state completely for new salon
+    resetBookingState(bizId, bizName);
+
+    // 3. Switch directly to booking screen with zero freeze
+    activeCustomerTab = 'booking';
+    renderCustomerScreen(user, onTabChange);
   };
