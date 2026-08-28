@@ -99,6 +99,25 @@ window.selectSalonForBooking = beginNewBookingFromSalonById;
 
 let searchQuery = '';
 
+let discoveryCacheData = null;
+let lastDiscoveryFetchTime = 0;
+let isSubmittingCustomerBooking = false;
+
+async function getCachedBusinessesForDiscovery() {
+  const now = Date.now();
+  if (discoveryCacheData && (now - lastDiscoveryFetchTime < 60000)) {
+    return discoveryCacheData;
+  }
+  try {
+    discoveryCacheData = await fetchRecord('businesses') || {};
+    lastDiscoveryFetchTime = now;
+  } catch (e) {
+    if (!discoveryCacheData) discoveryCacheData = {};
+  }
+  return discoveryCacheData;
+}
+
+
 export async function renderCustomerScreen(user, onTabChange) {
   window._currentOnTabChange = onTabChange;
   window._currentRenderCustomerScreen = () => renderCustomerScreen(user, onTabChange);
@@ -158,7 +177,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       </div>
     `;
   } else if (activeCustomerTab === 'salons') {
-    const allBusinessesData = await fetchRecord('businesses') || {};
+    const allBusinessesData = await getCachedBusinessesForDiscovery();
     let salons = Object.values(allBusinessesData).filter(b => 
       b && 
       b.status !== 'suspended' && 
@@ -402,7 +421,7 @@ export async function renderCustomerScreen(user, onTabChange) {
 
  else if (activeCustomerTab === 'appointments') {
     const userApts = await getAppointmentsForCustomer(user.uid, user.phone);
-    const allBusinessesData = await fetchRecord('businesses') || {};
+    const allBusinessesData = await getCachedBusinessesForDiscovery();
 
     // 1. ALL ACTIVE APPOINTMENTS (UNLIMITED VISIBILITY - REQUIREMENT 3)
     const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'cancel_requested' || apt.status === 'reschedule_requested'));
@@ -1248,7 +1267,7 @@ EZO STİLE üzerinden oluşturuldu.`;
 
   // MÜŞTERİ SALON DETAY EKRANI (REQUIREMENT 9)
   window.openSalonDetailsModal = async (businessId) => {
-    const allBusinessesData = await fetchRecord('businesses') || {};
+    const allBusinessesData = await getCachedBusinessesForDiscovery();
     const biz = allBusinessesData[businessId];
     if (!biz) return;
 
@@ -1365,7 +1384,12 @@ EZO STİLE üzerinden oluşturuldu.`;
     renderCustomerScreen(user, onTabChange);
   };
 
-        window.submitCustomerBookingAuthoritative = async () => {
+          window.submitCustomerBookingAuthoritative = async () => {
+    if (isSubmittingCustomerBooking) {
+      console.warn('Booking submit already in progress. Ignoring duplicate click.');
+      return;
+    }
+
     if (!customerBookingDraft.serviceId) {
       showErrorModal('Hizmet Seçimi Zorunlu', 'Önce bir hizmet seçmelisiniz.');
       return;
@@ -1382,6 +1406,8 @@ EZO STİLE üzerinden oluşturuldu.`;
       showErrorModal('Saat Seçimi Zorunlu', 'Saat seçmelisiniz.');
       return;
     }
+
+    isSubmittingCustomerBooking = true;
 
     const btn = document.getElementById('btn-submit-booking');
     if (btn) {
@@ -1414,6 +1440,11 @@ EZO STİLE üzerinden oluşturuldu.`;
 
     console.log('BOOKING_REQUEST_SENT', apiUrl, payload);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 12000); // 12-second max timeout guard
+
     try {
       const res = await fetch(apiUrl, {
         method: 'POST',
@@ -1421,7 +1452,8 @@ EZO STİLE üzerinden oluşturuldu.`;
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
 
       console.log('BOOKING_RESPONSE_RECEIVED', res.status, res.headers.get('content-type'));
@@ -1435,10 +1467,6 @@ EZO STİLE üzerinden oluşturuldu.`;
       } catch (parseErr) {
         console.error('BOOKING_SUBMIT_ERROR', 'JSON_PARSE', parseErr, rawText);
         showErrorModal('Yanıt Format Hatası', `Sunucudan geçersiz yanıt alındı (${res.status}): ${rawText.substring(0, 100)}`);
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '⚡ Randevuyu Onayla';
-        }
         return;
       }
 
@@ -1464,17 +1492,22 @@ EZO STİLE üzerinden oluşturuldu.`;
           : `Sunucu hatası (${res.status} ${res.statusText})`;
         console.warn('BOOKING_SUBMIT_ERROR', 'HTTP_ERROR', res.status, errorMessage);
         showErrorModal('Randevu Oluşturulamadı', errorMessage);
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '⚡ Randevuyu Onayla';
-        }
       }
     } catch (fetchErr) {
-      console.error('BOOKING_SUBMIT_ERROR', 'NETWORK_FETCH', fetchErr.name, fetchErr.message);
-      showErrorModal('Ağ / Bağlantı Hatası', `Sunucuya erişilemedi (${fetchErr.name}: ${fetchErr.message}). Lütfen bağlantınızı kontrol edip tekrar deneyiniz.`);
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '⚡ Randevuyu Onayla';
+      if (fetchErr.name === 'AbortError') {
+        console.error('BOOKING_SUBMIT_ERROR', 'TIMEOUT_ABORT', '12s timeout reached');
+        showErrorModal('İstek Zaman Aşımı', 'Randevu isteği zaman aşıma uğradı (12s). Lütfen tekrar deneyiniz.');
+      } else {
+        console.error('BOOKING_SUBMIT_ERROR', 'NETWORK_FETCH', fetchErr.name, fetchErr.message);
+        showErrorModal('Ağ / Bağlantı Hatası', `Sunucuya erişilemedi (${fetchErr.name}: ${fetchErr.message}). Lütfen bağlantınızı kontrol edip tekrar deneyiniz.`);
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      isSubmittingCustomerBooking = false;
+      const currentBtn = document.getElementById('btn-submit-booking');
+      if (currentBtn && activeCustomerTab === 'booking') {
+        currentBtn.disabled = false;
+        currentBtn.innerHTML = '⚡ Randevuyu Onayla';
       }
     }
   };
@@ -1509,75 +1542,3 @@ EZO STİLE üzerinden oluşturuldu.`;
     }
   };
 
-
-  window.selectDraftServiceById = (serviceId) => {
-    const s = cachedCurrentServices.find(item => item && item.id === serviceId);
-    if (s) {
-      customerBookingDraft.serviceId = s.id;
-      customerBookingDraft.serviceName = s.name;
-      customerBookingDraft.servicePrice = s.price;
-      customerBookingDraft.serviceDuration = s.duration || 30;
-      isServicePickerExpanded = false;
-      isStaffPickerExpanded = !customerBookingDraft.staffId;
-      if (typeof window._currentRenderCustomerScreen === 'function') {
-        window._currentRenderCustomerScreen();
-      }
-    }
-  };
-
-  window.selectDraftStaffById = (staffId) => {
-    if (staffId === 'staff-any') {
-      customerBookingDraft.staffId = 'staff-any';
-      customerBookingDraft.staffName = 'Fark Etmez';
-    } else {
-      const st = cachedCurrentStaff.find(item => item && item.id === staffId);
-      if (st) {
-        customerBookingDraft.staffId = st.id;
-        customerBookingDraft.staffName = st.displayName || st.name;
-      }
-    }
-    isStaffPickerExpanded = false;
-    isDatePickerExpanded = !customerBookingDraft.date;
-    if (typeof window._currentRenderCustomerScreen === 'function') {
-      window._currentRenderCustomerScreen();
-    }
-  };
-
-  window.selectDraftDate = (dateStr) => {
-    if (!dateStr) return;
-    customerBookingDraft.date = dateStr;
-    customerBookingDraft.time = null; // Reset time slot when date changes
-    isDatePickerExpanded = false;
-    if (typeof window._currentRenderCustomerScreen === 'function') {
-      window._currentRenderCustomerScreen();
-    }
-  };
-
-  window.selectDraftTime = (timeStr) => {
-    if (!timeStr) return;
-    customerBookingDraft.time = timeStr;
-    if (typeof window._currentRenderCustomerScreen === 'function') {
-      window._currentRenderCustomerScreen();
-    }
-  };
-
-  window.toggleServicePicker = (expand) => {
-    isServicePickerExpanded = expand;
-    if (typeof window._currentRenderCustomerScreen === 'function') {
-      window._currentRenderCustomerScreen();
-    }
-  };
-
-  window.toggleStaffPicker = (expand) => {
-    isStaffPickerExpanded = expand;
-    if (typeof window._currentRenderCustomerScreen === 'function') {
-      window._currentRenderCustomerScreen();
-    }
-  };
-
-  window.toggleDatePicker = (expand) => {
-    isDatePickerExpanded = expand;
-    if (typeof window._currentRenderCustomerScreen === 'function') {
-      window._currentRenderCustomerScreen();
-    }
-  };
