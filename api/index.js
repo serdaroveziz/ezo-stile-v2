@@ -111,8 +111,8 @@ export default async function handler(req, res) {
       return res.status(200).json({
         status: 'online',
         service: 'EZO STİLE v2 Central API Router',
-        version: 'v2.0.5',
-        commit: 'v2.0.5-p0-real-device-fix',
+        version: 'v2.0.6',
+        commit: 'v2.0.6-booking-state-authoritative',
         environment: 'VERCEL_FUNCTIONS_SINGLE_ROUTER',
         timestamp: new Date().toISOString()
       });

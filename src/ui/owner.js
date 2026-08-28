@@ -212,162 +212,124 @@ export async function renderOwnerScreen(user, onTabChange) {
   // ==========================================
   // 3. RANDEVULAR EKRANI (REQS 2, 3, 4)
   // ==========================================
-    else if (activeOwnerTab === 'appointments') {
+    else 
+  if (activeOwnerTab === 'appointments') {
     const pendingApts = allApts.filter(a => a && a.status === 'pending');
     const approvedApts = allApts.filter(a => a && a.status === 'approved');
-    const completedAptsList = allApts.filter(a => a && a.status === 'completed');
+    const completedApts = allApts.filter(a => a && a.status === 'completed');
     const requestApts = allApts.filter(a => a && (a.status === 'cancel_requested' || a.status === 'reschedule_requested'));
-    const inactiveApts = allApts.filter(a => a && (a.status === 'cancelled' || a.status === 'rejected' || a.status === 'no_show'));
+    const cancelledApts = allApts.filter(a => a && (a.status === 'cancelled' || a.status === 'rejected' || a.status === 'no_show'));
 
-    const pendingHtml = pendingApts.map(a => `
-      <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName} (${a.customerPhone || ''})</div>
-            <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'} (${getAptPrice(a)} TL)</div>
-          </div>
-          <span class="badge badge-pending">Bekliyor</span>
+    if (activeOwnerAptCategory === 'all') {
+      // 5 CLEAN CLOSED CARDS ONLY (REQ 9)
+      mainHtml = `
+        <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 16px;">
+          <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 4px;">📅 Salon Randevu Yönetimi</h3>
+          <p style="font-size: 11px; color: var(--text-muted);">Kategori kartına tıklayarak randevuları listeleyebilirsiniz.</p>
         </div>
-        <div style="display: flex; gap: 6px; margin-top: 10px;">
-          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'approved', this)" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 6px;">
-            ✅ Onayla
-          </button>
-          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'rejected', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;">
-            ❌ Reddet
-          </button>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+          <div onclick="window.switchOwnerAptCategory('pending')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: #f59e0b;">
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">⏳ Bekleyen Randevular</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Onay bekleyen randevu talepleri</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-pending" style="font-size: 12px; font-weight: 800;">${pendingApts.length}</span>
+              <span style="font-size: 16px; color: var(--gold-primary);">→</span>
+            </div>
+          </div>
+
+          <div onclick="window.switchOwnerAptCategory('approved')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: #22c55e;">
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">📅 Gelecek Randevular</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Onaylanmış yaklaşan randevular</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-approved" style="font-size: 12px; font-weight: 800;">${approvedApts.length}</span>
+              <span style="font-size: 16px; color: var(--gold-primary);">→</span>
+            </div>
+          </div>
+
+          <div onclick="window.switchOwnerAptCategory('completed')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: #3b82f6;">
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">✅ Tamamlanan Randevular</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Hizmeti bitmiş randevular</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge" style="background: rgba(59,130,246,0.2); color: #3b82f6; font-size: 12px; font-weight: 800;">${completedApts.length}</span>
+              <span style="font-size: 16px; color: var(--gold-primary);">→</span>
+            </div>
+          </div>
+
+          <div onclick="window.switchOwnerAptCategory('requests')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: #eab308;">
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">🔄 İptal / Değişiklik Talepleri</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Müşteri tarafından iletilen talepler</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-pending" style="font-size: 12px; font-weight: 800;">${requestApts.length}</span>
+              <span style="font-size: 16px; color: var(--gold-primary);">→</span>
+            </div>
+          </div>
+
+          <div onclick="window.switchOwnerAptCategory('cancelled')" class="card animate-fade" style="padding: 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-color: #ef4444;">
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff;">🚫 İptal / Ret / Gelmedi</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Geçmiş iptal ve no-show kayıtları</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge" style="background: rgba(239,68,68,0.2); color: #ef4444; font-size: 12px; font-weight: 800;">${cancelledApts.length}</span>
+              <span style="font-size: 16px; color: var(--gold-primary);">→</span>
+            </div>
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    } else {
+      // DEDICATED CATEGORY LIST VIEW
+      let targetList = [];
+      let catTitle = '';
+      if (activeOwnerAptCategory === 'pending') { targetList = pendingApts; catTitle = '⏳ Bekleyen Randevular'; }
+      if (activeOwnerAptCategory === 'approved') { targetList = approvedApts; catTitle = '📅 Gelecek Randevular'; }
+      if (activeOwnerAptCategory === 'completed') { targetList = completedApts; catTitle = '✅ Tamamlanan Randevular'; }
+      if (activeOwnerAptCategory === 'requests') { targetList = requestApts; catTitle = '🔄 İptal / Değişiklik Talepleri'; }
+      if (activeOwnerAptCategory === 'cancelled') { targetList = cancelledApts; catTitle = '🚫 İptal / Ret / Gelmedi'; }
 
-    const approvedHtml = approvedApts.map(a => `
-      <div class="card card-gold" style="padding: 12px; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName} (${a.customerPhone || ''})</div>
-            <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">✂️ ${getAptServiceName(a)} • 💈 ${a.staffName || 'Mustafa Usta'} (${getAptPrice(a)} TL)</div>
-            ${a.isManual ? '<span class="badge badge-secondary" style="font-size: 9px; margin-top: 4px;">➕ Manuel Randevu</span>' : ''}
-          </div>
-          <span class="badge badge-approved">Onaylı</span>
+      mainHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin: 0;">${catTitle} (${targetList.length})</h3>
+          <button onclick="window.switchOwnerAptCategory('all')" class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;">← Tüm Kategoriler</button>
         </div>
-        <div style="display: flex; gap: 6px; margin-top: 10px;">
-          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'completed', this)" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 6px;">
-            ✅ Geldi (Tamamla)
-          </button>
-          <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'no_show', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; border-color: #ef4444; color: #ef4444;">
-            🚫 Gelmedi (No-Show)
-          </button>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          ${targetList.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 20px;">Bu kategoride randevu bulunmamaktadır.</div>' : targetList.map(a => `
+            <div class="card animate-fade" style="padding: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 13px; font-weight: 800; color: #fff;">👤 ${a.customerName} (${a.customerPhone || 'N/A'})</div>
+                <span class="badge badge-approved">${a.time} - ${a.date}</span>
+              </div>
+              <div style="font-size: 11px; color: var(--gold-primary); margin-top: 4px;">
+                ✂️ ${a.serviceName} • 💈 ${a.staffName || 'Uzman'} • 💰 ${a.servicePrice || 0} TL
+              </div>
+              ${a.status === 'pending' ? `
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                  <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'approved', this)" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 6px;">✓ Onayla</button>
+                  <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'rejected', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; color: #ef4444; border-color: #ef4444;">✕ Reddet</button>
+                </div>
+              ` : ''}
+              ${a.status === 'approved' ? `
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                  <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'completed', this)" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 6px;">✅ Geldi / Tamamlandı</button>
+                  <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'no_show', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px; color: #ef4444; border-color: #ef4444;">🚫 Gelmedi</button>
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
         </div>
-      </div>
-    `).join('');
-
-    const completedHtml = completedAptsList.slice(0, 10).map(a => `
-      <div class="card" style="padding: 10px; margin-bottom: 6px; opacity: 0.9;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 12px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
-            <div style="font-size: 10px; color: var(--text-muted);">✂️ ${getAptServiceName(a)} • 💰 ${getAptPrice(a)} TL</div>
-          </div>
-          <span class="badge badge-approved" style="font-size: 10px;">Tamamlandı</span>
-        </div>
-      </div>
-    `).join('');
-
-    const requestHtml = requestApts.map(a => `
-      <div class="card" style="padding: 12px; margin-bottom: 8px; border-color: #eab308;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <div style="font-size: 13px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
-            <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">✂️ ${getAptServiceName(a)}</div>
-          </div>
-          <span class="badge badge-pending" style="font-size: 10px;">${a.status === 'cancel_requested' ? '📩 İptal Talebi' : '🔄 Değişiklik Talebi'}</span>
-        </div>
-        <div style="display: flex; gap: 6px; margin-top: 10px;">
-          ${a.status === 'cancel_requested' ? `
-            <button onclick="window.updateAppointmentStatusOwner('${a.aptId}', 'cancelled', this)" class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 4px; border-color: #ef4444; color: #ef4444;">
-              ✅ İptali Onayla
-            </button>
-          ` : `
-            <button onclick="window.openRescheduleApproveModal('${a.aptId}')" class="btn btn-gold" style="flex: 1; font-size: 11px; padding: 4px;">
-              🔄 Değişiklik İncele
-            </button>
-          `}
-        </div>
-      </div>
-    `).join('');
-
-    const inactiveHtml = inactiveApts.slice(0, 10).map(a => `
-      <div class="card" style="padding: 10px; margin-bottom: 6px; opacity: 0.7;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 12px; font-weight: 800; color: #fff;">⏰ ${a.date} @ ${a.time} • 👤 ${a.customerName}</div>
-            <div style="font-size: 10px; color: var(--text-muted);">✂️ ${getAptServiceName(a)}</div>
-          </div>
-          <span class="badge badge-secondary" style="font-size: 10px;">${a.status}</span>
-        </div>
-      </div>
-    `).join('');
-
-    mainHtml = `
-      <div class="card animate-fade">
-        <h3 style="font-size: 16px; font-weight: 800; color: var(--gold-primary); margin-bottom: 14px;">📅 Salon Randevu Yönetimi</h3>
-
-        <!-- CARD 1: BEKLEYEN RANDEVULAR -->
-        <details class="card animate-fade" style="margin-bottom: 10px;" ${pendingApts.length > 0 ? 'open' : ''}>
-          <summary style="font-size: 14px; font-weight: 800; color: var(--gold-primary); cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <span>⏳ 1. Bekleyen Randevular</span>
-            <span class="badge badge-pending">${pendingApts.length}</span>
-          </summary>
-          <div style="padding: 10px 0;">
-            ${pendingApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Bekleyen randevu talebi yok.</div>' : pendingHtml}
-          </div>
-        </details>
-
-        <!-- CARD 2: GELECEK RANDEVULAR -->
-        <details class="card animate-fade" style="margin-bottom: 10px;" ${approvedApts.length > 0 ? 'open' : ''}>
-          <summary style="font-size: 14px; font-weight: 800; color: #fff; cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <span>📅 2. Gelecek Randevular</span>
-            <span class="badge badge-approved">${approvedApts.length}</span>
-          </summary>
-          <div style="padding: 10px 0;">
-            ${approvedApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Gelecek onaylı randevu yok.</div>' : approvedHtml}
-          </div>
-        </details>
-
-        <!-- CARD 3: TAMAMLANA RANDEVULAR -->
-        <details class="card animate-fade" style="margin-bottom: 10px;">
-          <summary style="font-size: 14px; font-weight: 800; color: #22c55e; cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <span>✅ 3. Tamamlanan Randevular</span>
-            <span class="badge badge-approved">${completedAptsList.length}</span>
-          </summary>
-          <div style="padding: 10px 0;">
-            ${completedAptsList.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Tamamlanan randevu kaydı yok.</div>' : completedHtml}
-          </div>
-        </details>
-
-        <!-- CARD 4: İPTAL / DEĞİŞİKLİK TALEPLERİ -->
-        <details class="card animate-fade" style="margin-bottom: 10px;" ${requestApts.length > 0 ? 'open' : ''}>
-          <summary style="font-size: 14px; font-weight: 800; color: #eab308; cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <span>🔄 4. İptal / Değişiklik Talepleri</span>
-            <span class="badge badge-pending">${requestApts.length}</span>
-          </summary>
-          <div style="padding: 10px 0;">
-            ${requestApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Müşteriden gelen talep bulunmuyor.</div>' : requestHtml}
-          </div>
-        </details>
-
-        <!-- CARD 5: İPTAL / RET / GELMEDİ -->
-        <details class="card animate-fade" style="margin-bottom: 10px;">
-          <summary style="font-size: 14px; font-weight: 800; color: var(--text-muted); cursor: pointer; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <span>🚫 5. İptal / Ret / Gelmedi (Geçmiş)</span>
-            <span class="badge badge-secondary">${inactiveApts.length}</span>
-          </summary>
-          <div style="padding: 10px 0;">
-            ${inactiveApts.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Kayıt bulunmuyor.</div>' : inactiveHtml}
-          </div>
-        </details>
-      </div>
-    `;
+      `;
+    }
   }
+
   // ==========================================
   // 4. YÖNETİM & PAKET & LİSANS DURUMU (REQUIREMENTS 12, 13, 14)
   // ==========================================
@@ -1190,4 +1152,10 @@ export async function renderOwnerScreen(user, onTabChange) {
       cb.disabled = !enabled;
       if (!enabled) cb.checked = false;
     });
+  };
+
+
+  window.switchOwnerAptCategory = (cat) => {
+    activeOwnerAptCategory = cat;
+    renderOwnerScreen(user, onTabChange);
   };
