@@ -947,20 +947,19 @@ export async function renderCustomerScreen(user, onTabChange) {
   };
 
   // LOGOUT CONFIRM MODAL (REQUIREMENT 3)
-    // LOGOUT CONFIRM MODAL (SECTION 4 - NO FREEZE STABLE LOGOUT)
   window.promptUserLogout = () => {
     showConfirmModal('Çıkış Yap', 'Çıkış yapmak istediğinize emin misiniz?', async () => {
       try {
         logoutUserSession();
+      } catch (err) {
+        console.error('Logout error:', err);
+      } finally {
+        window.closeModal();
         const root = document.getElementById('modal-root');
         if (root) root.innerHTML = '';
         if (typeof onTabChange === 'function') {
           onTabChange(null);
         }
-      } catch (err) {
-        console.error('Logout error:', err);
-        logoutUserSession();
-        location.reload();
       }
     });
   };

@@ -165,4 +165,5 @@ export function logoutUserSession() {
   currentUserState = null;
   localStorage.removeItem('ez2_session');
   localStorage.removeItem('ezo_user_data');
+  sessionStorage.clear();
 }

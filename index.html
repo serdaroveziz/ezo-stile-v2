@@ -24,13 +24,13 @@
   <!-- MODAL ROOT -->
   <div id="modal-root"></div>
 
-  <!-- APPLICATION ENTRY MODULE -->
+    <!-- APPLICATION ENTRY MODULE -->
   <script type="module">
-    import { restoreSession, getCurrentUser } from './src/auth.js?v=2.0.2-9d56699';
-    import { renderPortalScreen } from './src/ui/portal.js?v=2.0.2-9d56699';
-    import { renderCustomerScreen } from './src/ui/customer.js?v=2.0.2-9d56699';
-    import { renderOwnerScreen } from './src/ui/owner.js?v=2.0.2-9d56699';
-    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.0.2-9d56699';
+    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.0.3-logoutfix';
+    import { renderPortalScreen } from './src/ui/portal.js?v=2.0.3-logoutfix';
+    import { renderCustomerScreen } from './src/ui/customer.js?v=2.0.3-logoutfix';
+    import { renderOwnerScreen } from './src/ui/owner.js?v=2.0.3-logoutfix';
+    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.0.3-logoutfix';
 
     async function initApp() {
       const user = await restoreSession();
@@ -46,31 +46,31 @@
 
     function handleUserRouting(user) {
       if (!user) {
+        logoutUserSession();
         renderPortalScreen(handleUserRouting);
         return;
       }
 
       console.log('⚡ [EZO v2] Resolved User & Role:', user);
-      window.onAppLanguageChanged = (updatedUser) => handleUserRouting(updatedUser || getCurrentUser());
+      window.onAppLanguageChanged = (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser());
 
       if (user.role === 'super_admin') {
-        renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser || getCurrentUser()));
+        renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
       } else if (user.role === 'owner' || user.role === 'manager' || user.role === 'barber' || user.role === 'receptionist') {
-        renderOwnerScreen(user, (updatedUser) => handleUserRouting(updatedUser || getCurrentUser()));
+        renderOwnerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
       } else {
-        renderCustomerScreen(user, (updatedUser) => handleUserRouting(updatedUser || getCurrentUser()));
+        renderCustomerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
       }
     }
 
     // Register PWA Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=2.0.2-9d56699').catch(e => console.log('SW Load:', e));
+      navigator.serviceWorker.register('./sw.js?v=2.0.3-logoutfix').catch(e => console.log('SW Load:', e));
     }
 
     document.addEventListener('DOMContentLoaded', initApp);
   </script>
 
   <!-- VISIBLE BUILD VERSION TAG -->
-  <div id="build-version-tag" style="position: fixed; bottom: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.0.2 (9d56699)</div>
-</body>
+  <div id="build-version-tag" style="position: fixed; bottom: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.0.3 (logout-fix)</div>
 </html>

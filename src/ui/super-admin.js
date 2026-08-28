@@ -602,7 +602,19 @@ export async function renderSuperAdminScreen(user, onTabChange) {
   };
 
   window.promptAdminLogout = () => {
-    logoutUserSession();
-    if (typeof onTabChange === 'function') onTabChange(null);
+    showConfirmModal('Çıkış Yap', 'Çıkış yapmak istediğinize emin misiniz?', async () => {
+      try {
+        logoutUserSession();
+      } catch (err) {
+        console.error('Admin logout error:', err);
+      } finally {
+        window.closeModal();
+        const root = document.getElementById('modal-root');
+        if (root) root.innerHTML = '';
+        if (typeof onTabChange === 'function') {
+          onTabChange(null);
+        }
+      }
+    });
   };
 }

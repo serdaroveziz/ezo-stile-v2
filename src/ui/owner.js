@@ -1137,9 +1137,19 @@ export async function renderOwnerScreen(user, onTabChange) {
   };
 
   window.promptOwnerLogout = () => {
-    showConfirmModal('Oturumu Kapat', 'Oturumunuzu kapatmak istediğinize emin misiniz?', () => {
-      logoutUserSession();
-      if (typeof onTabChange === 'function') onTabChange(null);
+    showConfirmModal('Çıkış Yap', 'Çıkış yapmak istediğinize emin misiniz?', async () => {
+      try {
+        logoutUserSession();
+      } catch (err) {
+        console.error('Owner logout error:', err);
+      } finally {
+        window.closeModal();
+        const root = document.getElementById('modal-root');
+        if (root) root.innerHTML = '';
+        if (typeof onTabChange === 'function') {
+          onTabChange(null);
+        }
+      }
     });
   };
 

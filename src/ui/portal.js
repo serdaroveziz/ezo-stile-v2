@@ -52,17 +52,34 @@ export function showConfirmModal(title, message, onConfirm, onCancel) {
         <h3 style="font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 6px;">${title || t('confirmTitle')}</h3>
         <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 18px;">${message || ''}</p>
         <div style="display: flex; gap: 10px;">
-          <button onclick="window.closeModal(); if (typeof window._onModalConfirm === 'function') window._onModalConfirm();" class="btn btn-gold" style="flex: 1; min-height: 42px;">
+          <button id="btn-modal-confirm" onclick="window.handleModalConfirm(this)" class="btn btn-gold" style="flex: 1; min-height: 42px;">
             Evet, Onayla
           </button>
-          <button onclick="window.closeModal(); if (typeof window._onModalCancel === 'function') window._onModalCancel();" class="btn btn-secondary" style="flex: 1; min-height: 42px;">
+          <button id="btn-modal-cancel" onclick="window.closeModal(); if (typeof window._onModalCancel === 'function') window._onModalCancel();" class="btn btn-secondary" style="flex: 1; min-height: 42px;">
             Vazgeç
           </button>
         </div>
       </div>
-    `;
+    </div>
+  `;
   window._onModalConfirm = onConfirm;
   window._onModalCancel = onCancel;
+
+  window.handleModalConfirm = async (btnEl) => {
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.innerHTML = '⏳ İşleniyor...';
+    }
+    try {
+      if (typeof window._onModalConfirm === 'function') {
+        await window._onModalConfirm();
+      }
+    } catch (err) {
+      console.error('Modal confirm handler error:', err);
+    } finally {
+      window.closeModal();
+    }
+  };
 }
 
 export function renderPortalScreen(onAuthenticated) {
