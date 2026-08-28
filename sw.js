@@ -1,5 +1,5 @@
-// EZO STİLE v2 Service Worker - MASTER FINAL BASELINE (v2.0.9)
-const CACHE_NAME = 'ezo-stile-v2.1.2-p0-booking-submit-contract-fix';
+// EZO STİLE v2 Service Worker - P0 iOS Safari Fetch Fix (v2.1.3)
+const CACHE_NAME = 'ezo-stile-v2.1.3-p0-ios-safari-fetch-fix';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -21,6 +21,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) {
+    event.respondWith(fetch(event.request));
     return;
   }
   event.respondWith(

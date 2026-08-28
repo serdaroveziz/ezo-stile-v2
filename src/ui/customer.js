@@ -1005,7 +1005,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       return;
     }
 
-    const res = await fetch('/api/booking/reschedule-approve', {
+    const res = await fetch(window.location.origin + '/api/booking/reschedule-approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ aptId, newDate, newTime, userUid: user.uid })
@@ -1025,7 +1025,7 @@ export async function renderCustomerScreen(user, onTabChange) {
   // CUSTOMER CANCEL REQUEST (REQUIREMENT 7 - NO DIRECT CANCEL)
   window.requestCancelCustomer = (aptId) => {
     showConfirmModal('İptal Talebi Gönder', 'Randevunuz için salona iptal talebi iletilecektir. Emin misiniz?', async () => {
-      const res = await fetch('/api/booking/update-status', {
+      const res = await fetch(window.location.origin + '/api/booking/update-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ aptId, newStatus: 'cancel_requested', userUid: user.uid })
@@ -1164,7 +1164,7 @@ export async function renderCustomerScreen(user, onTabChange) {
     }
 
     try {
-      const res = await fetch('/api/booking/create', {
+      const res = await fetch(window.location.origin + '/api/booking/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1365,7 +1365,7 @@ EZO STİLE üzerinden oluşturuldu.`;
     renderCustomerScreen(user, onTabChange);
   };
 
-      window.submitCustomerBookingAuthoritative = async () => {
+        window.submitCustomerBookingAuthoritative = async () => {
     if (!customerBookingDraft.serviceId) {
       showErrorModal('Hizmet Seçimi Zorunlu', 'Önce bir hizmet seçmelisiniz.');
       return;
@@ -1389,39 +1389,64 @@ EZO STİLE üzerinden oluşturuldu.`;
       btn.innerHTML = '⏳ Randevunuz Oluşturuluyor...';
     }
 
+    const flowId = customerBookingDraft.flowId || ('flw_' + Date.now());
+    console.log('BOOKING_SUBMIT_START', flowId);
+
+    const apiUrl = `${window.location.origin}/api/booking/create`;
+
+    const payload = {
+      businessId: customerBookingDraft.businessId,
+      businessName: customerBookingDraft.businessName,
+      customerUid: user.uid,
+      customerName: user.displayName || user.name || 'Müşteri',
+      customerPhone: user.phone,
+      serviceId: customerBookingDraft.serviceId,
+      serviceName: customerBookingDraft.serviceName,
+      servicePrice: customerBookingDraft.servicePrice,
+      serviceDuration: customerBookingDraft.serviceDuration || 30,
+      durationMinutes: customerBookingDraft.serviceDuration || 30,
+      staffId: customerBookingDraft.staffId,
+      staffName: customerBookingDraft.staffName,
+      date: customerBookingDraft.date,
+      time: customerBookingDraft.time,
+      startTime: customerBookingDraft.time
+    };
+
+    console.log('BOOKING_REQUEST_SENT', apiUrl, payload);
+
     try {
-      const payload = {
-        businessId: customerBookingDraft.businessId,
-        businessName: customerBookingDraft.businessName,
-        customerUid: user.uid,
-        customerName: user.displayName || user.name || 'Müşteri',
-        customerPhone: user.phone,
-        serviceId: customerBookingDraft.serviceId,
-        serviceName: customerBookingDraft.serviceName,
-        servicePrice: customerBookingDraft.servicePrice,
-        serviceDuration: customerBookingDraft.serviceDuration || 30,
-        durationMinutes: customerBookingDraft.serviceDuration || 30,
-        staffId: customerBookingDraft.staffId,
-        staffName: customerBookingDraft.staffName,
-        date: customerBookingDraft.date,
-        time: customerBookingDraft.time,
-        startTime: customerBookingDraft.time
-      };
-
-      console.log('⚡ Sending Booking Submit Payload:', payload);
-
-      const res = await fetch('/api/booking/create', {
+      const res = await fetch(apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json().catch(() => null);
-      console.log('⚡ Booking Submit Response:', res.status, data);
+      console.log('BOOKING_RESPONSE_RECEIVED', res.status, res.headers.get('content-type'));
+
+      let rawText = '';
+      let data = null;
+      try {
+        rawText = await res.text();
+        data = rawText ? JSON.parse(rawText) : null;
+        console.log('BOOKING_RESPONSE_PARSED', data);
+      } catch (parseErr) {
+        console.error('BOOKING_SUBMIT_ERROR', 'JSON_PARSE', parseErr, rawText);
+        showErrorModal('Yanıt Format Hatası', `Sunucudan geçersiz yanıt alındı (${res.status}): ${rawText.substring(0, 100)}`);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '⚡ Randevuyu Onayla';
+        }
+        return;
+      }
 
       const createdId = data ? (data.appointmentId || data.aptId) : null;
 
       if (res.ok && data && data.success && createdId) {
+        console.log('BOOKING_SUBMIT_SUCCESS', createdId);
+
         // Clear booking draft completely
         customerBookingDraft = { flowId: null, businessId: null, businessName: null, serviceId: null, staffId: null, date: null, time: null };
         
@@ -1437,15 +1462,16 @@ EZO STİLE üzerinden oluşturuldu.`;
         const errorMessage = (data && (data.error || data.message)) 
           ? (data.error || data.message) 
           : `Sunucu hatası (${res.status} ${res.statusText})`;
+        console.warn('BOOKING_SUBMIT_ERROR', 'HTTP_ERROR', res.status, errorMessage);
         showErrorModal('Randevu Oluşturulamadı', errorMessage);
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = '⚡ Randevuyu Onayla';
         }
       }
-    } catch (err) {
-      console.error('Submit booking fetch exception:', err);
-      showErrorModal('Bağlantı Hatası', 'Sunucuya erişilemedi. Lütfen internet bağlantınızı kontrol edip tekrar deneyiniz.');
+    } catch (fetchErr) {
+      console.error('BOOKING_SUBMIT_ERROR', 'NETWORK_FETCH', fetchErr.name, fetchErr.message);
+      showErrorModal('Ağ / Bağlantı Hatası', `Sunucuya erişilemedi (${fetchErr.name}: ${fetchErr.message}). Lütfen bağlantınızı kontrol edip tekrar deneyiniz.`);
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = '⚡ Randevuyu Onayla';
