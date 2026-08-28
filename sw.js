@@ -1,5 +1,5 @@
-// EZO STİLE v2 Service Worker v2.0.7-booking-lifecycle-restored
-const CACHE_NAME = 'ezo-stile-v2.0.7-booking-lifecycle-restored';
+// EZO STİLE v2 Service Worker v2.0.8-p0-safari-handler-fix
+const CACHE_NAME = 'ezo-stile-v2.0.8-p0-safari-handler-fix';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

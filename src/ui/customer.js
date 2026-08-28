@@ -21,6 +21,7 @@ import { renderAiConsultantScreen } from './ai-consultant.js';
 
 
 /* EZO STİLE v2 - Single Authoritative Customer Booking Flow (v2.0.6) */
+/* EZO STİLE v2 - Single Authoritative Customer Booking Architecture (v2.0.8) */
 let activeCustomerTab = 'home';
 let customerBookingDraft = {
   flowId: null,
@@ -36,12 +37,20 @@ let customerBookingDraft = {
   time: null
 };
 
-export function beginNewBookingFromSalon(businessId, businessName) {
-  // 1. Create fresh booking draft with new flowId
+let cachedCurrentServices = [];
+let cachedCurrentStaff = [];
+
+export async function beginNewBookingFromSalonById(businessId) {
+  let businessName = 'Salon';
+  try {
+    const bizData = await fetchRecord('businesses/' + businessId) || {};
+    businessName = bizData.name || 'Salon';
+  } catch (e) {}
+
   customerBookingDraft = {
     flowId: 'flw_' + Date.now(),
     businessId: businessId,
-    businessName: businessName || 'Salon',
+    businessName: businessName,
     serviceId: null,
     serviceName: null,
     servicePrice: null,
@@ -52,21 +61,21 @@ export function beginNewBookingFromSalon(businessId, businessName) {
     time: null
   };
 
-  // 2. Destroy salon detail modal & overlays cleanly
+  // Cleanly close modal & body scroll locks
   window.closeModal();
   const modalRoot = document.getElementById('modal-root');
   if (modalRoot) modalRoot.innerHTML = '';
   document.body.classList.remove('modal-open');
   document.body.style.overflow = '';
 
-  // 3. Navigate directly to booking tab
   activeCustomerTab = 'booking';
   if (typeof window._currentRenderCustomerScreen === 'function') {
     window._currentRenderCustomerScreen();
   }
 }
-window.beginNewBookingFromSalon = beginNewBookingFromSalon;
-window.startSalonBookingFromDiscovery = beginNewBookingFromSalon;
+window.beginNewBookingFromSalonById = beginNewBookingFromSalonById;
+window.beginNewBookingFromSalon = beginNewBookingFromSalonById;
+window.startSalonBookingFromDiscovery = beginNewBookingFromSalonById;
 
 let searchQuery = '';
 
@@ -186,6 +195,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       </div>
     `;
   
+  
   } else if (activeCustomerTab === 'booking') {
     if (!customerBookingDraft.businessId) {
       mainHtml = `
@@ -204,8 +214,8 @@ export async function renderCustomerScreen(user, onTabChange) {
       `;
     } else {
       const bizData = await fetchRecord('businesses/' + customerBookingDraft.businessId) || {};
-      const services = bizData.services ? Object.values(bizData.services).filter(s => s && s.active !== false) : [];
-      const staffList = bizData.staff ? Object.values(bizData.staff).filter(st => st && st.active !== false) : [];
+      cachedCurrentServices = bizData.services ? Object.values(bizData.services).filter(s => s && s.active !== false) : [];
+      cachedCurrentStaff = bizData.staff ? Object.values(bizData.staff).filter(st => st && st.active !== false) : [];
 
       const isStep1Valid = !!customerBookingDraft.serviceId;
       const isStep2Valid = isStep1Valid && !!customerBookingDraft.staffId;
@@ -232,8 +242,8 @@ export async function renderCustomerScreen(user, onTabChange) {
             1️⃣ Hizmet Seçiniz ${isStep1Valid ? '✓' : '*'}
           </h4>
           <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${services.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Bu salonda aktif hizmet bulunmuyor.</div>' : services.map(s => `
-              <div onclick="window.selectDraftService('${s.id}', '${s.name.replace(/'/g, "\\'")}', ${s.price}, ${s.duration || 30})" class="card" style="padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: ${customerBookingDraft.serviceId === s.id ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.03)'}; border-color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'transparent'};">
+            ${cachedCurrentServices.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Bu salonda aktif hizmet bulunmuyor.</div>' : cachedCurrentServices.map(s => `
+              <div onclick="window.selectDraftServiceById('${s.id}')" class="card" style="padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: ${customerBookingDraft.serviceId === s.id ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.03)'}; border-color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'transparent'};">
                 <div>
                   <div style="font-size: 13px; font-weight: 700; color: #fff;">${s.name} (${s.duration || 30} dk)</div>
                   <div style="font-size: 11px; color: var(--gold-primary); font-weight: 800;">💰 ${s.price} TL</div>
@@ -251,11 +261,11 @@ export async function renderCustomerScreen(user, onTabChange) {
           </h4>
           ${!isStep1Valid ? '<div style="font-size: 11px; color: var(--text-muted);">Önce yukarıdan bir hizmet seçiniz.</div>' : `
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button onclick="window.selectDraftStaff('staff-any', 'Fark Etmez')" class="btn ${customerBookingDraft.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
+              <button onclick="window.selectDraftStaffById('staff-any')" class="btn ${customerBookingDraft.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
                 ⭐ Fark Etmez
               </button>
-              ${staffList.map(st => `
-                <button onclick="window.selectDraftStaff('${st.id}', '${st.displayName || st.name}')" class="btn ${customerBookingDraft.staffId === st.id ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
+              ${cachedCurrentStaff.map(st => `
+                <button onclick="window.selectDraftStaffById('${st.id}')" class="btn ${customerBookingDraft.staffId === st.id ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
                   💈 ${st.displayName || st.name}
                 </button>
               `).join('')}
@@ -303,6 +313,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       `;
     }
   }
+
  else if (activeCustomerTab === 'appointments') {
     const userApts = await getAppointmentsForCustomer(user.uid, user.phone);
     const allBusinessesData = await fetchRecord('businesses') || {};
@@ -1343,5 +1354,35 @@ EZO STİLE üzerinden oluşturuldu.`;
         btn.disabled = false;
         btn.innerHTML = '⚡ Randevuyu Onayla';
       }
+    }
+  };
+
+
+  window.selectDraftServiceById = (serviceId) => {
+    const s = cachedCurrentServices.find(item => item && item.id === serviceId);
+    if (s) {
+      customerBookingDraft.serviceId = s.id;
+      customerBookingDraft.serviceName = s.name;
+      customerBookingDraft.servicePrice = s.price;
+      customerBookingDraft.serviceDuration = s.duration || 30;
+      if (typeof window._currentRenderCustomerScreen === 'function') {
+        window._currentRenderCustomerScreen();
+      }
+    }
+  };
+
+  window.selectDraftStaffById = (staffId) => {
+    if (staffId === 'staff-any') {
+      customerBookingDraft.staffId = 'staff-any';
+      customerBookingDraft.staffName = 'Fark Etmez';
+    } else {
+      const st = cachedCurrentStaff.find(item => item && item.id === staffId);
+      if (st) {
+        customerBookingDraft.staffId = st.id;
+        customerBookingDraft.staffName = st.displayName || st.name;
+      }
+    }
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
     }
   };
