@@ -575,3 +575,28 @@ export function renderPortalScreen(onAuthenticated) {
     }
   };
 }
+export function completeExplicitLogout(onPortalRendered) {
+  try {
+    logoutUserSession();
+  } catch (e) {
+    console.error('Logout cleanup error:', e);
+  } finally {
+    // Forcibly clear modal root and body scroll locks
+    const modalRoot = document.getElementById('modal-root');
+    if (modalRoot) modalRoot.innerHTML = '';
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+
+    // Clear app container
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) appContainer.innerHTML = '';
+
+    // Render portal screen directly
+    renderPortalScreen((authenticatedUser) => {
+      if (typeof onPortalRendered === 'function') {
+        onPortalRendered(authenticatedUser);
+      }
+    });
+  }
+}
+window.completeExplicitLogout = completeExplicitLogout;

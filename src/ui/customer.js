@@ -948,19 +948,8 @@ export async function renderCustomerScreen(user, onTabChange) {
 
   // LOGOUT CONFIRM MODAL (REQUIREMENT 3)
   window.promptUserLogout = () => {
-    showConfirmModal('Çıkış Yap', 'Çıkış yapmak istediğinize emin misiniz?', async () => {
-      try {
-        logoutUserSession();
-      } catch (err) {
-        console.error('Logout error:', err);
-      } finally {
-        window.closeModal();
-        const root = document.getElementById('modal-root');
-        if (root) root.innerHTML = '';
-        if (typeof onTabChange === 'function') {
-          onTabChange(null);
-        }
-      }
+    showConfirmModal('Çıkış Yap', 'Çıkış yapmak istediğinize emin misiniz?', () => {
+      window.completeExplicitLogout(onTabChange);
     });
   };
 

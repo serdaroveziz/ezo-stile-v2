@@ -1,8 +1,13 @@
-﻿/* EZO STİLE v2 - Backend-Driven Authentication, Session Persistence & Language Engine */
+/* EZO STİLE v2 - Backend-Driven Authentication, Session Persistence & Session Generation Guard */
 import { getUserProfile, saveRecord } from './db.js';
 import { CONFIG, detectDefaultLanguage } from './config.js';
 
 let currentUserState = null;
+let sessionGeneration = 1;
+
+export function getSessionGeneration() {
+  return sessionGeneration;
+}
 
 export function getCurrentUser() {
   if (!currentUserState) {
@@ -44,17 +49,19 @@ export async function updateUserLanguage(lang) {
   }
 }
 
-export async function resolveBackendUserRole(uid, fallbackPhone = '', password = '') {
+export async function resolveBackendUserRole(uid, fallbackPhone = '', password = '', isSessionRestore = false) {
+  const reqGen = sessionGeneration;
   if (!uid) return { role: 'customer', businessId: null, language: detectDefaultLanguage() };
 
-  // Call serverless backend role resolution endpoint first
   try {
     const res = await fetch('/api/auth/resolve-role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, phone: fallbackPhone, password })
+      body: JSON.stringify({ uid, phone: fallbackPhone, password, isSessionRestore })
     });
     const resData = await res.json().catch(() => null);
+
+    if (reqGen !== sessionGeneration) return null; // ABORT IF LOGOUT OCCURRED DURING FETCH
 
     if (res.ok && resData && resData.success && resData.user) {
       const u = resData.user;
@@ -66,7 +73,8 @@ export async function resolveBackendUserRole(uid, fallbackPhone = '', password =
     console.warn('Backend role resolution fetch error, using DB fallback:', e);
   }
 
-  // DB Fallback
+  if (reqGen !== sessionGeneration) return null;
+
   const dbProfile = await getUserProfile(uid);
   const activeLang = (dbProfile && dbProfile.language) ? dbProfile.language : (localStorage.getItem('ezo_lang') || detectDefaultLanguage());
   
@@ -105,7 +113,6 @@ export async function loginUser(phone, password) {
   const cleanPhone = phone.replace(/\D/g, '');
   let uid = 'usr_' + cleanPhone;
 
-  // Dedicated Phone Resolvers for Super Admin (Kuvvat) & Owner
   if (cleanPhone.includes('5538762588') || cleanPhone === '05538762588' || cleanPhone === '05550000000' || cleanPhone === '05320000000') {
     uid = 'usr_05538762588';
   } else if (cleanPhone === '05550000002') {
@@ -139,6 +146,7 @@ export async function registerCustomer(name, phone, password) {
 }
 
 export async function restoreSession() {
+  const reqGen = sessionGeneration;
   const sessionRaw = localStorage.getItem('ez2_session');
   if (!sessionRaw) return null;
 
@@ -147,21 +155,26 @@ export async function restoreSession() {
     if (!session || !session.uid) return null;
 
     if (session.expiresAt && Date.now() > session.expiresAt) {
-      localStorage.removeItem('ez2_session');
-      localStorage.removeItem('ezo_user_data');
+      logoutUserSession();
       return null;
     }
 
     const resolvedUser = await resolveBackendUserRole(session.uid, session.phone || '', '', true);
-    setCurrentUser(resolvedUser);
-    return resolvedUser;
+    if (reqGen !== sessionGeneration) return null;
+
+    if (resolvedUser) {
+      setCurrentUser(resolvedUser);
+      return resolvedUser;
+    }
+    return null;
   } catch (e) {
     console.warn('Session restore error:', e);
-    return getCurrentUser();
+    return null;
   }
 }
 
 export function logoutUserSession() {
+  sessionGeneration++;
   currentUserState = null;
   localStorage.removeItem('ez2_session');
   localStorage.removeItem('ezo_user_data');

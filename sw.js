@@ -1,5 +1,5 @@
 // EZO STİLE v2 Service Worker v2.0.2-9d56699
-const CACHE_NAME = 'ezo-stile-v2.0.3-logoutfix';
+const CACHE_NAME = 'ezo-stile-v2.0.4-logout-router-fix';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
