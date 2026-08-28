@@ -1,5 +1,5 @@
 // EZO STİLE v2 Service Worker - MASTER FINAL BASELINE (v2.1.5)
-const CACHE_NAME = 'ezo-stile-v2.1.6-final-audit-pass';
+const CACHE_NAME = 'ezo-stile-v2.1.7-critical-hotfix';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

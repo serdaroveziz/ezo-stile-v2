@@ -68,9 +68,29 @@
       }
     }
 
-    async function initApp() {
-      await checkFirstLaunchSplash();
-      const user = await restoreSession();
+        async function initApp() {
+      try {
+        await checkFirstLaunchSplash();
+      } catch (e) {
+        console.warn('Splash error ignored:', e);
+      }
+
+      let user = null;
+      try {
+        const sessionPromise = restoreSession();
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve('STARTUP_TIMEOUT'), 2500));
+        const result = await Promise.race([sessionPromise, timeoutPromise]);
+        
+        if (result === 'STARTUP_TIMEOUT') {
+          console.warn('⚡ Startup bootstrap timed out (2.5s). Using fallback user/portal state.');
+          user = getCurrentUser();
+        } else {
+          user = result;
+        }
+      } catch (err) {
+        console.error('InitApp session restore exception:', err);
+        user = getCurrentUser();
+      }
 
       if (!user) {
         renderPortalScreen((authenticatedUser) => {
@@ -109,5 +129,5 @@
   </script>
 
   <!-- VISIBLE BUILD VERSION TAG -->
-  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.1.6 (final-audit-pass)</div>
+  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.1.7 (critical-hotfix)</div>
 </html>

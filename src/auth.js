@@ -53,15 +53,25 @@ export async function resolveBackendUserRole(uid, fallbackPhone = '', password =
   const reqGen = sessionGeneration;
   if (!uid) return { role: 'customer', businessId: null, language: detectDefaultLanguage() };
 
+  const apiUrl = (typeof window !== 'undefined' && window.location && window.location.origin)
+    ? `${window.location.origin}/api/auth/resolve-role`
+    : '/api/auth/resolve-role';
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 3000) : null;
+
   try {
-    const res = await fetch('/api/auth/resolve-role', {
+    const res = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, phone: fallbackPhone, password, isSessionRestore })
+      body: JSON.stringify({ uid, phone: fallbackPhone, password, isSessionRestore }),
+      signal: controller ? controller.signal : undefined
     });
+    if (timeoutId) clearTimeout(timeoutId);
+
     const resData = await res.json().catch(() => null);
 
-    if (reqGen !== sessionGeneration) return null; // ABORT IF LOGOUT OCCURRED DURING FETCH
+    if (reqGen !== sessionGeneration) return null;
 
     if (res.ok && resData && resData.success && resData.user) {
       const u = resData.user;
@@ -70,7 +80,8 @@ export async function resolveBackendUserRole(uid, fallbackPhone = '', password =
       return u;
     }
   } catch (e) {
-    console.warn('Backend role resolution fetch error, using DB fallback:', e);
+    if (timeoutId) clearTimeout(timeoutId);
+    console.warn('Backend role resolution fetch error/timeout, using DB fallback:', e);
   }
 
   if (reqGen !== sessionGeneration) return null;
@@ -159,6 +170,25 @@ export async function restoreSession() {
       return null;
     }
 
+    // Fast local user restore if cached
+    const localUserRaw = localStorage.getItem('ezo_user_data');
+    let localUser = null;
+    if (localUserRaw) {
+      try { localUser = JSON.parse(localUserRaw); } catch(e) {}
+    }
+
+    if (localUser && localUser.uid === session.uid && localUser.role) {
+      currentUserState = localUser;
+      // Background verification without blocking UI
+      resolveBackendUserRole(session.uid, session.phone || '', '', true).then(verified => {
+        if (verified && reqGen === sessionGeneration) {
+          setCurrentUser(verified);
+        }
+      }).catch(() => {});
+      return localUser;
+    }
+
+    // Synchronous role resolution fallback
     const resolvedUser = await resolveBackendUserRole(session.uid, session.phone || '', '', true);
     if (reqGen !== sessionGeneration) return null;
 
