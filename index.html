@@ -9,11 +9,35 @@
   <link rel="stylesheet" href="./src/styles/app.css">
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#040711">
+
+  <!-- STANDALONE BOOT WATCHDOG (EXECUTIVE OUTSIDE MODULE EVALUATION CONTEXT) -->
+  <script>
+    window.__EZO_BOOTED__ = false;
+    window.__EZO_STAGE__ = 'BOOT_HTML';
+    window.__EZO_FE_VERSION__ = 'v2.1.8-watchdog-migration';
+    console.log('⚡ [EZO BOOT] Initialized stage:', window.__EZO_STAGE__);
+
+    // Standalone 4-second watchdog timer
+    setTimeout(function() {
+      if (!window.__EZO_BOOTED__) {
+        console.error('🚨 [EZO WATCHDOG] Application failed to boot within 4s. Current stage:', window.__EZO_STAGE__);
+        var container = document.getElementById('app-container');
+        if (container) {
+          container.innerHTML = '<div style="text-align: center; padding: 60px 20px;" class="animate-fade">' +
+            '<img src="./assets/images/ezo_stile_logo.png" style="max-width: 120px; height: auto; margin-bottom: 16px;" alt="EZO Logo">' +
+            '<h3 style="font-size: 16px; color: var(--gold-primary); font-weight: 800; margin-bottom: 8px;">Başlatma Zaman Aşımı</h3>' +
+            '<p style="font-size: 11px; color: var(--text-muted); margin-bottom: 20px;">Uygulama yüklenirken gecikme oluştu (Aşama: ' + window.__EZO_STAGE__ + ').</p>' +
+            '<button onclick="window.location.reload(true)" class="btn btn-gold" style="width: 100%; max-width: 240px; margin: 0 auto 10px auto; display: block;">🔄 Tekrar Dene</button>' +
+            '<button onclick="localStorage.removeItem(\'ez2_session\'); localStorage.removeItem(\'ezo_user_data\'); window.location.reload(true);" class="btn btn-secondary" style="width: 100%; max-width: 240px; margin: 0 auto; display: block;">🚪 Giriş Ekranına Dön</button>' +
+          '</div>';
+        }
+      }
+    }, 4000);
+  </script>
 </head>
 <body>
 
-  <!-- MAIN APP CONTAINER & SPLASH SCREEN -->
-    <!-- FIRST-LAUNCH PREMIUM BRANDING SPLASH OVERLAY -->
+  <!-- FIRST-LAUNCH PREMIUM BRANDING SPLASH OVERLAY -->
   <div id="first-launch-splash" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #040711; z-index: 100000; align-items: center; justify-content: center; flex-direction: column; text-align: center;" class="animate-fade">
     <div style="position: relative; margin-bottom: 16px;">
       <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; background: radial-gradient(circle, rgba(245,158,11,0.25) 0%, rgba(4,7,17,0) 70%); border-radius: 50%; pointer-events: none;"></div>
@@ -24,7 +48,6 @@
     <h2 style="font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 2px; margin-bottom: 6px;">EZO STİLE</h2>
     <p style="font-size: 11px; color: var(--gold-primary); font-weight: 700; letter-spacing: 1px; margin-bottom: 20px;">VIP KUAFÖR & GÜZELLİK PLATFORMU</p>
     
-    <!-- 5 GOLD STARS (CENTER STAR LARGER) -->
     <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; color: var(--gold-primary);">
       <span>★</span>
       <span>★</span>
@@ -33,6 +56,8 @@
       <span>★</span>
     </div>
   </div>
+
+  <!-- MAIN APP CONTAINER -->
   <main id="app-container">
     <div style="text-align: center; padding: 60px 20px;" class="animate-fade">
       <img src="./assets/images/ezo_stile_logo.png" style="max-width: 150px; height: auto; margin-bottom: 16px; filter: drop-shadow(0 0 10px rgba(245,158,11,0.3));" alt="EZO STİLE Official Logo">
@@ -44,13 +69,17 @@
   <!-- MODAL ROOT -->
   <div id="modal-root"></div>
 
-      <!-- APPLICATION ENTRY MODULE -->
+  <!-- APPLICATION ENTRY MODULE -->
   <script type="module">
-    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.1.5-master-baseline';
-    import { renderPortalScreen } from './src/ui/portal.js?v=2.1.5-master-baseline';
-    import { renderCustomerScreen } from './src/ui/customer.js?v=2.1.5-master-baseline';
-    import { renderOwnerScreen } from './src/ui/owner.js?v=2.1.5-master-baseline';
-    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.1.5-master-baseline';
+    window.__EZO_STAGE__ = 'MAIN_MODULE_LOADING';
+    
+    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.1.8-watchdog-migration';
+    import { renderPortalScreen } from './src/ui/portal.js?v=2.1.8-watchdog-migration';
+    import { renderCustomerScreen } from './src/ui/customer.js?v=2.1.8-watchdog-migration';
+    import { renderOwnerScreen } from './src/ui/owner.js?v=2.1.8-watchdog-migration';
+    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.1.8-watchdog-migration';
+
+    window.__EZO_STAGE__ = 'MAIN_MODULE_LOADED';
 
     async function checkFirstLaunchSplash() {
       const isFirstLaunch = !localStorage.getItem('ezo_first_launch_completed');
@@ -68,7 +97,8 @@
       }
     }
 
-        async function initApp() {
+    async function initApp() {
+      window.__EZO_STAGE__ = 'INIT_APP_STARTED';
       try {
         await checkFirstLaunchSplash();
       } catch (e) {
@@ -77,10 +107,13 @@
 
       let user = null;
       try {
+        window.__EZO_STAGE__ = 'SESSION_RESTORE_STARTED';
         const sessionPromise = restoreSession();
         const timeoutPromise = new Promise(resolve => setTimeout(() => resolve('STARTUP_TIMEOUT'), 2500));
         const result = await Promise.race([sessionPromise, timeoutPromise]);
         
+        window.__EZO_STAGE__ = 'SESSION_RESTORE_FINISHED';
+
         if (result === 'STARTUP_TIMEOUT') {
           console.warn('⚡ Startup bootstrap timed out (2.5s). Using fallback user/portal state.');
           user = getCurrentUser();
@@ -92,6 +125,7 @@
         user = getCurrentUser();
       }
 
+      window.__EZO_STAGE__ = 'ROUTE_RENDER_STARTED';
       if (!user) {
         renderPortalScreen((authenticatedUser) => {
           handleUserRouting(authenticatedUser);
@@ -99,12 +133,18 @@
       } else {
         handleUserRouting(user);
       }
+      
+      window.__EZO_BOOTED__ = true;
+      window.__EZO_STAGE__ = 'APP_MOUNTED';
+      console.log('⚡ [EZO BOOT] Complete! Stage:', window.__EZO_STAGE__);
     }
 
     function handleUserRouting(user) {
       if (!user) {
         logoutUserSession();
         renderPortalScreen(handleUserRouting);
+        window.__EZO_BOOTED__ = true;
+        window.__EZO_STAGE__ = 'APP_MOUNTED';
         return;
       }
 
@@ -118,16 +158,32 @@
       } else {
         renderCustomerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
       }
+
+      window.__EZO_BOOTED__ = true;
+      window.__EZO_STAGE__ = 'APP_MOUNTED';
     }
 
-    // Register PWA Service Worker
+    // Register & Auto-Upgrade Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=2.1.5-master-baseline').catch(e => console.log('SW Load:', e));
+      navigator.serviceWorker.register('./sw.js?v=2.1.8-watchdog-migration').then(reg => {
+        reg.onupdatefound = () => {
+          const installingWorker = reg.installing;
+          if (installingWorker) {
+            installingWorker.onstatechange = () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('⚡ [SW] New SW version available. Auto-updating...');
+                window.location.reload();
+              }
+            };
+          }
+        };
+      }).catch(e => console.log('SW Load Error:', e));
     }
 
     document.addEventListener('DOMContentLoaded', initApp);
   </script>
 
   <!-- VISIBLE BUILD VERSION TAG -->
-  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.1.7 (critical-hotfix)</div>
+  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.1.8 (watchdog-migration)</div>
+</body>
 </html>
