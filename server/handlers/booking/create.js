@@ -143,11 +143,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Randevu kaydedilemedi' });
     }
 
+        // 5. RETURN CANONICAL SUCCESS RESPONSE
     return res.status(200).json({
       success: true,
-      aptId,
-      status: assignedStatus,
-      appointment: appointmentRecord
+      appointmentId: aptId,
+      aptId: aptId,
+      message: 'Randevunuz başarıyla oluşturuldu.',
+      data: appointmentRecord
     });
 
   } catch (err) {
