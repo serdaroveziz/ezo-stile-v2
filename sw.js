@@ -1,5 +1,5 @@
-// EZO STİLE v2 Service Worker v2.0.6-booking-state-authoritative
-const CACHE_NAME = 'ezo-stile-v2.0.6-booking-state-authoritative';
+// EZO STİLE v2 Service Worker v2.0.7-booking-lifecycle-restored
+const CACHE_NAME = 'ezo-stile-v2.0.7-booking-lifecycle-restored';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

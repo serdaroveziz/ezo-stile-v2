@@ -1272,7 +1272,7 @@ EZO STİLE üzerinden oluşturuldu.`;
     renderCustomerScreen(user, onTabChange);
   };
 
-  window.submitCustomerBookingAuthoritative = async () => {
+    window.submitCustomerBookingAuthoritative = async () => {
     if (!customerBookingDraft.serviceId) {
       showErrorModal('Hizmet Seçimi Zorunlu', 'Önce bir hizmet seçmelisiniz.');
       return;
@@ -1318,9 +1318,15 @@ EZO STİLE üzerinden oluşturuldu.`;
 
       const data = await res.json().catch(() => null);
 
-      if (res.ok && data && data.success) {
+      if (res.ok && data && data.success && data.aptId) {
         // Clear booking draft completely
         customerBookingDraft = { flowId: null, businessId: null, businessName: null, serviceId: null, staffId: null, date: null, time: null };
+        
+        // Invalidate DB cache immediately so Randevularım sees new appointment
+        if (typeof window.invalidateDbCache === 'function') {
+          window.invalidateDbCache('appointments');
+        }
+
         showSuccessModal(t('successTitle'), '✅ Randevunuz başarıyla oluşturuldu!');
         activeCustomerTab = 'appointments';
         renderCustomerScreen(user, onTabChange);

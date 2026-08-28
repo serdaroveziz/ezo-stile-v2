@@ -149,14 +149,14 @@ export async function saveStaff(businessId, staffData) {
 }
 
 export async function getAppointmentsForBusiness(businessId) {
-  const data = await fetchRecord('appointments');
+  const data = await fetchRecord('appointments', true); // ALWAYS BYPASS CACHE FOR OWNER VIEW
   if (!data) return [];
   const list = Object.values(data).filter(apt => apt && apt.businessId === businessId);
   return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
 export async function getAppointmentsForCustomer(customerUid, customerPhone = null) {
-  const data = await fetchRecord('appointments');
+  const data = await fetchRecord('appointments', true); // ALWAYS BYPASS CACHE FOR CUSTOMER VIEW
   if (!data) return [];
 
   let userPhone = customerPhone;
@@ -165,14 +165,20 @@ export async function getAppointmentsForCustomer(customerUid, customerPhone = nu
     if (userProf && userProf.phone) userPhone = userProf.phone;
   }
 
-  const cleanPhone = (ph) => String(ph || '').replace(/\D/g, '').slice(-10);
-  const targetPhone = userPhone ? cleanPhone(userPhone) : null;
+  const cleanDigits = (ph) => String(ph || '').replace(/\D/g, '').slice(-10);
+  const targetPhone = userPhone ? cleanDigits(userPhone) : null;
+  const targetUidDigits = customerUid ? cleanDigits(customerUid) : null;
 
   const list = Object.values(data).filter(apt => {
     if (!apt) return false;
-    const matchesUid = apt.customerUid === customerUid;
-    const aptPhone = cleanPhone(apt.customerPhone);
+    
+    // Canonical UID Match
+    const matchesUid = apt.customerUid === customerUid || (targetUidDigits && cleanDigits(apt.customerUid) === targetUidDigits);
+    
+    // Phone Fallback Match
+    const aptPhone = cleanDigits(apt.customerPhone);
     const matchesPhone = targetPhone && aptPhone && aptPhone.length >= 10 && (aptPhone === targetPhone);
+
     return matchesUid || matchesPhone;
   });
   return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
