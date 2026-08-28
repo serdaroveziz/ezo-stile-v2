@@ -40,6 +40,11 @@ let customerBookingDraft = {
 let cachedCurrentServices = [];
 let cachedCurrentStaff = [];
 
+let isServicePickerExpanded = false;
+let isStaffPickerExpanded = false;
+let isDatePickerExpanded = false;
+
+
 export async function beginNewBookingFromSalonById(businessId) {
   try {
     let businessName = 'Salon';
@@ -184,23 +189,28 @@ export async function renderCustomerScreen(user, onTabChange) {
       });
     }
 
-    const salonCardsHtml = salons.map(b => `
-      <div class="card card-gold animate-fade" style="padding: 12px; margin-bottom: 12px; cursor: pointer;" onclick="window.openSalonDetailsModal('${b.businessId}')">
-        <img src="${(b.media && (b.media.coverImageUrl || b.media.profileImageUrl)) || b.coverImageUrl || b.profileImageUrl || './assets/images/ezo_stile_logo.png'}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" alt="Cover">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-          <div>
-            <h4 style="font-size: 15px; font-weight: 800; color: #fff;">💈 ${b.name}</h4>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-              📍 ${b.district || 'Şişli'} / ${b.city || 'İstanbul'}
-            </div>
+        const salonCardsHtml = salons.map(b => {
+      const coverUrl = (b.media && (b.media.coverImageUrl || b.media.profileImageUrl)) || b.coverImageUrl || b.profileImageUrl || './assets/images/ezo_stile_logo.png';
+      return `
+        <div class="card card-gold animate-fade" style="padding: 12px; margin-bottom: 12px; cursor: pointer;" onclick="window.openSalonDetailsModal('${b.businessId}')">
+          <div style="width: 100%; height: 110px; border-radius: 8px; overflow: hidden; background: #1f2937; margin-bottom: 10px;">
+            <img src="${coverUrl}" onerror="this.onerror=null; this.src='./assets/images/ezo_stile_logo.png';" style="width: 100%; height: 100%; object-fit: cover;" alt="${b.name || 'Salon'}">
           </div>
-          <span class="badge badge-approved">⭐ ${b.averageRating || '4.9'}</span>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h4 style="font-size: 15px; font-weight: 800; color: #fff;">💈 ${b.name}</h4>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                📍 ${b.district || 'Şişli'} / ${b.city || 'İstanbul'}
+              </div>
+            </div>
+            <span class="badge badge-approved">⭐ ${b.averageRating || '4.9'}</span>
+          </div>
+          <button class="btn btn-gold" style="width: 100%; margin-top: 10px; min-height: 36px; font-size: 11px;">
+            ✂️ ${t('bookAppointment', currentLang)} →
+          </button>
         </div>
-        <button class="btn btn-gold" style="width: 100%; margin-top: 10px; min-height: 36px; font-size: 11px;">
-          ✂️ ${t('bookAppointment', currentLang)} →
-        </button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     mainHtml = `
       <div class="card animate-fade">
@@ -211,7 +221,7 @@ export async function renderCustomerScreen(user, onTabChange) {
     `;
   
   
-  } else if (activeCustomerTab === 'booking') {
+    } else if (activeCustomerTab === 'booking') {
     if (!customerBookingDraft.businessId) {
       mainHtml = `
         <div class="card card-gold animate-fade" style="padding: 24px; text-align: center; margin-top: 10px;">
@@ -237,91 +247,152 @@ export async function renderCustomerScreen(user, onTabChange) {
       const isStep3Valid = isStep2Valid && !!customerBookingDraft.date;
       const isStep4Valid = isStep3Valid && !!customerBookingDraft.time;
 
-      const todayDate = new Date().toISOString().split('T')[0];
-      const tomorrowDate = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const tmr = new Date(now.getTime() + 86400000);
+      const tomorrowStr = `${tmr.getFullYear()}-${String(tmr.getMonth() + 1).padStart(2, '0')}-${String(tmr.getDate()).padStart(2, '0')}`;
+
+      const todayFormatted = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const tomorrowFormatted = `${String(tmr.getDate()).padStart(2, '0')}.${String(tmr.getMonth() + 1).padStart(2, '0')}`;
+
+      const selectedServiceObj = cachedCurrentServices.find(s => s && s.id === customerBookingDraft.serviceId);
+
+      // Generate Time Slots
+      const timeSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'];
+      
+      const currentHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      const filteredSlots = customerBookingDraft.date === todayStr 
+        ? timeSlots.filter(t => t > currentHHMM)
+        : timeSlots;
 
       mainHtml = `
-        <div class="card card-gold animate-fade" style="padding: 16px; margin-bottom: 14px;">
+        <div class="card card-gold animate-fade" style="padding: 14px; margin-bottom: 12px;">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">💈 Seçili Salon</div>
-              <div style="font-size: 16px; font-weight: 800; color: #fff;">${customerBookingDraft.businessName || bizData.name || 'Salon'}</div>
+              <div style="font-size: 15px; font-weight: 800; color: #fff;">${customerBookingDraft.businessName || bizData.name || 'Salon'}</div>
             </div>
             <button onclick="window.switchCustomerTab('salons')" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Değiştir</button>
           </div>
         </div>
 
-        <!-- STEP 1: HİZMET SEÇ -->
-        <div class="card animate-fade" style="padding: 14px; margin-bottom: 12px; border-color: ${isStep1Valid ? '#22c55e' : 'var(--gold-primary)'};">
-          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">
-            1️⃣ Hizmet Seçiniz ${isStep1Valid ? '✓' : '*'}
-          </h4>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${cachedCurrentServices.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Bu salonda aktif hizmet bulunmuyor.</div>' : cachedCurrentServices.map(s => `
-              <div onclick="window.selectDraftServiceById('${s.id}')" class="card" style="padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: ${customerBookingDraft.serviceId === s.id ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.03)'}; border-color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'transparent'};">
-                <div>
-                  <div style="font-size: 13px; font-weight: 700; color: #fff;">${s.name} (${s.duration || 30} dk)</div>
-                  <div style="font-size: 11px; color: var(--gold-primary); font-weight: 800;">💰 ${s.price} TL</div>
-                </div>
-                <div style="font-size: 14px; font-weight: 800; color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'var(--text-muted)'};">${customerBookingDraft.serviceId === s.id ? '✓ Seçildi' : 'Seç →'}</div>
+        <!-- STEP 1: HİZMET SEÇ (COMPACT ACCORDION) -->
+        <div class="card animate-fade" style="padding: 12px; margin-bottom: 10px; border-color: ${isStep1Valid ? '#22c55e' : 'var(--gold-primary)'};">
+          ${isStep1Valid && !isServicePickerExpanded ? `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 11px; color: #22c55e; font-weight: 800;">1️⃣ Seçilen Hizmet ✓</div>
+                <div style="font-size: 14px; font-weight: 800; color: #fff;">✂️ ${customerBookingDraft.serviceName} (${customerBookingDraft.serviceDuration || 30} dk)</div>
+                <div style="font-size: 12px; color: var(--gold-primary); font-weight: 800;">💰 ${customerBookingDraft.servicePrice} TL</div>
               </div>
-            `).join('')}
-          </div>
-        </div>
-
-        <!-- STEP 2: BERBER / UZMAN SEÇ -->
-        <div class="card animate-fade" style="padding: 14px; margin-bottom: 12px; opacity: ${isStep1Valid ? '1' : '0.5'}; border-color: ${isStep2Valid ? '#22c55e' : 'var(--border-color)'};">
-          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">
-            2️⃣ Berber / Uzman Seçiniz ${isStep2Valid ? '✓' : ''}
-          </h4>
-          ${!isStep1Valid ? '<div style="font-size: 11px; color: var(--text-muted);">Önce yukarıdan bir hizmet seçiniz.</div>' : `
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button onclick="window.selectDraftStaffById('staff-any')" class="btn ${customerBookingDraft.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
-                ⭐ Fark Etmez
-              </button>
-              ${cachedCurrentStaff.map(st => `
-                <button onclick="window.selectDraftStaffById('${st.id}')" class="btn ${customerBookingDraft.staffId === st.id ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
-                  💈 ${st.displayName || st.name}
-                </button>
+              <button onclick="window.toggleServicePicker(true)" class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;">Değiştir</button>
+            </div>
+          ` : `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin: 0;">
+                1️⃣ Hizmet Seçiniz *
+              </h4>
+              ${isStep1Valid ? '<button onclick="window.toggleServicePicker(false)" class="btn btn-secondary" style="font-size: 10px; padding: 2px 6px;">Kapat ✕</button>' : ''}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              ${cachedCurrentServices.length === 0 ? '<div style="font-size: 11px; color: var(--text-muted);">Bu salonda aktif hizmet bulunmuyor.</div>' : cachedCurrentServices.map(s => `
+                <div onclick="window.selectDraftServiceById('${s.id}')" class="card" style="padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: ${customerBookingDraft.serviceId === s.id ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.03)'}; border-color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'transparent'};">
+                  <div>
+                    <div style="font-size: 13px; font-weight: 700; color: #fff;">${s.name} (${s.duration || 30} dk)</div>
+                    <div style="font-size: 11px; color: var(--gold-primary); font-weight: 800;">💰 ${s.price} TL</div>
+                  </div>
+                  <div style="font-size: 13px; font-weight: 800; color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'var(--text-muted)'};">${customerBookingDraft.serviceId === s.id ? '✓ Seçili' : 'Seç →'}</div>
+                </div>
               `).join('')}
             </div>
           `}
         </div>
 
-        <!-- STEP 3: TARİH SEÇ -->
-        <div class="card animate-fade" style="padding: 14px; margin-bottom: 12px; opacity: ${isStep2Valid ? '1' : '0.5'}; border-color: ${isStep3Valid ? '#22c55e' : 'var(--border-color)'};">
-          <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">
-            3️⃣ Tarih Seçiniz ${isStep3Valid ? '✓' : ''}
-          </h4>
-          ${!isStep2Valid ? '<div style="font-size: 11px; color: var(--text-muted);">Önce hizmet ve personel seçiniz.</div>' : `
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <button onclick="window.selectDraftDate('${todayDate}')" class="btn ${customerBookingDraft.date === todayDate ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
-                📅 Bugün (${todayDate.split('-').reverse().slice(0, 2).join('.')})
-              </button>
-              <button onclick="window.selectDraftDate('${tomorrowDate}')" class="btn ${customerBookingDraft.date === tomorrowDate ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px;">
-                📅 Yarın (${tomorrowDate.split('-').reverse().slice(0, 2).join('.')})
-              </button>
+        <!-- STEP 2: BERBER / UZMAN SEÇ (COMPACT ACCORDION) -->
+        <div class="card animate-fade" style="padding: 12px; margin-bottom: 10px; opacity: ${isStep1Valid ? '1' : '0.5'}; border-color: ${isStep2Valid ? '#22c55e' : 'var(--border-color)'};">
+          ${!isStep1Valid ? `
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 4px;">2️⃣ Berber / Uzman Seçiniz</h4>
+            <div style="font-size: 11px; color: var(--text-muted);">Önce yukarıdan bir hizmet seçiniz.</div>
+          ` : (isStep2Valid && !isStaffPickerExpanded ? `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 11px; color: #22c55e; font-weight: 800;">2️⃣ Seçilen Berber / Uzman ✓</div>
+                <div style="font-size: 14px; font-weight: 800; color: #fff;">💈 ${customerBookingDraft.staffName}</div>
+              </div>
+              <button onclick="window.toggleStaffPicker(true)" class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;">Değiştir</button>
             </div>
-            <input type="date" value="${customerBookingDraft.date || ''}" onchange="window.selectDraftDate(this.value)" class="input-field" style="background: #111827; color: #fff;">
-          `}
+          ` : `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin: 0;">2️⃣ Berber / Uzman Seçiniz *</h4>
+              ${isStep2Valid ? '<button onclick="window.toggleStaffPicker(false)" class="btn btn-secondary" style="font-size: 10px; padding: 2px 6px;">Kapat ✕</button>' : ''}
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button onclick="window.selectDraftStaffById('staff-any')" class="btn ${customerBookingDraft.staffId === 'staff-any' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; min-width: 120px; font-size: 11px;">
+                ⭐ Fark Etmez
+              </button>
+              ${cachedCurrentStaff.map(st => `
+                <button onclick="window.selectDraftStaffById('${st.id}')" class="btn ${customerBookingDraft.staffId === st.id ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; min-width: 120px; font-size: 11px;">
+                  💈 ${st.displayName || st.name}
+                </button>
+              `).join('')}
+            </div>
+          `)}
         </div>
 
-        <!-- STEP 4: SAAT SEÇ (ONLY RENDERED AFTER VALID DATE) -->
-        <div class="card animate-fade" style="padding: 14px; margin-bottom: 16px; opacity: ${isStep3Valid ? '1' : '0.5'}; border-color: ${isStep4Valid ? '#22c55e' : 'var(--border-color)'};">
+        <!-- STEP 3: TARİH SEÇ (BUGÜN / YARIN / TAKVİM) -->
+        <div class="card animate-fade" style="padding: 12px; margin-bottom: 10px; opacity: ${isStep2Valid ? '1' : '0.5'}; border-color: ${isStep3Valid ? '#22c55e' : 'var(--border-color)'};">
+          ${!isStep2Valid ? `
+            <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 4px;">3️⃣ Tarih Seçiniz</h4>
+            <div style="font-size: 11px; color: var(--text-muted);">Önce hizmet ve personel seçiniz.</div>
+          ` : (isStep3Valid && !isDatePickerExpanded ? `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 11px; color: #22c55e; font-weight: 800;">3️⃣ Seçilen Tarih ✓</div>
+                <div style="font-size: 14px; font-weight: 800; color: #fff;">📅 ${customerBookingDraft.date === todayStr ? 'Bugün (' + todayFormatted + ')' : (customerBookingDraft.date === tomorrowStr ? 'Yarın (' + tomorrowFormatted + ')' : customerBookingDraft.date.split('-').reverse().join('.'))}</div>
+              </div>
+              <button onclick="window.toggleDatePicker(true)" class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;">Değiştir</button>
+            </div>
+          ` : `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin: 0;">3️⃣ Tarih Seçiniz *</h4>
+              ${isStep3Valid ? '<button onclick="window.toggleDatePicker(false)" class="btn btn-secondary" style="font-size: 10px; padding: 2px 6px;">Kapat ✕</button>' : ''}
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <button onclick="window.selectDraftDate('${todayStr}')" class="btn ${customerBookingDraft.date === todayStr ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; font-weight: 700;">
+                📅 Bugün (${todayFormatted})
+              </button>
+              <button onclick="window.selectDraftDate('${tomorrowStr}')" class="btn ${customerBookingDraft.date === tomorrowStr ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; font-weight: 700;">
+                📅 Yarın (${tomorrowFormatted})
+              </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+              <span style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">📅 Başka Tarih:</span>
+              <input type="date" value="${customerBookingDraft.date || ''}" min="${todayStr}" onchange="window.selectDraftDate(this.value)" class="input-field" style="flex: 1; background: #111827; color: #fff; margin: 0;">
+            </div>
+          `)}
+        </div>
+
+        <!-- STEP 4: MÜSAİT SAATLER -->
+        <div class="card animate-fade" style="padding: 12px; margin-bottom: 14px; opacity: ${isStep3Valid ? '1' : '0.5'}; border-color: ${isStep4Valid ? '#22c55e' : 'var(--border-color)'};">
           <h4 style="font-size: 13px; font-weight: 800; color: var(--gold-primary); margin-bottom: 8px;">
             4️⃣ Müsait Saatler ${isStep4Valid ? '✓' : ''}
           </h4>
-          ${!isStep3Valid ? '<div style="font-size: 11px; color: var(--text-muted);">Önce hizmet, personel ve tarih seçiniz.</div>' : `
+          ${!isStep3Valid ? `
+            <div style="font-size: 11px; color: var(--text-muted);">Önce hizmet, personel ve tarih seçiniz.</div>
+          ` : (filteredSlots.length === 0 ? `
+            <div style="font-size: 11px; color: var(--text-muted);">Bugün için kalan müsait saat bulunmamaktadır. Lütfen Yarın veya başka bir tarih seçiniz.</div>
+          ` : `
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
-              ${['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00'].map(slot => `
+              ${filteredSlots.map(slot => `
                 <button onclick="window.selectDraftTime('${slot}')" class="btn" style="padding: 6px; font-size: 11px; font-weight: 700; background: ${customerBookingDraft.time === slot ? '#eab308' : '#22c55e'}; color: ${customerBookingDraft.time === slot ? '#000' : '#fff'}; border: 1px solid ${customerBookingDraft.time === slot ? '#eab308' : '#22c55e'};">
                   ${slot} ${customerBookingDraft.time === slot ? '✓' : ''}
                 </button>
               `).join('')}
             </div>
-          `}
+          `)}
         </div>
 
+        <!-- STEP 5: ONALYA BUTTON -->
         <button id="btn-submit-booking" onclick="window.submitCustomerBookingAuthoritative()" class="btn btn-gold" style="width: 100%; min-height: 48px; font-weight: 900; font-size: 15px; opacity: ${isStep4Valid ? '1' : '0.5'};" ${!isStep4Valid ? 'disabled' : ''}>
           ⚡ Randevuyu Onayla
         </button>
@@ -473,7 +544,7 @@ export async function renderCustomerScreen(user, onTabChange) {
 
     ${mainHtml}
 
-    <nav class="bottom-nav">
+        <nav class="bottom-nav">
       <button onclick="window.switchCustomerTab('home')" class="nav-item ${activeCustomerTab === 'home' ? 'active' : ''}">
         <span class="icon">🏠</span>
         <span>${t('homeTab', currentLang)}</span>
@@ -482,9 +553,9 @@ export async function renderCustomerScreen(user, onTabChange) {
         <span class="icon">💈</span>
         <span>${t('salonsTab', currentLang)}</span>
       </button>
-      <button onclick="window.switchCustomerTab('booking')" class="nav-item ${activeCustomerTab === 'booking' ? 'active' : ''}">
-        <span class="icon">✂️</span>
-        <span>${t('bookingTab', currentLang)}</span>
+      <button onclick="window.switchCustomerTab('appointments')" class="nav-item ${activeCustomerTab === 'appointments' ? 'active' : ''}">
+        <span class="icon">📅</span>
+        <span>${t('myAppointments', currentLang)}</span>
       </button>
       <button onclick="window.switchCustomerTab('ai')" class="nav-item ${activeCustomerTab === 'ai' ? 'active' : ''}">
         <span class="icon">🤖</span>
@@ -1393,6 +1464,79 @@ EZO STİLE üzerinden oluşturuldu.`;
         customerBookingDraft.staffName = st.displayName || st.name;
       }
     }
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
+    }
+  };
+
+
+  window.selectDraftServiceById = (serviceId) => {
+    const s = cachedCurrentServices.find(item => item && item.id === serviceId);
+    if (s) {
+      customerBookingDraft.serviceId = s.id;
+      customerBookingDraft.serviceName = s.name;
+      customerBookingDraft.servicePrice = s.price;
+      customerBookingDraft.serviceDuration = s.duration || 30;
+      isServicePickerExpanded = false;
+      isStaffPickerExpanded = !customerBookingDraft.staffId;
+      if (typeof window._currentRenderCustomerScreen === 'function') {
+        window._currentRenderCustomerScreen();
+      }
+    }
+  };
+
+  window.selectDraftStaffById = (staffId) => {
+    if (staffId === 'staff-any') {
+      customerBookingDraft.staffId = 'staff-any';
+      customerBookingDraft.staffName = 'Fark Etmez';
+    } else {
+      const st = cachedCurrentStaff.find(item => item && item.id === staffId);
+      if (st) {
+        customerBookingDraft.staffId = st.id;
+        customerBookingDraft.staffName = st.displayName || st.name;
+      }
+    }
+    isStaffPickerExpanded = false;
+    isDatePickerExpanded = !customerBookingDraft.date;
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
+    }
+  };
+
+  window.selectDraftDate = (dateStr) => {
+    if (!dateStr) return;
+    customerBookingDraft.date = dateStr;
+    customerBookingDraft.time = null; // Reset time slot when date changes
+    isDatePickerExpanded = false;
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
+    }
+  };
+
+  window.selectDraftTime = (timeStr) => {
+    if (!timeStr) return;
+    customerBookingDraft.time = timeStr;
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
+    }
+  };
+
+  window.toggleServicePicker = (expand) => {
+    isServicePickerExpanded = expand;
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
+    }
+  };
+
+  window.toggleStaffPicker = (expand) => {
+    isStaffPickerExpanded = expand;
+    if (typeof window._currentRenderCustomerScreen === 'function') {
+      window._currentRenderCustomerScreen();
+    }
+  };
+
+  window.toggleDatePicker = (expand) => {
+    isDatePickerExpanded = expand;
     if (typeof window._currentRenderCustomerScreen === 'function') {
       window._currentRenderCustomerScreen();
     }
