@@ -99,23 +99,7 @@ window.selectSalonForBooking = beginNewBookingFromSalonById;
 
 let searchQuery = '';
 
-let discoveryCacheData = null;
-let lastDiscoveryFetchTime = 0;
-let isSubmittingCustomerBooking = false;
 
-async function getCachedBusinessesForDiscovery() {
-  const now = Date.now();
-  if (discoveryCacheData && (now - lastDiscoveryFetchTime < 60000)) {
-    return discoveryCacheData;
-  }
-  try {
-    discoveryCacheData = await fetchRecord('businesses') || {};
-    lastDiscoveryFetchTime = now;
-  } catch (e) {
-    if (!discoveryCacheData) discoveryCacheData = {};
-  }
-  return discoveryCacheData;
-}
 
 
 export async function renderCustomerScreen(user, onTabChange) {
@@ -177,7 +161,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       </div>
     `;
   } else if (activeCustomerTab === 'salons') {
-    const allBusinessesData = await getCachedBusinessesForDiscovery();
+    const allBusinessesData = await fetchRecord('businesses');
     let salons = Object.values(allBusinessesData).filter(b => 
       b && 
       b.status !== 'suspended' && 
@@ -421,7 +405,7 @@ export async function renderCustomerScreen(user, onTabChange) {
 
  else if (activeCustomerTab === 'appointments') {
     const userApts = await getAppointmentsForCustomer(user.uid, user.phone);
-    const allBusinessesData = await getCachedBusinessesForDiscovery();
+    const allBusinessesData = await fetchRecord('businesses');
 
     // 1. ALL ACTIVE APPOINTMENTS (UNLIMITED VISIBILITY - REQUIREMENT 3)
     const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'cancel_requested' || apt.status === 'reschedule_requested'));
@@ -1267,7 +1251,7 @@ EZO STİLE üzerinden oluşturuldu.`;
 
   // MÜŞTERİ SALON DETAY EKRANI (REQUIREMENT 9)
   window.openSalonDetailsModal = async (businessId) => {
-    const allBusinessesData = await getCachedBusinessesForDiscovery();
+    const allBusinessesData = await fetchRecord('businesses');
     const biz = allBusinessesData[businessId];
     if (!biz) return;
 
@@ -1384,12 +1368,7 @@ EZO STİLE üzerinden oluşturuldu.`;
     renderCustomerScreen(user, onTabChange);
   };
 
-          window.submitCustomerBookingAuthoritative = async () => {
-    if (isSubmittingCustomerBooking) {
-      console.warn('Booking submit already in progress. Ignoring duplicate click.');
-      return;
-    }
-
+            window.submitCustomerBookingAuthoritative = async () => {
     if (!customerBookingDraft.serviceId) {
       showErrorModal('Hizmet Seçimi Zorunlu', 'Önce bir hizmet seçmelisiniz.');
       return;
@@ -1407,16 +1386,11 @@ EZO STİLE üzerinden oluşturuldu.`;
       return;
     }
 
-    isSubmittingCustomerBooking = true;
-
     const btn = document.getElementById('btn-submit-booking');
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = '⏳ Randevunuz Oluşturuluyor...';
     }
-
-    const flowId = customerBookingDraft.flowId || ('flw_' + Date.now());
-    console.log('BOOKING_SUBMIT_START', flowId);
 
     const apiUrl = `${window.location.origin}/api/booking/create`;
 
@@ -1438,13 +1412,6 @@ EZO STİLE üzerinden oluşturuldu.`;
       startTime: customerBookingDraft.time
     };
 
-    console.log('BOOKING_REQUEST_SENT', apiUrl, payload);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 12000); // 12-second max timeout guard
-
     try {
       const res = await fetch(apiUrl, {
         method: 'POST',
@@ -1452,29 +1419,13 @@ EZO STİLE üzerinden oluşturuldu.`;
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(payload),
-        signal: controller.signal
+        body: JSON.stringify(payload)
       });
 
-      console.log('BOOKING_RESPONSE_RECEIVED', res.status, res.headers.get('content-type'));
-
-      let rawText = '';
-      let data = null;
-      try {
-        rawText = await res.text();
-        data = rawText ? JSON.parse(rawText) : null;
-        console.log('BOOKING_RESPONSE_PARSED', data);
-      } catch (parseErr) {
-        console.error('BOOKING_SUBMIT_ERROR', 'JSON_PARSE', parseErr, rawText);
-        showErrorModal('Yanıt Format Hatası', `Sunucudan geçersiz yanıt alındı (${res.status}): ${rawText.substring(0, 100)}`);
-        return;
-      }
-
+      const data = await res.json().catch(() => null);
       const createdId = data ? (data.appointmentId || data.aptId) : null;
 
       if (res.ok && data && data.success && createdId) {
-        console.log('BOOKING_SUBMIT_SUCCESS', createdId);
-
         // Clear booking draft completely
         customerBookingDraft = { flowId: null, businessId: null, businessName: null, serviceId: null, staffId: null, date: null, time: null };
         
@@ -1489,25 +1440,19 @@ EZO STİLE üzerinden oluşturuldu.`;
       } else {
         const errorMessage = (data && (data.error || data.message)) 
           ? (data.error || data.message) 
-          : `Sunucu hatası (${res.status} ${res.statusText})`;
-        console.warn('BOOKING_SUBMIT_ERROR', 'HTTP_ERROR', res.status, errorMessage);
+          : `Randevu oluşturulamadı (${res.status})`;
         showErrorModal('Randevu Oluşturulamadı', errorMessage);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '⚡ Randevuyu Onayla';
+        }
       }
-    } catch (fetchErr) {
-      if (fetchErr.name === 'AbortError') {
-        console.error('BOOKING_SUBMIT_ERROR', 'TIMEOUT_ABORT', '12s timeout reached');
-        showErrorModal('İstek Zaman Aşımı', 'Randevu isteği zaman aşıma uğradı (12s). Lütfen tekrar deneyiniz.');
-      } else {
-        console.error('BOOKING_SUBMIT_ERROR', 'NETWORK_FETCH', fetchErr.name, fetchErr.message);
-        showErrorModal('Ağ / Bağlantı Hatası', `Sunucuya erişilemedi (${fetchErr.name}: ${fetchErr.message}). Lütfen bağlantınızı kontrol edip tekrar deneyiniz.`);
-      }
-    } finally {
-      clearTimeout(timeoutId);
-      isSubmittingCustomerBooking = false;
-      const currentBtn = document.getElementById('btn-submit-booking');
-      if (currentBtn && activeCustomerTab === 'booking') {
-        currentBtn.disabled = false;
-        currentBtn.innerHTML = '⚡ Randevuyu Onayla';
+    } catch (err) {
+      console.error('Submit booking fetch error:', err);
+      showErrorModal('Bağlantı Hatası', 'Sunucuya ulaşılamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyiniz.');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ Randevuyu Onayla';
       }
     }
   };
