@@ -3,6 +3,21 @@ import { getUserProfile, saveRecord } from './db.js';
 import { CONFIG, detectDefaultLanguage } from './config.js';
 
 let currentUserState = null;
+
+export function normalizePhoneToUid(phone) {
+  const digits = String(phone || '').replace(/D/g, '');
+  const last10 = digits.slice(-10);
+  if (!last10) return 'usr_guest';
+
+  if (last10 === '5538762588' || last10 === '5550000000' || last10 === '5320000000') {
+    return 'usr_05538762588';
+  }
+  if (last10 === '5550000002') {
+    return 'usr_05550000002';
+  }
+  return 'usr_0' + last10;
+}
+
 let sessionGeneration = 1;
 
 export function getSessionGeneration() {

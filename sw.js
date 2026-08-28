@@ -1,5 +1,5 @@
 // EZO STİLE v2 Service Worker - WATCHDOG & AUTO MIGRATION (v2.1.8)
-const CACHE_NAME = 'ezo-stile-v2.1.8-watchdog-migration';
+const CACHE_NAME = 'ezo-stile-v2.1.9-real-user-functional-fix';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

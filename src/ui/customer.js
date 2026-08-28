@@ -173,7 +173,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       </div>
     `;
   } else if (activeCustomerTab === 'salons') {
-    const allBusinessesData = await fetchRecord('businesses');
+    const allBusinessesData = (await fetchRecord('businesses')) || {};
     let salons = Object.values(allBusinessesData).filter(b => 
       b && 
       b.status !== 'suspended' && 
@@ -417,7 +417,7 @@ export async function renderCustomerScreen(user, onTabChange) {
 
  else if (activeCustomerTab === 'appointments') {
     const userApts = await getAppointmentsForCustomer(user.uid, user.phone);
-    const allBusinessesData = await fetchRecord('businesses');
+    const allBusinessesData = (await fetchRecord('businesses')) || {};
 
     // 1. ALL ACTIVE APPOINTMENTS (UNLIMITED VISIBILITY - REQUIREMENT 3)
     const activeApts = userApts.filter(apt => apt && (apt.status === 'pending' || apt.status === 'approved' || apt.status === 'cancel_requested' || apt.status === 'reschedule_requested'));
@@ -428,7 +428,7 @@ export async function renderCustomerScreen(user, onTabChange) {
     const pastAptsVisible = pastAptsAll.slice(0, 5);
 
     const activeHtml = activeApts.map(apt => {
-      const bizObj = allBusinessesData[apt.businessId];
+      const bizObj = (allBusinessesData && apt.businessId) ? allBusinessesData[apt.businessId] : null;
       const salonName = apt.businessNameSnapshot || (bizObj ? bizObj.name : 'EZO Salon');
       const aptTimeMs = new Date(`${apt.date}T${apt.time || '00:00'}:00`).getTime();
       const hoursUntilApt = (aptTimeMs - Date.now()) / (1000 * 3600);
@@ -461,7 +461,7 @@ export async function renderCustomerScreen(user, onTabChange) {
     }).join('');
 
     const pastHtml = pastAptsVisible.map(apt => {
-      const bizObj = allBusinessesData[apt.businessId];
+      const bizObj = (allBusinessesData && apt.businessId) ? allBusinessesData[apt.businessId] : null;
       const salonName = apt.businessNameSnapshot || (bizObj ? bizObj.name : 'EZO Salon');
 
       return `
@@ -1263,7 +1263,7 @@ EZO STİLE üzerinden oluşturuldu.`;
 
   // MÜŞTERİ SALON DETAY EKRANI (REQUIREMENT 9)
   window.openSalonDetailsModal = async (businessId) => {
-    const allBusinessesData = await fetchRecord('businesses');
+    const allBusinessesData = (await fetchRecord('businesses')) || {};
     const biz = allBusinessesData[businessId];
     if (!biz) return;
 
