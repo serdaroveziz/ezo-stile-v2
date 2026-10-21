@@ -105,21 +105,21 @@
   <script type="module">
     window.__EZO_STAGE__ = 'MAIN_MODULE_LOADING';
     
-    import { getPortalMode, setPortalMode, restoreSession, getCurrentUser, logoutUserSession, resolveAuthoritativeSession } from './src/auth.js?v=2.3.4-staff-panel';
+    import { getPortalMode, setPortalMode, restoreSession, getCurrentUser, logoutUserSession, resolveAuthoritativeSession } from './src/auth.js';
     import { t } from './src/config.js';
     import { isInvalidSession } from './src/operation-errors.js';
-    import { renderPortalScreen, showErrorModal } from './src/ui/portal.js?v=2.3.3-staff-analytics';
-    const customerModule = () => import('./src/ui/customer.js?v=2.3.3-staff-analytics');
+    import { renderPortalScreen, showErrorModal } from './src/ui/portal.js';
+    const customerModule = () => import('./src/ui/customer.js');
     const renderCustomerScreen = async (...args) => (await customerModule()).renderCustomerScreen(...args);
     const renderPublicSalonRoute = async (...args) => (await customerModule()).renderPublicSalonRoute(...args);
     const beginNewBookingFromSalonById = async (...args) => (await customerModule()).beginNewBookingFromSalonById(...args);
-    const renderOwnerScreen = async (...args) => (await import('./src/ui/owner.js?v=2.3.3-staff-analytics')).renderOwnerScreen(...args);
-    const renderStaffScreen = async (...args) => (await import('./src/ui/staff.js?v=2.3.4-staff-panel')).renderStaffScreen(...args);
-    const renderSuperAdminScreen = async (...args) => (await import('./src/ui/super-admin.js?v=2.3.3-staff-analytics')).renderSuperAdminScreen(...args);
-    import { routeForResolvedRole } from './src/role-routing.js?v=2.3.5-staff-route-guard';
-    import { listenForForegroundPush } from './src/push-notifications.js?v=2.3.6-push';
-    import { savePushNavigation, takePushNavigation } from './src/push-navigation.js?v=2.3.7-push-navigation';
-    import { installThemeToggle, setThemeUser } from './src/theme.js?v=1';
+    const renderOwnerScreen = async (...args) => (await import('./src/ui/owner.js')).renderOwnerScreen(...args);
+    const renderStaffScreen = async (...args) => (await import('./src/ui/staff.js')).renderStaffScreen(...args);
+    const renderSuperAdminScreen = async (...args) => (await import('./src/ui/super-admin.js')).renderSuperAdminScreen(...args);
+    import { routeForResolvedRole } from './src/role-routing.js';
+    import { listenForForegroundPush } from './src/push-notifications.js';
+    import { savePushNavigation, takePushNavigation } from './src/push-navigation.js';
+    import { installThemeToggle, setThemeUser } from './src/theme.js';
 
     installThemeToggle();
     window.openBookingAssistant=async()=>{try{const {openBookingAssistant}=await import('./src/ui/booking-assistant.js');await openBookingAssistant(getCurrentUser());}catch(error){showErrorModal(null,error);}};

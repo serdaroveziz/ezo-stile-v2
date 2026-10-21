@@ -10,9 +10,15 @@ assert.match(html, /<base\s+href=["']\/["']\s*\/?>/i, 'app assets need a root UR
 assert(html.includes('id="app-container"'), 'root route must serve the app shell');
 assert(html.includes("window.__EZO_STAGE__ = 'MAIN_MODULE_LOADING'"), 'root boot contract must remain present');
 
+// A query string makes the browser load a second, separate instance of the same ES
+// module. auth.js keeps the session in module state, so index.html restoring into
+// './src/auth.js?v=x' while ui/*.js read './auth.js' left the app on "Yükleniyor…" after F5.
+const versionedModules = html.match(/['"]\.\/src\/[^'"]+\.js\?[^'"]*['"]/g) || [];
+assert.deepStrictEqual(versionedModules, [], 'index.html module imports must not carry query strings (duplicate module instances)');
+
 const relativeAssetPaths = [
   './src/styles/app.css',
-  './src/auth.js?v=2.3.4-staff-panel',
+  './src/auth.js',
   './assets/images/ezo_stile_logo.png',
   './sw.js?v=2.3.3-staff-analytics'
 ];
