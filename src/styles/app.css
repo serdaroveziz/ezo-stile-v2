@@ -851,10 +851,11 @@ body:has(.customer-panel) {background:var(--theme-panel-050b12, #050b12)}
 .customer-panel .customer-time-slot {background:var(--theme-panel-12202c, #12202c)!important;border:1px solid #344352!important;color:var(--theme-ink-f2f3f5, #f2f3f5)!important;min-height:44px}
 .customer-panel .customer-time-slot[aria-pressed=true] {background:var(--gold-gradient)!important;border-color:var(--gold)!important;color:#15100a!important}
 .customer-panel button:disabled {cursor:not-allowed;opacity:.5;box-shadow:none}
-.customer-panel .customer-appointment-filters {display:flex!important;overflow-x:auto;gap:6px!important;padding-bottom:4px}
-.customer-panel .customer-appointment-filters .btn {flex:1 0 auto;border-radius:999px;min-height:44px!important;padding:6px 10px;font-size:11px!important;white-space:nowrap}
+/* 2x2 segments (columns come from the inline grid): label on top, count below, words never split. */
+.customer-panel .customer-appointment-filters {display:grid!important;gap:6px!important;padding-bottom:4px}
+.customer-panel .customer-appointment-filters .btn {min-width:0;border-radius:14px;min-height:52px!important;padding:6px 4px;font-size:10.5px!important;line-height:1.25;white-space:normal;word-break:keep-all;overflow-wrap:normal;hyphens:none;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .customer-panel .customer-appointment-filters br {display:none}
-.customer-panel .customer-appointment-filters strong {margin-inline-start:5px}
+.customer-panel .customer-appointment-filters strong {display:block;font-size:14px;margin-top:2px}
 .customer-panel[data-customer-screen=profile]>.card {padding:18px!important}
 .customer-panel[data-customer-screen=profile] .btn-secondary {display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:start!important;min-height:52px;border:0;border-bottom:1px solid var(--border);border-radius:0;background:transparent}
 .customer-panel[data-customer-screen=profile] .btn svg {width:20px;height:20px;color:var(--gold);flex-shrink:0}

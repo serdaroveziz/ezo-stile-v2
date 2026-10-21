@@ -33,6 +33,6 @@ check(customer.includes('<div class="public-storefront-page animate-fade" style=
 for (const surface of ['#242424', '#192338']) check(contrast('#f87171', surface) >= 4.5, `dark danger text readable on ${surface}`);
 check(/:root\[data-theme="dark"\] \{--theme-copy-ef4444:#f87171;\}/.test(css), 'dark palettes remap danger text');
 check(customer.includes('background: #dc2626; color: #fff;') && contrast('#dc2626', '#ffffff') >= 4.5, 'notification counter is readable');
-check(/customer-appointment-filters \.btn \{[^}]*white-space:nowrap/.test(css), 'appointment filter labels stay on one line');
+check(/customer-appointment-filters \{display:grid!important/.test(css) && /customer-appointment-filters \.btn \{[^}]*word-break:keep-all/.test(css) && customer.includes('class="customer-appointment-filters" style="display:grid;grid-template-columns:1fr 1fr;'), 'appointment filters use a 2x2 grid without splitting words');
 
 console.log(`UNELIVO CUSTOMER UI: ${passed}/${passed} PASS`);
