@@ -108,7 +108,7 @@ const rows = [
 ['Bu işlem için randevu yönetme yetkiniz bulunmuyor.','You do not have permission to manage appointments.','У вас нет права управлять записями.','ليس لديك إذن لإدارة المواعيد.','Ýazgylary dolandyrmaga ygtyýaryňyz ýok.','مجوز مدیریت نوبت‌ها را ندارید.'],
 ['Müsait saatler hazırlanıyor...','Loading available times...','Загрузка свободного времени...','جارٍ تحميل الأوقات المتاحة...','Boş wagtlar taýýarlanýar...','در حال بارگیری زمان‌های آزاد...'],
 ['Müsait saatler alınamadı.','Could not load available times.','Не удалось загрузить свободное время.','تعذر تحميل الأوقات المتاحة.','Boş wagtlar alynmady.','زمان‌های آزاد بارگیری نشد.'],
-['dk)','min)','мин)','دقيقة)','min)','دقیقه)'],
+['dk','min','мин','دقيقة','min','دقیقه'],
 ['Manuel Randevu Ekle (Gerçek Booking Engine)','Add Manual Appointment','Добавить запись вручную','إضافة موعد يدوي','El bilen ýazgy goş','افزودن نوبت دستی'],
 ['1. Müşteri Ad Soyad & Telefon *','1. Customer Full Name & Phone *','1. Имя, фамилия и телефон клиента *','1. اسم العميل الكامل والهاتف *','1. Müşderiniň ady familiýasy we telefony *','۱. نام کامل و تلفن مشتری *'],
 ['Ad Soyad (Örn: Ahmet Bey)','Full name (e.g. Ahmet)','Имя и фамилия (например, Ахмет)','الاسم الكامل (مثال: أحمد)','Ady familiýasy (meselem: Ahmet)','نام کامل (مثلاً احمد)'],

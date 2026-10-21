@@ -38,3 +38,17 @@
 
 .salon-brand[style*="--salon-primary"] .salon-detail-footer {border-top:2px solid var(--salon-secondary);}
 .salon-brand[style*="--salon-primary"] .customer-booking-progress {border-bottom:2px solid var(--salon-secondary);padding-bottom:10px;}
+
+/* Salon brand covers the whole public page so the header and frame match the salon colours. */
+.public-storefront-page[style*="--salon-bg"] {background:var(--salon-bg);color:var(--salon-text);}
+.public-storefront-page[style*="--salon-bg"] .public-storefront-header {color:var(--salon-text);}
+.public-storefront-page[style*="--salon-bg"] .public-storefront-header a {color:var(--gold-primary);}
+.salon-brand[style*="--salon-primary"] :is(.public-storefront-badges,.salon-detail-badges) .is-open {color:var(--salon-success);}
+.salon-brand[style*="--salon-primary"] :is(.public-storefront-badges,.salon-detail-badges) .is-closed {color:var(--salon-danger);}
+.salon-brand[style*="--salon-primary"] .salon-detail-tabs button.is-active {background:var(--salon-primary);border-color:var(--salon-primary);color:var(--salon-on-primary);}
+.salon-brand[style*="--salon-primary"] .salon-detail-tabs button.is-active::after {background:var(--salon-primary);box-shadow:none;}
+/* Scrollable tab bar: fade the trailing edge so a cut-off label reads as "more to scroll". */
+.salon-detail-tabs {-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);padding-inline-end:24px;}
+[dir="rtl"] .salon-detail-tabs {-webkit-mask-image:linear-gradient(270deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(270deg,#000 calc(100% - 28px),transparent);}
+/* Dark palettes: #ef4444 text on dark surfaces is 4.1:1; #f87171 keeps danger text above 4.5:1. */
+:root[data-theme="dark"] {--theme-copy-ef4444:#f87171;}

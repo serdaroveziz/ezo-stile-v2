@@ -1194,7 +1194,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     const servicesHtml = services.map(s => `
       <div onclick="window.selectManualBookingService('${s.id}', '${s.name}', ${s.price}, ${s.duration || 30})" class="card" style="padding: 10px; margin-bottom: 6px; cursor: pointer; border-color: ${manualBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'var(--border-color)'}; background: ${manualBookingDraft.serviceId === s.id ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)'}; display: flex; justify-content: space-between; align-items: center;">
         <div>
-          <div style="font-size: 13px; font-weight: 800; color: var(--theme-ink-ffffff, #fff);"> ${s.name} (${s.duration || 30} ${t('ownerUi_109')}</div>
+          <div style="font-size: 13px; font-weight: 800; color: var(--theme-ink-ffffff, #fff);"> ${s.name} (${s.duration || 30} ${t('ownerUi_109')})</div>
         </div>
         <div style="font-size: 13px; font-weight: 900; color: var(--gold-primary);">${s.price} TL</div>
       </div>

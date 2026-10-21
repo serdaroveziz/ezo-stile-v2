@@ -16,5 +16,5 @@ export function brandingStyle(input) {
   if (!input) return '';
   const b=normalizeBranding(input),bg=b.mode==='dark'?'#171717':'#ffffff',fg=b.mode==='dark'?'#ffffff':'#171717';
   const accent=contrast(b.primary,bg)>=4.5?b.primary:fg;
-  return '--salon-primary:'+b.primary+';--salon-secondary:'+b.secondary+';--salon-on-primary:'+onColor(b.primary)+';--salon-bg:'+bg+';--salon-text:'+fg+';--gold-primary:'+accent+';--gold:'+accent+';--gold-secondary:'+accent+';--text-main:'+fg+';--text-muted:'+fg+';--text:'+fg+';--bg-card:'+bg+';--surface:'+bg+';--surface-2:'+bg+';--border-color:'+(b.mode==='dark'?'#686868':'#777777')+';';
+  return '--salon-primary:'+b.primary+';--salon-secondary:'+b.secondary+';--salon-on-primary:'+onColor(b.primary)+';--salon-bg:'+bg+';--salon-text:'+fg+';--gold-primary:'+accent+';--gold:'+accent+';--gold-secondary:'+accent+';--text-main:'+fg+';--text-muted:'+fg+';--text:'+fg+';--bg-card:'+bg+';--surface:'+bg+';--surface-2:'+bg+';--border-color:'+(b.mode==='dark'?'#686868':'#777777')+';--salon-success:'+(b.mode==='dark'?'#4ade80':'#17633f')+';--salon-danger:'+(b.mode==='dark'?'#fca5a5':'#a51d36')+';';
 }

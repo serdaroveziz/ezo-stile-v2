@@ -1,4 +1,4 @@
-import { SALON_TYPES, discoverSalons, salonTypeLabel, validPoint } from '../salon-discovery.js';
+import { SALON_TYPES, discoverSalons, salonTypeLabel, validPoint, uniquePlaceNames } from '../salon-discovery.js';
 import { renderAvailabilityHints } from './booking-availability-hints.js';
 import { staffCanProvideService } from '../booking-selection.js';
 import { brandingStyle } from '../brand-colors.js';
@@ -208,7 +208,7 @@ async function renderSharedSalonDetail() {
     document.body.classList.add('public-storefront-mode');
     const container = document.getElementById('app-container');
     if (!container) return;
-    container.innerHTML = `<div class="public-storefront-page animate-fade"><header class="public-storefront-header"><a href="/" aria-label="${t('uiRemaining_147')}">UNELIVO</a><span>${t('uiRemaining_003')}</span></header><main class="public-storefront-content salon-detail-surface salon-brand" style="${brandingStyle(state.model.business.branding)}">${body}<footer class="salon-detail-footer">${bookButton}</footer></main></div>`;
+    container.innerHTML = `<div class="public-storefront-page animate-fade" style="${brandingStyle(state.model.business.branding)}"><header class="public-storefront-header"><a href="/" aria-label="${t('uiRemaining_147')}">UNELIVO</a><span>${t('uiRemaining_003')}</span></header><main class="public-storefront-content salon-detail-surface salon-brand" style="${brandingStyle(state.model.business.branding)}">${body}<footer class="salon-detail-footer">${bookButton}</footer></main></div>`;
   } else {
     document.body.classList.add('modal-open');
     document.body.style.overflow = 'hidden';
@@ -373,7 +373,7 @@ async function renderPublicStorefrontDirect(biz) {
       <section class="public-storefront-hero"><img class="public-storefront-cover" src="${escapeCustomerText(coverUrl)}" alt="${t('uiRemaining_004')}"></section>
       <section class="public-storefront-identity"><div class="public-storefront-summary">${profileUrl ? `<img class="public-storefront-logo" src="${escapeCustomerText(profileUrl)}" alt="${t('uiRemaining_005')}">` : ''}<div><h1>${escapeCustomerText(biz.name || t('staffUi_59'))}</h1><p>${escapeCustomerText(biz.category || '')}${biz.category ? ' • ' : ''}${escapeCustomerText([biz.neighborhood,biz.district,biz.city].filter(Boolean).join(' / '))}</p><div class="public-storefront-badges"><span>${uiIcon('star')} ${ratingLabel}</span><span class="${todaySchedule && todaySchedule.isOpen === false ? 'is-closed' : 'is-open'}">${todayStatus}</span></div></div></div>${biz.description ? `<p class="public-storefront-description">${escapeCustomerText(biz.description)}</p>` : ''}<div class="public-storefront-location">${uiIcon('mapPin')}<span>${escapeCustomerText([biz.address,biz.neighborhood,biz.district,biz.city].filter(Boolean).join(', '))}</span>${directionsUrl ? `<a href="${directionsUrl}" target="_blank" rel="noopener noreferrer">${t('uiRemaining_006')}</a>` : ''}</div></section>
       <div class="public-storefront-grid"><div class="public-storefront-main">
-        <section class="public-storefront-section"><h2>${t('ownerUi_087')}</h2><div class="public-service-list">${services.length ? services.map(service => `<div class="public-service-row"><span>${escapeCustomerText(service.name)} (${Number(service.duration) || 30} ${t('ownerUi_109')}</span><strong>${Number(service.price) || 0} TL</strong>${biz.bookingEnabled !== false ? `<button class="btn btn-secondary public-service-book" onclick="window.beginNewBookingFromSalonById('${businessId}',decodeURIComponent('${encodeURIComponent(String(service.id))}'))">${t('uiRemaining_007')}</button>` : ''}</div>`).join('') : `<div class="public-empty">${t('uiRemaining_008')}</div>`}</div></section>
+        <section class="public-storefront-section"><h2>${t('ownerUi_087')}</h2><div class="public-service-list">${services.length ? services.map(service => `<div class="public-service-row"><span>${escapeCustomerText(service.name)} (${Number(service.duration) || 30} ${t('ownerUi_109')})</span><strong>${Number(service.price) || 0} TL</strong>${biz.bookingEnabled !== false ? `<button class="btn btn-secondary public-service-book" onclick="window.beginNewBookingFromSalonById('${businessId}',decodeURIComponent('${encodeURIComponent(String(service.id))}'))">${t('uiRemaining_007')}</button>` : ''}</div>`).join('') : `<div class="public-empty">${t('uiRemaining_008')}</div>`}</div></section>
         <section class="public-storefront-section"><h2>${t('uiRemaining_301')}</h2><div class="salon-staff-grid">${staff.length ? staff.map(member => `<div class="salon-staff-card">${renderStaffAvatar(member,42)}<span><strong>${formatPersonName(member.displayName || member.name)}</strong><small>${escapeCustomerText(member.roleLabel || member.title || member.role || t('ownerUi_076'))}</small></span></div>`).join('') : `<div class="public-empty">${t('uiRemaining_009')}</div>`}</div></section>
         ${gallery.length ? `<section class="public-storefront-section"><h2>${t('ownerUi_274')}</h2><div class="public-storefront-gallery">${gallery.map((url,index) => `<button class="salon-gallery-thumb" onclick="window.openPublicStorefrontGallery(${index})"><img src="${escapeCustomerText(url)}" alt="${t('uiRemaining_010')} ${index+1}"></button>`).join('')}</div></section>` : ''}
         <section class="public-storefront-section"><h2>${uiIcon('star')} ${t('uiRemaining_302')} <small>${ratingLabel}</small></h2>${reviews.length ? reviews.slice(0,3).map(renderReview).join('') : `<div class="public-empty">${t('uiRemaining_011')}</div>`}${reviews.length > 3 ? `<details class="public-more-reviews"><summary>${t('uiRemaining_012')}${reviews.length-3})</summary>${reviews.slice(3).map(renderReview).join('')}</details>` : ''}</section>
@@ -605,8 +605,8 @@ export async function renderCustomerScreen(user, onTabChange) {
       });
     }
     if (customerSalonFilter === 'favorites') salons = salons.filter(b => favoriteSalonIds.has(b.businessId));
-    const discoveryCities=[...new Set(salons.map(b=>b.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
-    const discoveryDistricts=[...new Set(salons.filter(b=>!discoveryFilters.city||b.city===discoveryFilters.city).map(b=>b.district).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'tr'));
+    const discoveryCities=uniquePlaceNames(salons.map(b=>b.city));
+    const sameCity=(a,b)=>String(a||'').trim().toLocaleLowerCase('tr-TR')===String(b||'').trim().toLocaleLowerCase('tr-TR');const discoveryDistricts=uniquePlaceNames(salons.filter(b=>!discoveryFilters.city||sameCity(b.city,discoveryFilters.city)).map(b=>b.district));
     salons=discoverSalons(salons,discoveryFilters);
 
     const salonCardsHtml = salons.map(b => {
@@ -792,7 +792,7 @@ export async function renderCustomerScreen(user, onTabChange) {
               ${cachedCurrentServices.length === 0 ? `<div style="font-size: 11px; color: var(--text-muted);">${t('uiRemaining_034')}</div>` : cachedCurrentServices.map(s => `
                 <div onclick="window.selectDraftServiceById('${s.id}')" class="card" style="padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: ${customerBookingDraft.serviceId === s.id ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.03)'}; border-color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'transparent'};">
                   <div>
-                    <div style="font-size: 13px; font-weight: 700; color: var(--theme-ink-ffffff, #fff);">${s.name} (${s.duration || 30} ${t('ownerUi_109')}</div>
+                    <div style="font-size: 13px; font-weight: 700; color: var(--theme-ink-ffffff, #fff);">${s.name} (${s.duration || 30} ${t('ownerUi_109')})</div>
                     <div style="font-size: 11px; color: var(--gold-primary); font-weight: 800;"> ${s.price} TL</div>
                   </div>
                   <div style="font-size: 13px; font-weight: 800; color: ${customerBookingDraft.serviceId === s.id ? 'var(--gold-primary)' : 'var(--text-muted)'};">${customerBookingDraft.serviceId === s.id ? t('uiRemaining_035') : t('uiRemaining_036')}</div>
@@ -1063,7 +1063,7 @@ export async function renderCustomerScreen(user, onTabChange) {
       <div style="display: flex; align-items: center;">
         <button aria-label="${t('notificationSettings', currentLang)}" onclick="window.openNotificationCenterModal()" class="icon-button" style="position:relative;color:var(--gold-primary);">
           ${uiIcon('bell')}
-          ${unreadCount > 0 ? `<span id="customer-unread-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #ef4444; color: var(--theme-ink-ffffff, #fff); font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center;">${unreadCount}</span>` : ''}
+          ${unreadCount > 0 ? `<span id="customer-unread-badge" style="position: absolute; top: -4px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #dc2626; color: #fff; font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center;">${unreadCount}</span>` : ''}
         </button>
       </div>
     </div>
@@ -2029,7 +2029,7 @@ export async function renderCustomerScreen(user, onTabChange) {
     const reviewEligibility = reviewsData.reviewEligibility || { mode:'none' };
     const servicesHtml = servicesList.map(s => `
       <div class="public-service-row">
-        <span style="color: var(--theme-ink-ffffff, #fff);"> ${escapeCustomerText(s.name)} (${Number(s.duration) || 30} ${t('ownerUi_109')}</span>
+        <span style="color: var(--theme-ink-ffffff, #fff);"> ${escapeCustomerText(s.name)} (${Number(s.duration) || 30} ${t('ownerUi_109')})</span>
         <span style="color: var(--gold-primary); font-weight: 800;">${Number(s.price) || 0} TL</span>
         ${options.publicStorefront && biz.bookingEnabled !== false ? `<button type="button" class="btn btn-secondary public-service-book" onclick="window.beginNewBookingFromSalonById('${businessId}',decodeURIComponent('${encodeURIComponent(String(s.id || ''))}'))">${t('uiRemaining_007')}</button>` : ''}
       </div>
