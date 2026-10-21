@@ -1,5 +1,6 @@
-﻿/* EZO STİLE v2 - Security & Permission Engine */
+﻿/* UNELIVO - Security & Permission Engine */
 import { CONFIG } from './config.js';
+import { hasPermission as permissionListHas } from './staff-permissions.js';
 
 export const PERMISSIONS = {
   SUPER_ADMIN_MANAGE: 'super_admin.manage',
@@ -29,14 +30,12 @@ export function hasPermission(user, requiredPerm) {
   }
 
   if (role === 'manager') {
-    const userPerms = user.permissions || {};
-    return Boolean(userPerms[requiredPerm] || userPerms[requiredPerm.replace('.', '_')]);
+    return permissionListHas(user.permissions,requiredPerm);
   }
 
   if (role === 'barber' || role === 'receptionist') {
     return requiredPerm === PERMISSIONS.APPOINTMENTS_VIEW ||
-           requiredPerm === PERMISSIONS.APPOINTMENTS_MANAGE ||
-           requiredPerm === PERMISSIONS.SCHEDULE_MANAGE;
+           requiredPerm === PERMISSIONS.APPOINTMENTS_MANAGE;
   }
 
   if (role === 'customer') {

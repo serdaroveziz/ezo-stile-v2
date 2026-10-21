@@ -1,0 +1,14 @@
+{
+  "businesses": {
+    "biz_a": {"staff":{"stf_a":{"phone":"05551112233","active":true,"userId":"u_a"}}},
+    "biz_b": {"staff":{}}
+  },
+  "users": {"u_a":{"phone":"+90 555 111 22 33","role":"barber","businessId":"biz_a"}},
+  "staff_phone_index": {"5559998877":{"state":"pending","businessId":"biz_b","inviteId":"missing_invite"}},
+  "staff_invites": {
+    "inv_expired":{"businessId":"biz_a","phone":"5552223344","status":"pending","used":false,"expiresAt":1},
+    "inv_linked":{"businessId":"biz_a","phone":"+905551112233","status":"pending","used":false,"expiresAt":4102444800000},
+    "inv_cancelled":{"businessId":"biz_b","phone":"5553334455","status":"cancelled","used":false,"expiresAt":4102444800000},
+    "inv_orphan":{"businessId":"missing","phone":"5554445566","status":"pending","used":false,"expiresAt":4102444800000}
+  }
+}

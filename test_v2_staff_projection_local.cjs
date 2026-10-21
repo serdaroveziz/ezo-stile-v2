@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+(async()=>{
+ const {projectStaffBusiness,projectStaffAppointment}=await import('./server/staff-projection.js');
+ const b={name:'Salon',ownerUid:'secret',plan:'PREMIUM',subscription:{secret:true},weeklySchedule:{monday:{isOpen:true,start:'09:00',end:'18:00',secret:'hidden'}},services:{s:{id:'s',name:'Cut',price:100,secret:'hidden'}},staff:{me:{userId:'u',name:'Me',role:'barber',phone:'secret'},other:{userId:'other',name:'Other',role:'barber',weeklySchedule:{monday:{start:'10:00',end:'17:00'}}}}};
+ const view=projectStaffBusiness(b,'u',[]);assert.equal(view.business.name,'Salon');assert(!JSON.stringify(view).includes('secret'));assert(!('weeklySchedule'in view.staff[0]),'missing own schedule falls back to salon');assert(!('weeklySchedule'in view.staff[1]));assert(!('userId'in view.staff[1]));
+ assert(projectStaffBusiness(b,'u',['schedule.view']).staff[1].weeklySchedule);
+ const apt={aptId:'a',customerName:'A',customerPhone:'secret',price:100,servicePriceSnapshot:100,internalNotes:'secret',newPrivateField:'secret'};
+ const limited=projectStaffAppointment(apt,[]);assert.deepEqual(limited,{aptId:'a',customerName:'A'});
+ const allowed=projectStaffAppointment(apt,['customer.phone.view','finance.view']);assert.equal(allowed.price,100);assert.equal(allowed.customerPhone,'secret');assert(!('internalNotes'in allowed));
+ let tick,cleared=0,changed=0,current={status:'approved'},release;
+ const source=fs.readFileSync('src/db.js','utf8');const fn=source.slice(source.indexOf('export function subscribeToScopedRefresh')).replace('export function','function');
+ const context={activeSubscriptions:new Map(),document:{hidden:false,addEventListener(){},removeEventListener(){}},setInterval(callback,ms){assert.equal(ms,15000);tick=callback;return 7;},clearInterval(id){assert.equal(id,7);cleared++;},console};vm.createContext(context);vm.runInContext(fn,context);
+ const stop=context.subscribeToScopedRefresh('staff',async()=>current,()=>changed++,current);
+ await tick();assert.equal(changed,0);current={status:'completed'};await tick();assert.equal(changed,1);await tick();assert.equal(changed,1);
+ context.document.hidden=true;current={status:'cancelled'};await tick();assert.equal(changed,1);context.document.hidden=false;await tick();assert.equal(changed,2);
+ stop();await tick();assert.equal(changed,2);assert.equal(cleared,1);assert.equal(context.activeSubscriptions.size,0);
+ const pending=context.subscribeToScopedRefresh('staff',()=>new Promise(r=>release=r),()=>changed++,{});const running=tick();pending();release({status:'late'});await running;assert.equal(changed,2,'session cleanup suppresses late callback');
+ const admin=fs.readFileSync('src/ui/super-admin.js','utf8');const support=admin.slice(admin.indexOf('if (supportViewBusinessId)'),admin.indexOf("  const container = document.getElementById('app-container');",admin.indexOf('if (supportViewBusinessId)')));assert(support.includes('return;'));assert(!/saveRecord|authenticatedFetch|renderOwnerScreen/.test(support));
+ console.log('PASS: staff projection privacy, schedule fallback, authorized refresh, logout cleanup, Support Mode read-only UI');
+})().catch(error=>{console.error(error);process.exit(1)});

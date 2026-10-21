@@ -1,0 +1,22 @@
+.git/
+.vercel/
+node_modules/
+.env*
+work/
+outputs/
+test-fixtures/
+scripts/
+test_*
+run_replicate_live_test.*
+build_v2_files.js
+*.log
+**/*.backup
+.firebaserc
+firebase*.json
+database.rules.json
+# Yerel yedekler, tanılama ve iç belgeler yayınlanmaz
+*yedek*
+local-boot-check.html
+docs/
+*.txt
+INSTALL-WORKSPACE.ps1

@@ -1,5 +1,6 @@
-﻿/* EZO STİLE v2 - Platform Audit Logger Service */
+﻿/* UNELIVO - Platform Audit Logger Service */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+import { firebaseFetch } from '../../firebase-admin.js';
 
 export async function writeAuditLog({ actorUid, actorRole, action, targetType, targetId, businessId, metadata }) {
   try {
@@ -16,7 +17,7 @@ export async function writeAuditLog({ actorUid, actorRole, action, targetType, t
       timestamp: new Date().toISOString()
     };
 
-    await fetch(`${FIREBASE_DB_URL}/audit_logs/${logId}.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/audit_logs/${logId}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(logRecord)

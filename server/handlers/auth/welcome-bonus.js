@@ -1,62 +1,15 @@
-/* EZO STİLE v2 - New User Welcome AI Bonus Endpoint (+3 Economy Credits, Strictly Idempotent) */
-const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
-
+import { getAdminDatabase, transactionWithCurrentValue } from '../../firebase-admin.js';
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+  const uid = req.auth?.uid;
+  if (!uid || (req.body?.userUid && req.body.userUid !== uid)) return res.status(403).json({ error: 'Kimlik eşleşmiyor.' });
   try {
-    const { userUid } = req.body || {};
-
-    if (!userUid) {
-      return res.status(400).json({ error: 'userUid zorunludur' });
-    }
-
-    // 1. FETCH USER PROFILE
-    const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
-    const user = userRes.ok ? await userRes.json() : null;
-
-    if (!user) {
-      return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
-    }
-
-    // 2. IDEMPOTENCY CHECK
-    if (user.welcomeAiBonusGranted) {
-      return res.status(400).json({
-        error: 'Hoş geldin AI bonusu bu hesap tarafından daha önce alınmıştır.',
-        welcomeAiBonusGranted: true
-      });
-    }
-
-    // 3. GRANT +3 ECONOMY CREDITS ATOMICALLY
-    const currentCredits = user.aiCredits || { economy: 0, premium: 1 };
-    const updatedCredits = {
-      ...currentCredits,
-      economy: (currentCredits.economy || 0) + 3
-    };
-    const currentBonusEarned = user.bonusEarnedCredits || 0;
-
-    await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        aiCredits: updatedCredits,
-        welcomeAiBonusGranted: true,
-        welcomeAiBonusGrantedAt: new Date().toISOString(),
-        bonusEarnedCredits: currentBonusEarned + 3
-      })
+    const result = await transactionWithCurrentValue(getAdminDatabase().ref('users/' + uid), user => {
+      if (!user || user.welcomeAiBonusGranted) return;
+      const credits = user.aiCredits || { economy: 0, premium: 1 };
+      return { ...user, aiCredits: { ...credits, economy: (Number(credits.economy) || 0) + 3 }, welcomeAiBonusGranted: true, welcomeAiBonusGrantedAt: new Date().toISOString(), bonusEarnedCredits: (Number(user.bonusEarnedCredits) || 0) + 3 };
     });
-
-    return res.status(200).json({
-      success: true,
-      userUid,
-      bonusGranted: 3,
-      aiCredits: updatedCredits
-    });
-
-  } catch (err) {
-    console.error('Welcome bonus API error:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
+    if (!result.committed) return res.status(result.snapshot.exists() ? 400 : 404).json({ error: 'Bonus daha önce alınmış veya kullanıcı bulunamadı.', welcomeAiBonusGranted: Boolean(result.snapshot.val()?.welcomeAiBonusGranted) });
+    return res.status(200).json({ success: true, userUid: uid, bonusGranted: 3, aiCredits: result.snapshot.val().aiCredits });
+  } catch (error) { return res.status(500).json({ error: 'Bonus kaydedilemedi.' }); }
 }

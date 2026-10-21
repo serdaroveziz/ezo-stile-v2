@@ -1,0 +1,28 @@
+UNELIVO — Çalışan takvimi ve sade gezinme
+Mevcut proje klasörünü yedekleyin. Paketin içindekileri ezo-stile-v2 içine
+kopyalayıp aynı adlı dosyaları değiştirin. Diğer dosyaları silmeyin.
+Paket önceki akış, çakışma ve admin tekrar giriş düzeltmelerini içerir.
+
+Kontrol:
+node test_v2_owner_calendar_runtime.cjs
+node test_v2_booking_collision_runtime.cjs
+node test_v2_admin_reentry_runtime.cjs
+node scripts/run-security-regressions.cjs
+
+Preview:
+vercel.cmd --yes --scope serdaroveziz17-8085s-projects
+Yeni Share > Anyone with the link bağlantısını kullanın. Production yayınlanmaz.
+
+Patron: Alt menüde Takvim. Mobilde tek çalışan seçilir. Tüm çalışanlar
+seçeneği yatay kaydırılır. Tarih ve hizmet seçin; müsait aralık manuel
+randevuyu çalışan ve saat hazır seçili açar. Sunucu tekrar çakışma kontrolü yapar.
+Randevu bloğu hizmet süresi kadar yer kaplar. Bloğa dokunmak ilgili tarih ve
+çalışanın randevu listesine götürür. İzin, kapalı ve geçmiş saatler seçilemez.
+Ciro Yönetim altında ve ana ekran ciro kartında erişilebilir.
+Çalışan: Ana ekranda dolu/müsait saatler ve yetkisi varsa manuel randevu.
+Müşteri: Alt menü dört ana işlemle sadeleşti. AI özelliği Profil içinde korunur.
+Hizmet > Çalışan > Tarih/Saat akışı korunur.
+
+Yerel takvim, çakışma, admin tekrar giriş testleri ve 20/20 regresyon geçti.
+Gerçek telefon görsel/etkileşim kontrolü yapılmadı; yeni Preview'da kontrol edin.
+Canlı Firebase verileri ve güvenlik kuralları değiştirilmedi.

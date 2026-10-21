@@ -1,7 +1,10 @@
-﻿/* EZO STİLE v2 - Atomic Appointment Lifecycle Status Update, Completed AI Bonus & Notification Dispatcher Endpoint */
+import { publishBookingRevision } from '../../booking-revision.js';
+﻿/* UNELIVO - Atomic Appointment Lifecycle Status Update, Completed AI Bonus & Notification Dispatcher Endpoint */
 import { sendNotification } from '../notifications/send.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+import { firebaseFetch, getAdminDatabase, transactionWithCurrentValue } from '../../firebase-admin.js';
+import { hasStaffPermission } from '../../../src/staff-permissions.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,15 +24,15 @@ export default async function handler(req, res) {
     }
 
     // 1. FETCH APPOINTMENT & CALLER PROFILE
-    const aptRes = await fetch(`${FIREBASE_DB_URL}/appointments/${aptId}.json`);
+    const aptRes = await firebaseFetch(`${FIREBASE_DB_URL}/appointments/${aptId}.json`);
     const apt = aptRes.ok ? await aptRes.json() : null;
 
     if (!apt) {
       return res.status(404).json({ error: 'Randevu bulunamadı' });
     }
 
-    const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
-    const user = userRes.ok ? await userRes.json() : null;
+    const userRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
+    const user = req.auth && req.auth.uid === userUid ? req.auth.profile : null;
 
     if (!user) {
       return res.status(403).json({ error: 'Kullanıcı bulunamadı' });
@@ -55,17 +58,59 @@ export default async function handler(req, res) {
 
     // 3. AUTHORIZATION CHECK FOR TENANT / CUSTOMER
     const isCustomerOwner = userUid === apt.customerUid;
-    const isTenantStaff = user.businessId === apt.businessId;
+    const isTenantStaff = user.businessId === apt.businessId && ['owner', 'manager', 'barber', 'receptionist'].includes(user.role);
     const isSuperAdmin = user.role === 'super_admin';
+    const isAssignedBarber = user.role !== 'barber' || [userUid, `stf_${userUid}`, user.staffId].filter(Boolean).includes(apt.staffId);
 
-    if (!isCustomerOwner && !isTenantStaff && !isSuperAdmin) {
+    if (user.role === 'barber') {
+      if (!isAssignedBarber) return res.status(403).json({ error: 'Yalnız kendi randevularınızı yönetebilirsiniz.' });
+      if (newStatus === 'completed' && !hasStaffPermission(user, 'appointments.own.complete')) return res.status(403).json({ error: 'Randevuyu tamamlama izniniz yok.' });
+      if (newStatus === 'no_show' && !hasStaffPermission(user, 'appointments.no_show')) return res.status(403).json({ error: 'No-show işaretleme izniniz yok.' });
+    }
+    if (['manager','receptionist'].includes(user.role) && ['approved','rejected','cancelled','completed','no_show'].includes(newStatus)) {
+      const requiredPermission = apt.status === 'cancel_requested' ? 'requests.manage' : 'appointments.manage';
+      if (!hasStaffPermission(user, requiredPermission)) return res.status(403).json({ error: requiredPermission === 'requests.manage' ? 'İptal taleplerini yönetme izniniz yok.' : 'Randevu yönetme izniniz yok.' });
+    }
+
+    if (!isCustomerOwner && !(isTenantStaff && isAssignedBarber) && !isSuperAdmin) {
       return res.status(403).json({ error: 'Bu randevu üzerinde yetkiniz bulunmamaktadır.' });
+    }
+
+    if (user.role==='customer' && !['cancel_requested','reschedule_requested'].includes(newStatus)) return res.status(403).json({error:'Müşteri yalnızca iptal veya değişiklik talebi gönderebilir.'});
+    if (['cancelled','rejected','completed','expired','no_show'].includes(apt.status)) return res.status(409).json({error:'Sonlandırılmış randevu yeniden açılamaz.'});
+    let effectiveStatus = newStatus;
+    let cancellationMode = null;
+    let business = null;
+    const patchPayload = {
+      status: effectiveStatus,
+      statusUpdatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    if (newStatus === 'cancel_requested' && isCustomerOwner) {
+      patchPayload.cancelRequestId = `req_cancel_${aptId}_${Date.now()}`;
+      patchPayload.cancelRequestStatus = cancellationMode === 'request_submitted' ? 'pending' : 'approved';
+      const appointmentStartMs = new Date(`${apt.date}T${apt.time}:00+03:00`).getTime();
+      const hoursUntilAppointment = (appointmentStartMs - Date.now()) / 3600000;
+      const businessRes = await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${apt.businessId}.json`);
+      business = businessRes.ok ? await businessRes.json() : null;
+      if (hoursUntilAppointment >= 48) {
+        effectiveStatus = 'cancelled';
+        cancellationMode = 'direct_cancelled';
+      } else {
+        effectiveStatus = 'cancel_requested';
+        cancellationMode = 'request_submitted';
+      }
+    }
+
+    // An owner approval must not erase a concurrent customer reschedule request.
+    if (newStatus === 'approved' && apt.requestedDate && apt.requestedTime) {
+      effectiveStatus = 'reschedule_requested';
     }
 
     // 4. COMPLETED APPOINTMENT AI BONUS ENGINE (+2 Economy Credits, Idempotent)
     let bonusGrantedThisTime = false;
     if (newStatus === 'completed' && !apt.appointmentAiBonusGranted) {
-      const customerRes = await fetch(`${FIREBASE_DB_URL}/users/${apt.customerUid}.json`);
+      const customerRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${apt.customerUid}.json`);
       const customer = customerRes.ok ? await customerRes.json() : null;
 
       if (customer) {
@@ -76,7 +121,7 @@ export default async function handler(req, res) {
         };
         const currentBonusEarned = customer.bonusEarnedCredits || 0;
 
-        await fetch(`${FIREBASE_DB_URL}/users/${apt.customerUid}.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/users/${apt.customerUid}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -90,27 +135,50 @@ export default async function handler(req, res) {
     }
 
     // 5. UPDATE APPOINTMENT STATUS IN DB
-    const patchPayload = {
-      status: newStatus,
-      statusUpdatedAt: new Date().toISOString()
-    };
+    patchPayload.status = effectiveStatus;
+    if (newStatus === 'cancel_requested' && isCustomerOwner) {
+      patchPayload.statusBeforeRequest = cancellationMode === 'request_submitted'
+        ? (['pending', 'approved'].includes(apt.status) ? apt.status : (apt.statusBeforeRequest || 'pending'))
+        : null;
+      patchPayload.cancelRequestedAt = new Date().toISOString();
+      if (cancellationMode === 'direct_cancelled') patchPayload.cancelledBy = 'customer_48h_policy';
+    }
+    if (newStatus === 'approved' && effectiveStatus === 'reschedule_requested') patchPayload.appointmentApprovalStatus = 'approved';
+    if (newStatus === 'approved' && apt.status === 'cancel_requested' && !apt.requestedDate) {
+      patchPayload.statusBeforeRequest = null;
+      patchPayload.cancelRequestStatus = 'rejected';
+      patchPayload.cancelRequestRejectedAt = new Date().toISOString();
+    }
+    if (newStatus === 'cancelled' && apt.status === 'cancel_requested') {
+      patchPayload.cancelRequestStatus = 'approved';
+      patchPayload.cancelRequestApprovedAt = new Date().toISOString();
+    }
     if (bonusGrantedThisTime) {
       patchPayload.appointmentAiBonusGranted = true;
       patchPayload.appointmentAiBonusGrantedAt = new Date().toISOString();
     }
 
-    const updateRes = await fetch(`${FIREBASE_DB_URL}/appointments/${aptId}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patchPayload)
+    const updateResult = await transactionWithCurrentValue(getAdminDatabase().ref('appointments'), current => {
+      if (!current || JSON.stringify(current[aptId]) !== JSON.stringify(apt)) return;
+      current[aptId] = {...current[aptId], ...patchPayload};
+      return current;
     });
+    if (!updateResult.committed) return res.status(409).json({error:'Randevu değişti; güncel kaydı tekrar açınız.'});
 
-    if (!updateRes.ok) {
-      return res.status(500).json({ error: 'Randevu durumu güncellenemedi' });
-    }
+    await publishBookingRevision(apt.businessId);
 
     // 6. DISPATCH NOTIFICATIONS BASED ON LIFECYCLE EVENT
-    if (newStatus === 'approved') {
+    const cancelRequestRejected = apt.status === 'cancel_requested' && ['pending', 'approved'].includes(newStatus);
+    if (cancelRequestRejected) {
+      await sendNotification({
+        targetUid: apt.customerUid,
+        type: `cancel_request_rejected_${Date.now()}`,
+        title: '↩️ İptal Talebi Reddedildi',
+        message: `Randevunuz ${apt.date} @ ${apt.time} için devam ediyor.`,
+        appointmentId: aptId,
+        businessId: apt.businessId
+      });
+    } else if (newStatus === 'approved') {
       await sendNotification({
         targetUid: apt.customerUid,
         type: 'apt_approved',
@@ -128,7 +196,9 @@ export default async function handler(req, res) {
         appointmentId: aptId,
         businessId: apt.businessId
       });
-    } else if (newStatus === 'cancelled') {
+    } else if (newStatus === 'rejected') {
+      await sendNotification({ targetUid:apt.customerUid, type:'apt_rejected', title:'Randevu Talebi Reddedildi', message:'Randevu talebiniz salon tarafından reddedildi.', appointmentId:aptId, businessId:apt.businessId, requestId:`appointment:${aptId}:rejected` });
+    } else if (effectiveStatus === 'cancelled') {
       await sendNotification({
         targetUid: apt.customerUid,
         type: 'apt_cancelled',
@@ -137,7 +207,7 @@ export default async function handler(req, res) {
         appointmentId: aptId,
         businessId: apt.businessId
       });
-    } else if (newStatus === 'cancel_requested') {
+    } else if (effectiveStatus === 'cancel_requested') {
       await sendNotification({
         targetUid: apt.customerUid,
         type: 'apt_cancel_requested',
@@ -148,10 +218,30 @@ export default async function handler(req, res) {
       });
     }
 
+    if (newStatus === 'cancel_requested' && isCustomerOwner && business && business.ownerUid) {
+      const direct = cancellationMode === 'direct_cancelled';
+      await sendNotification({
+        targetUid: business.ownerUid,
+        type: direct ? 'customer_direct_cancel' : 'cancel_request',
+        title: direct ? '🚫 Müşteri Randevuyu İptal Etti' : '📩 Yakın Tarihli İptal Talebi',
+        message: direct
+          ? `${apt.customerName || 'Müşteri'} ${apt.date} @ ${apt.time} randevusunu 48 saatten önce iptal etti.`
+          : `${apt.customerName || 'Müşteri'} ${apt.date} @ ${apt.time} randevusu için iptal onayı istiyor.`,
+        appointmentId: aptId,
+        businessId: apt.businessId,
+        requestId: patchPayload.cancelRequestId,
+        targetTab: 'appointments',
+        targetSection: direct ? 'cancelled' : 'cancel_requests'
+      });
+    }
+
     return res.status(200).json({
       success: true,
       aptId,
-      status: newStatus,
+      status: effectiveStatus,
+      mode: cancellationMode,
+      requiresExternalNotice: cancellationMode === 'request_submitted',
+      businessNotificationPhone: business ? (business.whatsappPhone || business.notificationPhone || business.phone || '') : '',
       aiBonusGranted: bonusGrantedThisTime
     });
 

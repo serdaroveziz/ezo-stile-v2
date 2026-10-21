@@ -1,0 +1,1 @@
+globalThis.fetch=async()=>{throw new Error('Offline regression: network prohibited')};for(const name of ['http','https']){const m=require(name);m.request=()=>{throw new Error('Offline regression: network prohibited')};m.get=m.request;}

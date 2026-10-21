@@ -1,0 +1,39 @@
+/* Staff work area uses the same UNELIVO theme and navigation as customer/owner. */
+#app-container:has(>.staff-unified){padding:0;width:100%;max-width:1040px;margin-inline:auto}
+.staff-unified.staff-reference{background:var(--bg-primary,var(--bg));color:var(--text-main);color-scheme:inherit;min-height:100dvh;width:100%;--border-color:var(--border,rgba(128,128,128,.2))}
+.staff-unified .staff-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;margin:0;border:0;border-bottom:1px solid var(--border-color);background:var(--bg-card);border-radius:0;box-shadow:none}
+.staff-unified .staff-header-account{display:flex;align-items:center;gap:10px;border:0;background:transparent;color:var(--text-main);min-width:0;text-align:start;padding:0;cursor:pointer}
+.staff-unified .staff-header-account>span:last-child{display:grid;gap:3px;min-width:0}
+.staff-unified .staff-header-account strong{font-size:16px;font-weight:650;color:var(--text-main);overflow-wrap:anywhere}
+.staff-unified .staff-header-account small{font-size:11px;color:var(--text-muted);overflow-wrap:anywhere}
+.staff-unified .staff-header-avatar{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:var(--bg-primary);border:1px solid var(--border-color);color:var(--gold-primary);flex-shrink:0}
+.staff-unified .staff-header-bell{position:relative;color:var(--gold-primary);flex-shrink:0;min-width:44px;min-height:44px}
+.staff-unified .staff-header-bell b{position:absolute;inset-block-start:2px;inset-inline-end:0;background:var(--gold-primary);color:var(--theme-on-accent);font-size:10px;border-radius:10px;min-width:16px;padding:2px}
+.staff-unified .staff-content{width:100%;max-width:920px;margin:auto;padding:18px 16px 105px;box-sizing:border-box}
+.staff-unified .staff-page{max-width:100%;padding:0;animation:none}
+.staff-unified .staff-welcome{margin-bottom:18px}.staff-unified .staff-welcome h1{margin:0 0 6px;font-size:21px;font-weight:650;color:var(--text-main)}.staff-unified .staff-welcome p{margin:0;color:var(--text-muted);font-size:12px}
+.staff-unified :is(.staff-panel-card,.staff-appointment-card,.staff-profile-card,.staff-notification,.staff-empty,.staff-schedule-list){background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;box-shadow:none;color:var(--text-main)}
+.staff-unified :is(.staff-panel-card strong,.staff-home-metrics .staff-panel-card:nth-child(n) strong,.staff-appointment-time,.staff-appointment-main strong,.staff-section-title h2){color:var(--text-main)}
+.staff-unified :is(.staff-panel-card small,.staff-appointment-main span,.staff-appointment-time small,.staff-list-filters label,.staff-profile-card small,.staff-profile-role){color:var(--text-muted)!important}
+.staff-unified .staff-home-metrics{gap:8px;margin:18px 0}.staff-unified .staff-home-metrics .staff-panel-card{min-height:76px;padding:12px;text-align:start}.staff-unified .staff-home-metrics strong{font-size:24px;font-weight:650}
+.staff-unified .staff-section-title{margin:22px 0 12px}.staff-unified .staff-section-title h2{font-size:15px;font-weight:650}.staff-unified .staff-section-title .ui-icon{color:var(--gold-primary)}
+.staff-unified .staff-appointment-card{padding:14px 12px;gap:10px}.staff-unified .staff-appointment-main{min-width:0}.staff-unified .staff-appointment-main strong{font-size:14px}.staff-unified .staff-appointment-main span{font-size:12px;white-space:normal;overflow-wrap:anywhere}.staff-unified .staff-appointment-time{font-size:16px}.staff-unified .staff-appointment-time small{font-size:10px}
+.staff-unified .staff-daily-actions{display:flex;gap:8px;flex-wrap:wrap}.staff-unified .staff-daily-actions .btn{flex:1;min-height:44px;font-size:12px}
+.staff-unified .btn-gold,.staff-unified .staff-full-button{background:var(--gold-primary);border:1px solid var(--gold-primary);color:var(--theme-on-accent);box-shadow:none;border-radius:8px;min-height:44px}
+.staff-unified .btn-secondary{background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);min-height:44px;border-radius:8px;box-shadow:none}
+.staff-unified :is(.staff-list-filters input,.staff-list-filters select){background:var(--bg-card);border-color:var(--border-color);color:var(--text-main);height:44px}
+.staff-unified .staff-status{font-size:10px;font-weight:600;border-radius:6px;padding:5px 7px;line-height:1.4;white-space:normal}
+.staff-unified .staff-status--pending{background:var(--badge-pending-bg,#fff1cb);color:var(--badge-pending-text,#694a00)}
+.staff-unified .staff-status--approved,.staff-unified .staff-status--completed{background:var(--badge-approved-bg,#d9f4e7);color:var(--badge-approved-text,#17513c)}
+.staff-unified .staff-status--cancelled{background:var(--badge-cancelled-bg,#fbe4e6);color:var(--badge-cancelled-text,#7d2836)}
+.staff-unified .staff-action-stack,.staff-unified .staff-profile-menu{display:grid;gap:0;background:var(--bg-card);border:1px solid var(--border-color);border-radius:10px;overflow:hidden}
+.staff-unified .staff-action-card,.staff-unified .staff-profile-menu-button{background:var(--bg-card);color:var(--text-main);border:0;border-bottom:1px solid var(--border-color);border-radius:0;box-shadow:none;padding:14px 12px;min-height:54px}
+.staff-unified .staff-action-card__icon{background:transparent;color:var(--gold-primary)}.staff-unified .staff-action-card small{color:var(--text-muted);font-size:11px}.staff-unified .staff-profile-menu-button strong{font-size:13px;color:var(--text-main)}
+.staff-unified .staff-profile-card--compact{padding:18px;margin-bottom:16px}.staff-unified .staff-profile-card__top{flex-direction:row;text-align:start;gap:12px}.staff-unified .staff-profile-avatar{width:52px;height:52px;background:var(--bg-primary);color:var(--gold-primary);border:1px solid var(--border-color)}
+.staff-unified .staff-profile-actions{margin-top:16px}.staff-unified .staff-logout{margin-top:16px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;min-height:44px}
+.staff-unified .staff-notification.is-unread{border-inline-start:3px solid var(--gold-primary)}
+.staff-unified .staff-bottom-nav{width:min(100%,1040px);max-width:1040px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding-inline:8px;box-sizing:border-box;background:var(--bg-card);border-radius:0}
+.staff-unified .staff-bottom-nav .nav-item{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:50px;font-size:11px;font-weight:500;color:var(--text-muted)}.staff-unified .staff-bottom-nav .nav-item.active{color:var(--gold-primary)}
+.staff-unified .staff-bottom-nav .icon{display:grid;place-items:center;width:21px;height:21px}.staff-unified .staff-bottom-nav .ui-icon{width:21px;height:21px;display:block;transform:none;animation:none}.staff-unified .staff-bottom-nav span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.staff-unified :is(button,a,input,select):focus-visible{outline:2px solid var(--gold-primary);outline-offset:2px}
+@media(max-width:380px){.staff-unified .staff-appointment-card{grid-template-columns:50px minmax(0,1fr) auto;padding:10px 8px;gap:6px}.staff-unified .staff-status{max-width:68px}.staff-unified .staff-home-metrics .staff-panel-card{padding:10px 8px}}

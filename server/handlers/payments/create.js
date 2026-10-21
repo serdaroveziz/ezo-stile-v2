@@ -1,4 +1,6 @@
-/* EZO STİLE v2 - Unified Sandbox Payment Initialization Endpoint */
+import { requirePaymentSandbox } from '../../payment-sandbox.js';
+import { firebaseFetchChecked as firebaseFetch } from '../../firebase-admin.js';
+/* UNELIVO - Unified Sandbox Payment Initialization Endpoint */
 import { getProductById } from '../../../src/config/products.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
@@ -7,6 +9,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  if (!requirePaymentSandbox(res)) return;
 
   try {
     const { userUid, productId, platform, businessId } = req.body || {};
@@ -42,7 +46,7 @@ export default async function handler(req, res) {
       createdAt: new Date().toISOString()
     };
 
-    await fetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(paymentRecord)

@@ -1,4 +1,4 @@
-/* EZO STİLE v2 - AI Facial Analysis & Haircut Recommendation Endpoint */
+/* UNELIVO - AI Facial Analysis & Haircut Recommendation Endpoint */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {

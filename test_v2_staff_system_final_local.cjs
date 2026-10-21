@@ -1,0 +1,42 @@
+const assert = require('assert');
+const fs = require('fs');
+
+(async () => {
+  let passed = 0;
+  const check = (condition, message) => { assert.ok(condition, message); passed += 1; };
+  const permissions = await import('./src/staff-permissions.js');
+  const roleRouting = await import('./src/role-routing.js');
+  const createInvite = fs.readFileSync('server/handlers/staff/create-invite.js', 'utf8');
+  const acceptInvite = fs.readFileSync('server/handlers/staff/accept-invite.js', 'utf8');
+  const cancelInvite = fs.readFileSync('server/handlers/staff/cancel-invite.js', 'utf8');
+  const listInvites = fs.readFileSync('server/handlers/staff/list-invites.js', 'utf8');
+  const staffUpdate = fs.readFileSync('server/handlers/staff/update.js', 'utf8');
+  const bookingList = fs.readFileSync('server/handlers/booking/list.js', 'utf8');
+  const bookingStatus = fs.readFileSync('server/handlers/booking/update-status.js', 'utf8');
+  const api = fs.readFileSync('api/index.js', 'utf8');
+  const owner = fs.readFileSync('src/ui/owner.js', 'utf8');
+  const staff = fs.readFileSync('src/ui/staff.js', 'utf8');
+  const auth = fs.readFileSync('src/auth.js', 'utf8');
+
+  check(roleRouting.routeForResolvedRole('barber') === 'staff', 'barber route');
+  check(roleRouting.routeForResolvedRole('receptionist') === 'staff', 'reception route');
+  check(roleRouting.routeForResolvedRole('manager') === 'staff', 'manager route');
+  check(roleRouting.routeForResolvedRole('owner') === 'owner', 'owner route');
+  check(permissions.staffPermissionPreset('barber').includes('appointments.own.view'), 'barber preset');
+  assert.throws(() => permissions.sanitizeStaffPermissions('barber', {'finance.view': true}), /Geçersiz/, 'barber finance rejected'); passed += 1;
+  check(permissions.staffPermissionPreset('receptionist').includes('appointments.create'), 'reception create preset');
+  check(permissions.ROLE_PERMISSION_KEYS.manager.includes('finance.view'), 'manager finance configurable');
+  check(createInvite.includes('Bu telefon için zaten bekleyen bir davet var.'), 'duplicate invite message');
+  check(createInvite.includes('expiredIds') && createInvite.includes('staff_invites/${id}`'), 'expired invite cleanup');
+  check(cancelInvite.includes("status!=='pending'") && cancelInvite.includes('await ref.remove()'), 'pending cancellation');
+  check(listInvites.includes('const expired') && listInvites.includes('staff_invites/${id}`, null'), 'list cleanup');
+  check(acceptInvite.includes("[`staff_invites/${inviteId}`]: null"), 'accepted invite cleanup');
+  check(staffUpdate.includes('sanitizeStaffPermissions') && staffUpdate.includes('/disabled'), 'staff/user authoritative update');
+  check(api.includes("hasPermission(profile.permissions,'appointments.create')"), 'manual booking backend permission');
+  check(bookingList.includes('canViewCustomerPhone') && bookingList.includes('customerPhoneSnapshot'), 'phone redaction');
+  check(bookingList.includes('canViewFinance') && bookingList.includes('totalPrice'), 'finance redaction');
+  check(bookingStatus.includes('appointments.own.complete') && bookingStatus.includes('appointments.no_show'), 'status permissions');
+  check(owner.includes('/api/staff/update') && owner.includes('/api/staff/cancel-invite'), 'owner staff controls use backend');
+  check(staff.includes('renderStaffScreen') && auth.includes('resolveBackendUserRole(credential.user.uid)'), 'fresh accept resolves role and renders staff');
+  console.log(`STAFF SYSTEM FINAL LOCAL: ${passed}/20 kontrol geçti`);
+})().catch(error => { console.error(error); process.exit(1); });

@@ -1,0 +1,40 @@
+const assert=require('assert');const fs=require('fs');
+(async()=>{
+ const {resolveVerifiedTenantProfile,resolveVerifiedTenantDecision}=await import('./server/firebase-admin.js');
+ const createInvite=(await import('./server/handlers/staff/create-invite.js')).default;
+ const updateStaff=(await import('./server/handlers/staff/update.js')).default;
+ const updateSchedule=(await import('./server/handlers/staff/update-schedule.js')).default;
+ const listInvites=(await import('./server/handlers/staff/list-invites.js')).default;
+ const bookingList=(await import('./server/handlers/booking/list.js')).default;
+ const {routeForResolvedRole}=await import('./src/role-routing.js');
+ const bizA={ownerUid:'owner_a',staff:{barber:{userId:'barber_a',role:'barber',active:true,permissions:['appointments.own.view']},reception:{userId:'reception_a',role:'receptionist',active:true,permissions:['appointments.create']},manager:{userId:'manager_a',role:'manager',active:true,permissions:['schedule.manage']}}};
+ let n=0;const check=(v,m)=>{assert.ok(v,m);n++;};
+ const customer=resolveVerifiedTenantProfile('customer_a',{role:'customer',businessId:'biz_seko',permissions:['finance.view']},bizA);
+ check(customer.role==='customer'&&customer.businessId===null&&customer.permissions.length===0,'customer business spoof removed');
+ check(routeForResolvedRole(customer.role)==='customer','customer cannot render owner');
+ check(resolveVerifiedTenantProfile('owner_a',{role:'owner',businessId:'biz_a'},bizA).role==='owner','real owner verified');
+ check(resolveVerifiedTenantProfile('fake_owner',{role:'owner',businessId:'biz_a'},bizA).role==='customer','profile owner mismatch denied');
+ check(resolveVerifiedTenantProfile('barber_a',{role:'barber',businessId:'biz_a'},bizA).role==='barber','active barber verified');
+ check(resolveVerifiedTenantProfile('reception_a',{role:'receptionist',businessId:'biz_a'},bizA).role==='receptionist','active receptionist verified');
+ check(resolveVerifiedTenantProfile('manager_a',{role:'manager',businessId:'biz_a'},bizA).role==='manager','active manager verified');
+ check(resolveVerifiedTenantProfile('barber_a',{role:'barber',businessId:'biz_b'},null).role==='customer','staff cross tenant denied');
+ check(resolveVerifiedTenantProfile('owner_a',{role:'owner',businessId:'biz_b'},null).role==='customer','owner cross tenant denied');
+ check(resolveVerifiedTenantProfile('root',{role:'super_admin',businessId:'spoof'},null).role==='super_admin','super admin preserved');
+ check(resolveVerifiedTenantDecision('customer_owner',{role:'customer',businessId:'biz_a'},{ownerUid:'customer_owner'}).reason==='CUSTOMER_PROFILE','customer-ownerUid corruption deterministically remains customer');
+ check(resolveVerifiedTenantDecision('fake_owner',{role:'owner',businessId:'biz_a'},bizA).reason==='INVALID_OWNER_PROFILE_FALLBACK_CUSTOMER','invalid owner reason traced');
+ check(resolveVerifiedTenantDecision('barber_a',{role:'barber',businessId:'biz_a'},bizA).reason==='VERIFIED_ACTIVE_STAFF','staff reason traced');
+ for(const spoof of ['localStorage role=owner','portalMode=owner','businessId=Şeko'])check(routeForResolvedRole('customer')==='customer',spoof);
+ const response=()=>({code:200,payload:null,status(code){this.code=code;return this},json(payload){this.payload=payload;return this},setHeader(){}});
+ for(const handler of [createInvite,updateStaff,updateSchedule,listInvites]){const res=response();await handler({method:'POST',auth:{uid:'customer_a',profile:customer},body:{businessId:'biz_a',staffId:'x'}},res);check(res.code===403,'customer owner/staff API denied');}
+ for(const profile of [{role:'owner',businessId:'biz_a'},{role:'manager',businessId:'biz_a',permissions:['appointments.view']}]){const res=response();await bookingList({method:'POST',auth:{uid:'actor',profile},body:{businessId:'biz_b'}},res);check(res.code===403,'cross tenant appointment list denied');}
+ const auth=fs.readFileSync('src/auth.js','utf8'),owner=fs.readFileSync('src/ui/owner.js','utf8'),staff=fs.readFileSync('src/ui/staff.js','utf8'),customerUi=fs.readFileSync('src/ui/customer.js','utf8'),admin=fs.readFileSync('src/ui/super-admin.js','utf8'),index=fs.readFileSync('index.html','utf8');
+ check(auth.includes('sessionGeneration++')&&auth.includes('_unsubscribeCustomerPublicBusinesses'),'UID switch clears listeners and generation');
+ check(auth.includes('prepareAuthIdentity(auth, expectedEmail)')&&auth.includes('firebaseUser.uid !== credential.user.uid'),'login switches Firebase identity before routing');
+ check(owner.includes('isSessionCurrent(user.uid, renderGeneration)'),'stale owner render discarded');
+ check(staff.includes('isSessionCurrent(user.uid,renderGeneration)'),'stale staff render discarded');
+ check(customerUi.includes('isSessionCurrent(user.uid, renderGeneration)'),'stale customer render discarded');
+ check(admin.includes('isSessionCurrent(user.uid, renderGeneration)'),'stale admin render discarded');
+ check(index.includes('user = await resolveAuthoritativeSession(user.uid)')&&index.includes('routeForResolvedRole(user.role)'),'refresh route uses fresh backend role only');
+ check(index.includes('id="build-version-tag" hidden'),'build label hidden');
+ console.log(`AUTH TENANT ISOLATION LOCAL: ${n}/30 kontrol geçti`);
+})().catch(e=>{console.error(e);process.exit(1)});

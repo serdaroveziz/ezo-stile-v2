@@ -22,6 +22,10 @@
   ],
   "rewrites": [
     {
+      "source": "/salon/:slug",
+      "destination": "/"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index?path="
     }

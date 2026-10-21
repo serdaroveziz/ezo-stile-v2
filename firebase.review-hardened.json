@@ -1,0 +1,8 @@
+{
+  "database": [
+    {
+      "instance": "ezostile-barber-default-rtdb",
+      "rules": "outputs/database.rules.review-hardened.json"
+    }
+  ]
+}

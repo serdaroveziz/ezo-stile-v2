@@ -17,7 +17,7 @@ function assert(condition, message) {
 }
 
 async function runTests() {
-  const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+  const FIREBASE_DB_URL = require('./test-fixtures/firebase-memory.cjs').url;
 
   // TEST 1: Real Firebase DB Connectivity
   console.log('📡 1. Real Firebase Auth & Database Connectivity Test...');

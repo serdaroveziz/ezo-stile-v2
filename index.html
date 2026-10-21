@@ -2,11 +2,40 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>EZO STİLE v2 - VIP Berber & Güzellik Platformu</title>
-  <link rel="icon" type="image/png" href="./assets/icons/favicon.png">
-  <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script id="local-boot-diagnostic">
+  /* Yalnızca yerel geliştirmede açılış hatalarını ekranda gösterir; canlı ortamda çalışmaz. */
+  (function () {
+    var h = location.hostname;
+    if (h !== 'localhost' && h !== '127.0.0.1' && h !== '[::1]') return;
+    function goster(metin) {
+      var kutu = document.getElementById('boot-error-detail');
+      if (!kutu) {
+        kutu = document.createElement('pre');
+        kutu.id = 'boot-error-detail';
+        kutu.style.cssText = 'position:fixed;inset:10px;z-index:999999;background:white;color:#900;padding:20px;overflow:auto;white-space:pre-wrap;font:14px monospace';
+        document.documentElement.appendChild(kutu);
+      }
+      kutu.textContent += metin + '\n\n';
+    }
+    window.addEventListener('error', function (e) {
+      if (e.message) goster(e.message + '\nDosya: ' + e.filename + '\nSatır: ' + e.lineno);
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      goster(String(e.reason && e.reason.message || e.reason));
+    });
+  })();
+  </script>
+  <base href="/">
+  <title>UNELIVO - VIP Berber & Güzellik Platformu</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/images/unelivo-placeholder.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/unelivo-180.png">
+  <script>try { const p=localStorage.getItem('ezo_theme')||'gold';const dark=p==='system'?matchMedia('(prefers-color-scheme: dark)').matches:['gold','dark','midnight'].includes(p);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.palette=p==='system'?(dark?'gold':'light'):p==='dark'?'gold':p;document.documentElement.style.colorScheme=dark?'dark':'light'; } catch { document.documentElement.dataset.theme='dark'; }</script>
   <link rel="stylesheet" href="./src/styles/app.css">
+  <link rel="stylesheet" href="./src/styles/theme-palette.css">
+  <link rel="stylesheet" href="./src/styles/unelivo.css">
+  <link rel="stylesheet" href="./src/styles/workspace.css?v=20261015">
+  <link rel="stylesheet" href="./src/styles/staff-unified.css?v=20261016">
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#040711">
 
@@ -14,54 +43,48 @@
   <script>
     window.__EZO_BOOTED__ = false;
     window.__EZO_STAGE__ = 'BOOT_HTML';
-    window.__EZO_FE_VERSION__ = 'v2.2.0-master-fix';
-    console.log('⚡ [EZO BOOT] Initialized stage:', window.__EZO_STAGE__);
+    window.__EZO_FE_VERSION__ = 'v2.3.3-staff-analytics';
+    console.log(' [EZO BOOT] Initialized stage:', window.__EZO_STAGE__);
 
-    // Standalone 4-second watchdog timer
+    // Firebase module loading may need a few seconds on a cold edge/browser cache.
     setTimeout(function() {
       if (!window.__EZO_BOOTED__) {
-        console.error('🚨 [EZO WATCHDOG] Application failed to boot within 4s. Current stage:', window.__EZO_STAGE__);
+        console.error(' [EZO WATCHDOG] Application failed to boot within 4s. Current stage:', window.__EZO_STAGE__);
         var container = document.getElementById('app-container');
-        if (container) {
+        if (container && !container.querySelector('input, form, .auth-entry, .owner-panel, .customer-panel, .staff-reference, .super-admin-shell')) {
           container.innerHTML = '<div style="text-align: center; padding: 60px 20px;" class="animate-fade">' +
-            '<img src="./assets/images/ezo_stile_logo.png" style="max-width: 120px; height: auto; margin-bottom: 16px;" alt="EZO Logo">' +
+            '<img src="./assets/images/unelivo-placeholder.svg" style="max-width: 120px; height: auto; margin-bottom: 16px;" alt="EZO Logo">' +
             '<h3 style="font-size: 16px; color: var(--gold-primary); font-weight: 800; margin-bottom: 8px;">Başlatma Zaman Aşımı</h3>' +
             '<p style="font-size: 11px; color: var(--text-muted); margin-bottom: 20px;">Uygulama yüklenirken gecikme oluştu (Aşama: ' + window.__EZO_STAGE__ + ').</p>' +
-            '<button onclick="window.location.reload(true)" class="btn btn-gold" style="width: 100%; max-width: 240px; margin: 0 auto 10px auto; display: block;">🔄 Tekrar Dene</button>' +
-            '<button onclick="localStorage.removeItem(\'ez2_session\'); localStorage.removeItem(\'ezo_user_data\'); window.location.reload(true);" class="btn btn-secondary" style="width: 100%; max-width: 240px; margin: 0 auto; display: block;">🚪 Giriş Ekranına Dön</button>' +
+            '<button onclick="window.location.reload(true)" class="btn btn-gold" style="width: 100%; max-width: 240px; margin: 0 auto 10px auto; display: block;"> Tekrar Dene</button>' +
+            '<button onclick="localStorage.removeItem(\'ez2_session\'); localStorage.removeItem(\'ezo_user_data\'); window.location.reload(true);" class="btn btn-secondary" style="width: 100%; max-width: 240px; margin: 0 auto; display: block;"> Giriş Ekranına Dön</button>' +
           '</div>';
         }
       }
-    }, 4000);
+    }, 10000);
   </script>
 </head>
 <body>
 
   <!-- FIRST-LAUNCH PREMIUM BRANDING SPLASH OVERLAY -->
-  <div id="first-launch-splash" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #040711; z-index: 100000; align-items: center; justify-content: center; flex-direction: column; text-align: center;" class="animate-fade">
+  <div id="first-launch-splash" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #171717; z-index: 100000; align-items: center; justify-content: center; flex-direction: column; text-align: center;" class="animate-fade">
     <div style="position: relative; margin-bottom: 16px;">
       <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 180px; height: 180px; background: radial-gradient(circle, rgba(245,158,11,0.25) 0%, rgba(4,7,17,0) 70%); border-radius: 50%; pointer-events: none;"></div>
       <div style="width: 84px; height: 84px; border-radius: 50%; background: #000; border: 2px solid var(--gold-primary); display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 0 20px rgba(245,158,11,0.4);">
-        <span style="font-size: 34px; color: var(--gold-primary); font-weight: 900; letter-spacing: -1px;">E/S</span>
+        <span style="font-size: 34px; color: var(--gold-primary); font-weight: 900; letter-spacing: -1px;">U✦</span>
       </div>
     </div>
-    <h2 style="font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 2px; margin-bottom: 6px;">EZO STİLE</h2>
+    <h2 style="font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 2px; margin-bottom: 6px;">UNELIVO</h2>
     <p style="font-size: 11px; color: var(--gold-primary); font-weight: 700; letter-spacing: 1px; margin-bottom: 20px;">VIP KUAFÖR & GÜZELLİK PLATFORMU</p>
     
-    <div style="display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; color: var(--gold-primary);">
-      <span>★</span>
-      <span>★</span>
-      <span style="font-size: 26px; transform: translateY(-2px);">★</span>
-      <span>★</span>
-      <span>★</span>
-    </div>
+    <div class="brand-divider" aria-hidden="true"></div>
   </div>
 
   <!-- MAIN APP CONTAINER -->
   <main id="app-container">
     <div style="text-align: center; padding: 60px 20px;" class="animate-fade">
-      <img src="./assets/images/ezo_stile_logo.png" style="max-width: 150px; height: auto; margin-bottom: 16px; filter: drop-shadow(0 0 10px rgba(245,158,11,0.3));" alt="EZO STİLE Official Logo">
-      <h3 style="font-size: 15px; color: var(--gold-primary); font-weight: 700;">EZO STİLE Yükleniyor...</h3>
+      <img src="./assets/images/unelivo-placeholder.svg" style="max-width: 150px; height: auto; margin-bottom: 16px; filter: drop-shadow(0 0 10px rgba(245,158,11,0.3));" alt="UNELIVO Official Logo">
+      <h3 style="font-size: 15px; color: var(--gold-primary); font-weight: 700;">UNELIVO Yükleniyor...</h3>
       <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Güvenli VIP oturum doğrulanıyor</p>
     </div>
   </main>
@@ -70,16 +93,64 @@
   <div id="modal-root"></div>
 
   <!-- APPLICATION ENTRY MODULE -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js",
+        "firebase/messaging": "https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging.js"
+      }
+    }
+  </script>
   <script type="module">
     window.__EZO_STAGE__ = 'MAIN_MODULE_LOADING';
     
-    import { restoreSession, getCurrentUser, logoutUserSession } from './src/auth.js?v=2.2.0-master-fix';
-    import { renderPortalScreen } from './src/ui/portal.js?v=2.2.0-master-fix';
-    import { renderCustomerScreen } from './src/ui/customer.js?v=2.2.0-master-fix';
-    import { renderOwnerScreen } from './src/ui/owner.js?v=2.2.0-master-fix';
-    import { renderSuperAdminScreen } from './src/ui/super-admin.js?v=2.2.0-master-fix';
+    import { getPortalMode, setPortalMode, restoreSession, getCurrentUser, logoutUserSession, resolveAuthoritativeSession } from './src/auth.js?v=2.3.4-staff-panel';
+    import { t } from './src/config.js';
+    import { isInvalidSession } from './src/operation-errors.js';
+    import { renderPortalScreen, showErrorModal } from './src/ui/portal.js?v=2.3.3-staff-analytics';
+    const customerModule = () => import('./src/ui/customer.js?v=2.3.3-staff-analytics');
+    const renderCustomerScreen = async (...args) => (await customerModule()).renderCustomerScreen(...args);
+    const renderPublicSalonRoute = async (...args) => (await customerModule()).renderPublicSalonRoute(...args);
+    const beginNewBookingFromSalonById = async (...args) => (await customerModule()).beginNewBookingFromSalonById(...args);
+    const renderOwnerScreen = async (...args) => (await import('./src/ui/owner.js?v=2.3.3-staff-analytics')).renderOwnerScreen(...args);
+    const renderStaffScreen = async (...args) => (await import('./src/ui/staff.js?v=2.3.4-staff-panel')).renderStaffScreen(...args);
+    const renderSuperAdminScreen = async (...args) => (await import('./src/ui/super-admin.js?v=2.3.3-staff-analytics')).renderSuperAdminScreen(...args);
+    import { routeForResolvedRole } from './src/role-routing.js?v=2.3.5-staff-route-guard';
+    import { listenForForegroundPush } from './src/push-notifications.js?v=2.3.6-push';
+    import { savePushNavigation, takePushNavigation } from './src/push-navigation.js?v=2.3.7-push-navigation';
+    import { installThemeToggle, setThemeUser } from './src/theme.js?v=1';
+
+    installThemeToggle();
+    window.openBookingAssistant=async()=>{try{const {openBookingAssistant}=await import('./src/ui/booking-assistant.js');await openBookingAssistant(getCurrentUser());}catch(error){showErrorModal(null,error);}};
 
     window.__EZO_STAGE__ = 'MAIN_MODULE_LOADED';
+
+    // A notification may open the app after the tab was closed. Keep only a
+    // whitelisted, same-app context until the authenticated role is rendered.
+    try {
+      if (savePushNavigation(window.location.search)) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch (error) {
+      console.warn('Push navigation context could not be saved:', error);
+    }
+
+    async function resumePushNavigation(resolvedRoute) {
+      let context = null;
+      try { context = takePushNavigation(); } catch { return; }
+      if (!context) return;
+      if (resolvedRoute === 'customer' && typeof window.switchCustomerTab === 'function') {
+        await window.switchCustomerTab('appointments');
+      } else if (resolvedRoute === 'owner' && typeof window.switchOwnerTab === 'function') {
+        const section = ['pending', 'approved', 'completed', 'cancelled'].includes(context.targetSection) ? context.targetSection : 'menu';
+        await window.switchOwnerTab('appointments', section);
+      } else if (resolvedRoute === 'staff' && typeof window.switchStaffTab === 'function') {
+        await window.switchStaffTab(context.targetTab === 'notifications' ? 'notifications' : 'today');
+      } else if (resolvedRoute === 'super_admin' && typeof window.switchAdminTab === 'function') {
+        await window.switchAdminTab('dashboard');
+      }
+    }
 
     async function checkFirstLaunchSplash() {
       const isFirstLaunch = !localStorage.getItem('ezo_first_launch_completed');
@@ -87,7 +158,7 @@
         const splashEl = document.getElementById('first-launch-splash');
         if (splashEl) {
           splashEl.style.display = 'flex';
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          // No artificial startup delay.
           splashEl.style.opacity = '0';
           splashEl.style.transition = 'opacity 0.3s ease';
           await new Promise(resolve => setTimeout(resolve, 300));
@@ -100,7 +171,8 @@
     async function initApp() {
       window.__EZO_STAGE__ = 'INIT_APP_STARTED';
       try {
-        await checkFirstLaunchSplash();
+        // Restore can progress while first-launch branding is visible.
+        checkFirstLaunchSplash().catch(error => console.warn('Splash error ignored:', error));
       } catch (e) {
         console.warn('Splash error ignored:', e);
       }
@@ -108,78 +180,148 @@
       let user = null;
       try {
         window.__EZO_STAGE__ = 'SESSION_RESTORE_STARTED';
-        const sessionPromise = restoreSession();
-        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve('STARTUP_TIMEOUT'), 2500));
-        const result = await Promise.race([sessionPromise, timeoutPromise]);
-        
-        window.__EZO_STAGE__ = 'SESSION_RESTORE_FINISHED';
-
-        if (result === 'STARTUP_TIMEOUT') {
-          console.warn('⚡ Startup bootstrap timed out (2.5s). Using fallback user/portal state.');
-          user = getCurrentUser();
-        } else {
-          user = result;
-        }
+        // A slow profile API is not evidence that the user is signed out.
+        user = await restoreSession();
       } catch (err) {
-        console.error('InitApp session restore exception:', err);
-        user = getCurrentUser();
+        if (isInvalidSession(err)) {
+          await logoutUserSession().catch(() => {});
+        } else if (!/^\/salon\//i.test(window.location.pathname)) {
+          window.__EZO_BOOTED__ = true;
+          window.__EZO_STAGE__ = 'SESSION_RESTORE_RETRY';
+          showErrorModal(null, err);
+          const host = document.getElementById('app-container');
+          let retry = host.querySelector('[data-session-retry]');
+          if (!retry) {
+            retry = document.createElement('button'); retry.type = 'button';
+            retry.dataset.sessionRetry = ''; retry.className = 'btn btn-secondary';
+            retry.textContent = t('uiRemaining_174'); host.append(retry);
+          }
+          retry.onclick = async () => { retry.disabled = true; try { await initApp(); } finally { retry.disabled = false; } };
+          return;
+        }
       }
 
+      setThemeUser(user?.uid);
       window.__EZO_STAGE__ = 'ROUTE_RENDER_STARTED';
+      const publicSalonMatch = window.location.pathname.match(/^\/salon\/([^/]+)\/?$/i);
+      if (publicSalonMatch) {
+        await renderPublicSalonRoute(decodeURIComponent(publicSalonMatch[1]), handleUserRouting, user);
+        window.__EZO_BOOTED__ = true;
+        window.__EZO_STAGE__ = 'APP_MOUNTED';
+        return;
+      }
       if (!user) {
-        renderPortalScreen((authenticatedUser) => {
-          handleUserRouting(authenticatedUser);
-        });
+        renderPortalScreen(handleUserRouting);
       } else {
-        handleUserRouting(user);
+        await handleUserRouting(user, true);
       }
       
       window.__EZO_BOOTED__ = true;
       window.__EZO_STAGE__ = 'APP_MOUNTED';
-      console.log('⚡ [EZO BOOT] Complete! Stage:', window.__EZO_STAGE__);
+      console.log(' [EZO BOOT] Complete! Stage:', window.__EZO_STAGE__);
     }
 
-        function handleUserRouting(user) {
+        let routingSequence = 0;
+    async function handleUserRouting(user, alreadyResolved = false) {
+      const routeSequence = ++routingSequence;
+      const appRoot = document.getElementById('app-container');
+      const previousNodes = [...appRoot.childNodes];
+      const modalRoot = document.getElementById('modal-root');
+      const previousModalNodes = [...modalRoot.childNodes];
+      const previousBodyClass = document.body.className;
+      const previousOverflow = document.body.style.overflow;
       try {
+
         if (!user) {
-          logoutUserSession();
+          setThemeUser(null);
+          modalRoot.replaceChildren();
+          if (getCurrentUser()) await logoutUserSession().catch(() => {});
+          if (routeSequence !== routingSequence) return;
           renderPortalScreen(handleUserRouting);
           window.__EZO_BOOTED__ = true;
           window.__EZO_STAGE__ = 'APP_MOUNTED';
           return;
         }
 
-        console.log('⚡ [EZO v2] Resolved User & Role:', user);
+        appRoot.innerHTML = '<div role="status" aria-live="polite" style="padding:60px 20px;text-align:center">UNELIVO · Yükleniyor…</div>';
+        if (!alreadyResolved) user = await resolveAuthoritativeSession(user.uid);
+        if (routeSequence !== routingSequence) return;
+        setThemeUser(user.uid);
+        for(const key of ['_unsubscribeBookingRevision','_unsubscribeOwnerRealtime','_unsubscribeOwnerStaffRealtime','_unsubscribeStaffAppointments','_unsubscribeStaffNotifications','_unsubscribeStaffSchedule','_unsubscribeCustomerRealtime','_unsubscribeCustomerPublicBusinesses','_unsubscribeCustomerAppointments','_unsubscribeCustomerNotifications','_unsubscribeSuperAdminRealtime','_unsubscribeRealtime']){if(typeof window[key]==='function')window[key]();window[key]=null;}
+        window._bookingRevisionBusiness = null;
+        modalRoot.replaceChildren();
+        document.body.classList.remove('public-storefront-mode', 'modal-open');
+        document.body.style.overflow = '';
+        listenForForegroundPush(() => {}).catch(error => console.warn('Foreground push unavailable:', error));
+
+        performance.mark('unelivo-role-ready');
         window.onAppLanguageChanged = (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser());
 
-        if (user.role === 'super_admin') {
-          renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
-        } else if (user.role === 'owner' || user.role === 'manager' || user.role === 'barber' || user.role === 'receptionist') {
-          renderOwnerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
-        } else {
-          renderCustomerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+        const authoritativeRoute = routeForResolvedRole(user.role);
+        const resolvedRoute = authoritativeRoute === 'owner' && getPortalMode() === 'customer'
+          ? 'customer'
+          : authoritativeRoute;
+        if (resolvedRoute === 'staff') setPortalMode('salon');
+        if (resolvedRoute === 'customer') {
+          await renderCustomerScreen({ ...user, portalMode: 'customer' }, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+          const pendingBusinessId = sessionStorage.getItem('ezo_pending_public_booking');
+          if (pendingBusinessId && /^biz_[a-z0-9_-]+$/i.test(pendingBusinessId)) {
+            const pendingServiceId = sessionStorage.getItem('ezo_pending_public_booking_service');
+            sessionStorage.removeItem('ezo_pending_public_booking');
+            sessionStorage.removeItem('ezo_pending_public_booking_service');
+            await beginNewBookingFromSalonById(pendingBusinessId, pendingServiceId);
+          }
+          await resumePushNavigation(resolvedRoute);
+        } else if (resolvedRoute === 'super_admin') {
+          await renderSuperAdminScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+          await resumePushNavigation(resolvedRoute);
+        } else if (resolvedRoute === 'owner') {
+          await renderOwnerScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+          await resumePushNavigation(resolvedRoute);
+        } else if (resolvedRoute === 'staff') {
+          await renderStaffScreen(user, (updatedUser) => handleUserRouting(updatedUser !== undefined ? updatedUser : getCurrentUser()));
+          await resumePushNavigation(resolvedRoute);
         }
 
         window.__EZO_BOOTED__ = true;
         window.__EZO_STAGE__ = 'APP_MOUNTED';
       } catch (err) {
-        console.error('Error in handleUserRouting, falling back to Portal:', err);
-        renderPortalScreen(handleUserRouting);
+        if(routeSequence!==routingSequence)return;
+        console.error('Panel operation failed:', err);
+        if (isInvalidSession(err)) {
+          await logoutUserSession().catch(() => {});
+          modalRoot.replaceChildren();
+          renderPortalScreen(handleUserRouting);
+        } else {
+          document.body.className = previousBodyClass;
+          document.body.style.overflow = previousOverflow;
+          appRoot.replaceChildren(...previousNodes);
+          modalRoot.replaceChildren(...previousModalNodes);
+        }
+        showErrorModal(null, err);
         window.__EZO_BOOTED__ = true;
         window.__EZO_STAGE__ = 'APP_MOUNTED';
+        return false;
       }
     }
 
+    window.addEventListener('ezo:session-invalid', () => {
+      if (getCurrentUser()) handleUserRouting(null);
+    });
+    window.addEventListener('unhandledrejection', event => {
+      if (!isInvalidSession(event.reason)) showErrorModal(null, event.reason);
+    });
+
     // Register & Auto-Upgrade Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js?v=2.2.0-master-fix').then(reg => {
+      navigator.serviceWorker.register('/sw.js?v=2.3.8-native-network').then(reg => {
         reg.onupdatefound = () => {
           const installingWorker = reg.installing;
           if (installingWorker) {
             installingWorker.onstatechange = () => {
               if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('⚡ [SW] New SW version available. Auto-updating...');
-                window.location.reload();
+                console.log(' [SW] New SW version available. Auto-updating...');
+                // Apply the new worker on the next navigation, preserving active forms.
               }
             };
           }
@@ -187,10 +329,14 @@
       }).catch(e => console.log('SW Load Error:', e));
     }
 
-    document.addEventListener('DOMContentLoaded', initApp);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp, { once: true });
+    } else {
+      initApp();
+    }
   </script>
 
   <!-- VISIBLE BUILD VERSION TAG -->
-  <div id="build-version-tag" style="position: fixed; top: 4px; right: 6px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 99999; pointer-events: none; font-family: monospace;">Build: v2.2.0 (master-fix)</div>
+  <div id="build-version-tag" hidden aria-hidden="true"></div>
 </body>
 </html>

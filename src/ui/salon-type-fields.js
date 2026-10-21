@@ -1,0 +1,2 @@
+import {SALON_TYPES,normalizeSalonTypes} from '../salon-discovery.js';
+export function renderSalonTypeFields(name,selected=[]){const values=normalizeSalonTypes(selected);return `<fieldset class="salon-type-fields"><legend>İşletme türü</legend><p>Birden fazla tür seçebilirsiniz.</p>${SALON_TYPES.map(t=>`<label><input type="checkbox" name="${name}" value="${t.id}" ${values.includes(t.id)?'checked':''}> ${t.label}</label>`).join('')}</fieldset>`;}

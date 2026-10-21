@@ -1,0 +1,34 @@
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
+
+(async () => {
+  const root = __dirname;
+  const shared = await import(pathToFileURL(path.join(root, 'src/ui/salon-detail-shared.js')).href);
+  const customer = fs.readFileSync(path.join(root, 'src/ui/customer.js'), 'utf8');
+  const reviewList = fs.readFileSync(path.join(root, 'server/handlers/reviews/public-list.js'), 'utf8');
+  const reviewSubmit = fs.readFileSync(path.join(root, 'server/handlers/reviews/submit.js'), 'utf8');
+  const escape = value => String(value || '').replace(/[<>&"']/g, '');
+  const image = value => /^https:\/\//.test(String(value)) ? value : '';
+  const salonA = { businessId:'biz_a', name:'Salon A', status:'active', discoveryEnabled:true, averageRating:4.8, reviewCount:2, services:{a:{id:'a',name:'A Hizmeti',price:100,duration:45}}, staff:{a:{id:'a',displayName:'Ata',active:true}}, media:{gallery:['https://example.com/a.jpg']} };
+  const salonB = { businessId:'biz_b', name:'Salon B', status:'active', discoveryEnabled:true, services:{b:{id:'b',name:'B Hizmeti',price:200,duration:30}}, staff:{b:{id:'b',displayName:'Bora',active:true}}, media:{gallery:['https://example.com/b.jpg']} };
+  const modelA = shared.createSalonDetailModel(salonA, { escape, sanitizeImageUrl:image });
+  const modelB = shared.createSalonDetailModel(salonB, { escape, sanitizeImageUrl:image });
+  assert.equal(modelA.businessId, 'biz_a');
+  assert.equal(modelA.services[0].name, 'A Hizmeti');
+  assert.equal(modelA.staff[0].displayName, 'Ata');
+  assert(!JSON.stringify(modelB).includes('A Hizmeti'), 'another salon data must not leak into this model');
+  assert.equal(modelA.rating, 4.8);
+  assert.equal(shared.createSalonDetailModel({ ...salonA, averageRating: 6 }, { escape, sanitizeImageUrl:image }).rating, null, 'invalid rating is ignored');
+  const galleryHtml = shared.renderSalonDetailSection(modelA, 'gallery', { escape, renderStaffAvatar:() => '' });
+  assert.match(galleryHtml, /loading="lazy"/, 'gallery is lazy when its section opens');
+  const mapHtml = shared.renderSalonDetailSection(modelA, 'location', { escape, renderStaffAvatar:() => '' });
+  assert(!mapHtml.includes('<iframe'), 'map is not initialized without a valid public destination');
+  assert.match(customer, /state\.activeSection === 'reviews' && state\.reviews === null/, 'initial detail render does not request reviews');
+  assert.match(customer, /limit: 5, offset/, 'review requests use small batches');
+  assert.match(reviewList, /slice\(offset, offset \+ limit\)/, 'public review endpoint pages results');
+  assert.match(reviewList, /Number\.isInteger\(Number\(item\.rating\)\)/, 'malformed ratings are excluded from public results');
+  assert.match(reviewSubmit, /Number\.isInteger\(Number\(review\.rating\)\)/, 'rating summary excludes malformed legacy reviews');
+  console.log('SALON DETAIL LAZY LOCAL: PASS');
+})().catch(error => { console.error(error); process.exitCode = 1; });

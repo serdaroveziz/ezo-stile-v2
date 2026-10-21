@@ -1,4 +1,6 @@
-/* EZO STİLE v2 - PayTR Sandbox Webhook Callback & Entitlement Handler Endpoint */
+import { requirePaymentSandbox } from '../../payment-sandbox.js';
+import { firebaseFetchChecked as firebaseFetch } from '../../firebase-admin.js';
+/* UNELIVO - PayTR Sandbox Webhook Callback & Entitlement Handler Endpoint */
 import { getProductById } from '../../../src/config/products.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
@@ -7,6 +9,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send('FAIL');
   }
+
+  if (!requirePaymentSandbox(res)) return;
 
   try {
     const { merchant_oid, status, total_amount, hash, isSimulation, isFakeHmacAttack } = req.body || {};
@@ -22,7 +26,7 @@ export default async function handler(req, res) {
     }
 
     // 2. FETCH PAYMENT RECORD
-    const paymentRes = await fetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`);
+    const paymentRes = await firebaseFetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`);
     const payment = paymentRes.ok ? await paymentRes.json() : null;
 
     if (!payment) {
@@ -40,7 +44,7 @@ export default async function handler(req, res) {
 
     if (status !== 'success' && !isSimulation) {
       // Mark as failed
-      await fetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
+      await firebaseFetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'failed', statusUpdatedAt: new Date().toISOString() })
@@ -59,7 +63,7 @@ export default async function handler(req, res) {
 
     // 5. GRANT ENTITLEMENTS BASED ON PRODUCT TYPE
     if (product.type === 'ai_credits') {
-      const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
+      const userRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
       const user = userRes.ok ? await userRes.json() : null;
       const currentCredits = (user && user.aiCredits) ? user.aiCredits : { economy: 3, premium: 1 };
 
@@ -70,7 +74,7 @@ export default async function handler(req, res) {
       };
 
       // Update User Wallet
-      await fetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
+      await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedCredits)
@@ -93,18 +97,18 @@ export default async function handler(req, res) {
         createdAt: new Date().toISOString()
       };
 
-      await fetch(`${FIREBASE_DB_URL}/users/${userUid}/credit_ledger/${ledgerId}.json`, {
+      await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}/credit_ledger/${ledgerId}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ledgerEntry)
       });
 
     } else if (product.type === 'salon_subscription') {
-      const targetBizId = businessId || (await (await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`)).json()).businessId;
+      const targetBizId = businessId || (await (await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`)).json()).businessId;
 
       if (targetBizId) {
         // Activate Subscription in Sandbox
-        await fetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -127,7 +131,7 @@ export default async function handler(req, res) {
           autoRenew: false
         };
 
-        await fetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}/subscription.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}/subscription.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(subRecord)
@@ -136,7 +140,7 @@ export default async function handler(req, res) {
     }
 
     // 6. UPDATE PAYMENT STATE MACHINE TO SUCCESS
-    await fetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

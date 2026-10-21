@@ -1,0 +1,10 @@
+{
+  "businesses": {
+    "biz_active_one": { "name": "Şeko Erkek Kuaförü", "status": "active", "discoveryEnabled": true },
+    "biz_active_two": { "name": "Şeko Erkek Kuaförü", "status": "active", "discoveryEnabled": true },
+    "biz_renamed": { "name": "Yeni İsim Salon", "publicSlug": "eski-isim-salon-rpp4e", "status": "active", "discoveryEnabled": true },
+    "biz_hidden": { "name": "Gizli Salon", "status": "active", "discoveryEnabled": false },
+    "biz_suspended": { "name": "Askıdaki Salon", "status": "suspended", "discoveryEnabled": true },
+    "biz_booking_closed": { "name": "Randevusuz Salon", "status": "active", "discoveryEnabled": true, "bookingEnabled": false }
+  }
+}
