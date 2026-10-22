@@ -123,6 +123,7 @@
 
     installThemeToggle();
     window.openBookingAssistant=async()=>{try{const {openBookingAssistant}=await import('./src/ui/booking-assistant.js');await openBookingAssistant(getCurrentUser());}catch(error){showErrorModal(null,error);}};
+    window.openInsightsAssistant=async()=>{try{const {openInsightsAssistant}=await import('./src/ui/ai-insights.js');await openInsightsAssistant(getCurrentUser());}catch(error){showErrorModal(null,error);}};
 
     window.__EZO_STAGE__ = 'MAIN_MODULE_LOADED';
 

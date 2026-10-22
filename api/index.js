@@ -1,4 +1,5 @@
 import bookingAssistant from '../server/handlers/ai/booking-assistant.js';
+import aiInsights from '../server/handlers/ai/insights.js';
 import salonWorkspace from '../server/handlers/salon/workspace.js';
 /* EZO STİLE v2 - Central Vercel Catch-All Router (1 Single Function for Vercel Hobby Limit) */
 import url from 'url';
@@ -53,6 +54,7 @@ import { hasPermission } from '../src/staff-permissions.js';
 const HANDLERS = {
   'salon/workspace': salonWorkspace,
   'ai/booking-assistant': bookingAssistant,
+  'ai/insights': aiInsights,
   'booking/create': bookingCreate,
   'booking/update-status': bookingUpdateStatus,
   'booking/reschedule-approve': bookingRescheduleApprove,

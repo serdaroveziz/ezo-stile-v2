@@ -177,6 +177,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
            and the KPI cards below, and the audit log lives under Yönetim. -->
       <div class="animate-fade admin-welcome" style="margin: 2px 2px 14px;">
         <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main);">${t('uiRemaining_189')} ${displayName}</h3>
+        <button type="button" class="btn btn-gold" style="width:100%;margin-top:12px" onclick="window.openInsightsAssistant()">UNELIVO AI · Platformu sor</button>
       </div>
       <!-- 6 INTERACTIVE KPI CARDS (REQS 3-9) -->
       <div class="admin-metrics" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
