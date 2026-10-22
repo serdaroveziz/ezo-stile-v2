@@ -23,7 +23,7 @@
     "test:phase10": "node test_v2_phase10.cjs",
     "test:rules:emulator": "node test_v2_rules_emulator.mjs",
     "test:security:regressions": "node scripts/run-security-regressions.cjs",
-    "test:unelivo": "node test_unelivo_p0_integrity.cjs && node test_unelivo_theme_contrast.mjs && node test_unelivo_customer_ui.mjs"
+    "test:unelivo": "node test_unelivo_p0_integrity.cjs && node test_unelivo_theme_contrast.mjs && node test_unelivo_customer_ui.mjs && node test_unelivo_accent_text.mjs"
   },
   "keywords": [
     "barber",

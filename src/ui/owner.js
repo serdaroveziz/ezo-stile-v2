@@ -874,7 +874,7 @@ export async function renderOwnerScreen(user, onTabChange) {
     mainHtml = `
       <div class="card animate-fade" style="padding: 20px;">
         <div style="text-align: center; margin-bottom: 20px;">
-          <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; color: #000; margin: 0 auto;">
+          <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; color: var(--theme-on-accent, #000); margin: 0 auto;">
             ${initials}
           </div>
           <h3 style="font-size: 16px; font-weight: 800; color: var(--theme-ink-ffffff, #fff); margin-top: 8px;">${displayName}</h3>
@@ -937,7 +937,7 @@ export async function renderOwnerScreen(user, onTabChange) {
         ${renderOwnerSalonLogo(bizRecord)}
         <span style="font-size: 12px; font-weight: 800; color: var(--gold-primary);">${bizRecord.name}</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;"><button aria-label="${t('ownerUi_096')}" onclick="window.openOwnerNotificationCenter()" class="icon-button" style="position:relative;color:var(--gold-primary);">${uiIcon('bell')}${ownerUnreadCount ? `<span style="position:absolute;right:-3px;top:-4px;background:#ef4444;color:var(--theme-ink-ffffff, #fff);border-radius:10px;min-width:15px;height:15px;font-size:9px;display:flex;align-items:center;justify-content:center;">${ownerUnreadCount}</span>` : ''}</button><div style="font-size: 11px; color: var(--text-muted);">${escapeOwnerText(displayName)} (${t(isEmployee ? 'employeeRole' : 'ownerRole', currentLang)})</div></div>
+      <div style="display:flex;align-items:center;gap:8px;"><button aria-label="${t('ownerUi_096')}" onclick="window.openOwnerNotificationCenter()" class="icon-button" style="position:relative;color:var(--gold-primary);">${uiIcon('bell')}${ownerUnreadCount ? `<span style="position:absolute;right:-3px;top:-4px;background:#dc2626;color:#fff;border-radius:10px;min-width:15px;height:15px;font-size:9px;display:flex;align-items:center;justify-content:center;">${ownerUnreadCount}</span>` : ''}</button><div style="font-size: 11px; color: var(--text-muted);">${escapeOwnerText(displayName)} (${t(isEmployee ? 'employeeRole' : 'ownerRole', currentLang)})</div></div>
     </div>
 
     <main class="owner-content">${mainHtml}</main>
@@ -1178,7 +1178,7 @@ export async function renderOwnerScreen(user, onTabChange) {
         style += 'background: #eab308; color: #000; border: 1px solid #eab308; cursor: pointer;';
         icon = ' ';
       } else if (isUnavailable) {
-        style += 'background: #ef4444; color: var(--theme-ink-ffffff, #fff); border: 1px solid #ef4444; opacity: 0.55; cursor: not-allowed;';
+        style += 'background: #dc2626; color: #fff; border: 1px solid #ef4444; opacity: 0.55; cursor: not-allowed;';
         icon = t('uiRemaining_303');
       } else {
         style += 'background: #22c55e; color: var(--theme-ink-ffffff, #fff); border: 1px solid #22c55e; cursor: pointer;';

@@ -453,7 +453,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
     mainHtml = `
       <div class="card animate-fade" style="padding: 20px;">
         <div style="text-align: center; margin-bottom: 16px;">
-          <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: #000; margin: 0 auto;">
+          <div style="width: 72px; height: 72px; border-radius: 50%; background: var(--gold-gradient); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: var(--theme-on-accent, #000); margin: 0 auto;">
             ${uiIcon('shield', 'ui-icon--large', t('uiRemaining_245'))}
           </div>
           <h3 style="font-size: 16px; font-weight: 800; color: var(--theme-ink-ffffff, #fff); margin-top: 8px;">${displayName}</h3>
