@@ -32,7 +32,8 @@ const fs = require('fs');
   check(listInvites.includes('const expired') && listInvites.includes('staff_invites/${id}`, null'), 'list cleanup');
   check(acceptInvite.includes("[`staff_invites/${inviteId}`]: null"), 'accepted invite cleanup');
   check(staffUpdate.includes('sanitizeStaffPermissions') && staffUpdate.includes('/disabled'), 'staff/user authoritative update');
-  check(api.includes("hasPermission(profile.permissions,'appointments.create')"), 'manual booking backend permission');
+  // 22 Oct 2026 decision: every employee may book manually, but only for their own salon.
+  check(api.includes("Manuel randevu için salon personeli yetkisi gerekli") && api.includes("profile.businessId !== body.businessId"), 'manual booking backend limited to own-salon staff');
   check(bookingList.includes('canViewCustomerPhone') && bookingList.includes('customerPhoneSnapshot'), 'phone redaction');
   check(bookingList.includes('canViewFinance') && bookingList.includes('totalPrice'), 'finance redaction');
   check(bookingStatus.includes('appointments.own.complete') && bookingStatus.includes('appointments.no_show'), 'status permissions');

@@ -165,11 +165,13 @@ try {
   assert.equal((await call('booking/reschedule-approve',{aptId:'soon_move',action:'approve'},'o1')).code,200);
   assert.equal((await adminDb.ref('appointments/soon_move/date').get()).val(),'2099-11-01');
  });
- await check('manual booking permission regression',async()=>{
-  const body={businessId:'biz_a',isManual:true,customerName:'Walk in',customerPhone:'5551112233',staffId:'stf_s1',serviceId:'svc',date:'2099-12-01',time:'10:00'};
-  assert.equal((await call('booking/create',body,'m1')).code,403);
-  await adminDb.ref('businesses/biz_a/staff/stf_m1/permissions').set(['appointments.view','appointments.create']);
-  assert.equal((await call('booking/create',body,'m1')).code,200);
+ // Product decision (22 Oct 2026): manual booking is a base capability of every active
+ // employee of the salon; customers and other salons' staff stay blocked.
+ await check('manual booking: own-salon staff allowed, customers and other salons denied',async()=>{
+  const body=time=>({businessId:'biz_a',isManual:true,customerName:'Walk in',customerPhone:'5551112233',staffId:'stf_s1',serviceId:'svc',date:'2099-12-01',time});
+  assert.equal((await call('booking/create',body('10:00'),'m1')).code,200);
+  assert.equal((await call('booking/create',body('11:00'),'c1')).code,403);
+  assert.equal((await call('booking/create',body('12:00'),'o2')).code,403);
  });
  await check('sandbox Google and Apple Admin migration',async()=>{
   assert.equal((await call('payments/verify-google',{productId:'economy_10',purchaseToken:'emulator-receipt',isFakeToken:false})).code,200);
