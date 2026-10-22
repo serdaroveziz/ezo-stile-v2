@@ -1,5 +1,6 @@
-/* EZO STİLE v2 - Standalone AI Hair & Style Consultant Module with AI Wallet & Products Catalog */
+/* UNELIVO - Standalone AI Hair & Style Consultant Module with AI Wallet & Products Catalog */
 import { getCurrentUser } from '../auth.js';
+import { authenticatedFetch } from '../firebase.js';
 import { AI_CREDIT_CATALOG } from '../config/products.js';
 
 let aiState = {
@@ -45,7 +46,7 @@ export async function renderAiConsultantScreen(container) {
         <!-- BARBER RECIPE -->
         <div class="card" style="padding: 12px; margin-bottom: 14px; background: rgba(0,0,0,0.4);">
           <div style="font-size: 11px; color: var(--gold-primary); font-weight: 700;">✂️ Berbere Verilecek Tarif:</div>
-          <div style="font-size: 12px; color: #fff; margin-top: 4px; font-style: italic;">
+          <div style="font-size: 12px; color:var(--theme-copy-ffffff, #fff); margin-top: 4px; font-style: italic;">
             "${aiState.selectedRecommendation ? aiState.selectedRecommendation.barberRecipe : 'Yanlar 2 numara fade, üstler makas kesimi dokulu.'}"
           </div>
         </div>
@@ -76,7 +77,7 @@ export async function renderAiConsultantScreen(container) {
             <div class="card" style="padding: 12px; margin: 0; border-color: ${aiState.selectedRecommendation && aiState.selectedRecommendation.modelName === rec.modelName ? 'var(--gold-primary)' : 'var(--border-color)'};">
               <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                  <h4 style="font-size: 14px; font-weight: 800; color: #fff;">💈 ${rec.modelName}</h4>
+                  <h4 style="font-size: 14px; font-weight: 800; color:var(--theme-copy-ffffff, #fff);">💈 ${rec.modelName}</h4>
                   <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${rec.description}</div>
                   <div style="font-size: 10px; color: var(--gold-primary); margin-top: 4px;">💡 ${rec.faceMatchReason}</div>
                 </div>
@@ -112,15 +113,15 @@ export async function renderAiConsultantScreen(container) {
             <div style="font-size: 9px; color: var(--text-muted);">Economy</div>
           </div>
           <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
-            <div style="font-size: 16px; font-weight: 800; color: #e5a93b;">👑 ${credits.premium || 0}</div>
+            <div style="font-size: 16px; font-weight: 800; color:var(--theme-copy-e5a93b, #e5a93b);">👑 ${credits.premium || 0}</div>
             <div style="font-size: 9px; color: var(--text-muted);">Premium</div>
           </div>
           <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
-            <div style="font-size: 16px; font-weight: 800; color: #4cd964;">🎁 ${bonusEarned}</div>
+            <div style="font-size: 16px; font-weight: 800; color:var(--theme-copy-4cd964, #4cd964);">🎁 ${bonusEarned}</div>
             <div style="font-size: 9px; color: var(--text-muted);">Bonus</div>
           </div>
           <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 8px;">
-            <div style="font-size: 16px; font-weight: 800; color: #fff;">📊 ${usedCredits}</div>
+            <div style="font-size: 16px; font-weight: 800; color:var(--theme-copy-ffffff, #fff);">📊 ${usedCredits}</div>
             <div style="font-size: 9px; color: var(--text-muted);">Kullanılan</div>
           </div>
         </div>
@@ -161,7 +162,7 @@ export async function renderAiConsultantScreen(container) {
           ${Object.values(AI_CREDIT_CATALOG).map(pkg => `
             <div class="card" style="padding: 10px; margin: 0; display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <div style="font-size: 12px; font-weight: 800; color: #fff;">${pkg.name}</div>
+                <div style="font-size: 12px; font-weight: 800; color:var(--theme-copy-ffffff, #fff);">${pkg.name}</div>
                 <div style="font-size: 10px; color: var(--text-muted);">${pkg.description}</div>
               </div>
               <div style="text-align: right;">
@@ -181,7 +182,7 @@ export async function renderAiConsultantScreen(container) {
 
   window.watchRewardedAdSandbox = async () => {
     const user = getCurrentUser() || { uid: 'usr_demo' };
-    const res = await fetch('/api/ai/rewarded-ad', {
+    const res = await authenticatedFetch('/api/ai/rewarded-ad', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userUid: user.uid, isSandboxSimulation: true })
@@ -200,7 +201,7 @@ export async function renderAiConsultantScreen(container) {
     aiState.isGenerating = true;
     renderAiConsultantScreen(container);
 
-    const res = await fetch('/api/ai/analyze', {
+    const res = await authenticatedFetch('/api/ai/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -230,7 +231,7 @@ export async function renderAiConsultantScreen(container) {
     aiState.isGenerating = true;
     renderAiConsultantScreen(container);
 
-    const res = await fetch('/api/ai/generate', {
+    const res = await authenticatedFetch('/api/ai/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -7,7 +7,8 @@
   "scripts": {
     "start": "npx serve .",
     "test": "node test_v2_syntax.cjs",
-    "test:security": "node test_v2_security.cjs",
+    "test:security": "node test_v2_security_local.cjs",
+    "test:security:live": "node test_v2_security.cjs",
     "test:booking": "node test_v2_booking.cjs",
     "test:phase3": "node test_v2_phase3.cjs",
     "test:phase4": "node test_v2_phase4.cjs",
@@ -19,7 +20,10 @@
     "test:phase8": "node test_v2_phase8.cjs",
     "test:phase9": "node test_v2_phase9.cjs",
     "test:phase9.5": "node test_v2_phase9_5.cjs",
-    "test:phase10": "node test_v2_phase10.cjs"
+    "test:phase10": "node test_v2_phase10.cjs",
+    "test:rules:emulator": "node test_v2_rules_emulator.mjs",
+    "test:security:regressions": "node scripts/run-security-regressions.cjs",
+    "test:unelivo": "node test_unelivo_p0_integrity.cjs && node test_unelivo_theme_contrast.mjs && node test_unelivo_customer_ui.mjs && node test_unelivo_accent_text.mjs && node test_unelivo_admin_ui.mjs && node test_unelivo_ai_insights.mjs"
   },
   "keywords": [
     "barber",
@@ -29,5 +33,19 @@
     "ai"
   ],
   "author": "EZO STİLE Engineering Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "ai": "^7.0.143",
+    "firebase": "^12.18.0",
+    "firebase-admin": "^14.3.0",
+    "jose": "^5.10.0"
+  },
+  "overrides": {
+    "jwks-rsa": {
+      "jose": "4.15.9"
+    }
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2"
+  }
 }

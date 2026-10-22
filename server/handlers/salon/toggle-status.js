@@ -1,5 +1,7 @@
-/* EZO STİLE v2 - Super Admin Salon Suspension & Reactivation Endpoint */
+/* UNELIVO - Super Admin Salon Suspension & Reactivation Endpoint */
 import { writeAuditLog } from '../audit/log.js';
+import { firebaseFetch } from '../../firebase-admin.js';
+import { syncPublicBusiness } from '../../public-business.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -19,17 +21,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Geçersiz işlem. Sadece suspend veya reactivate kullanılabilir.' });
     }
 
-    // 1. VERIFY CALLER IS SUPER ADMIN STRICTLY IN DB
-    const adminCheckRes = await fetch(`${FIREBASE_DB_URL}/users/${superAdminUid}.json`);
-    const adminUser = adminCheckRes.ok ? await adminCheckRes.json() : null;
-
-    if (!adminUser || adminUser.role !== 'super_admin') {
+    if (!req.auth || !req.auth.profile || req.auth.profile.role !== 'super_admin' || req.auth.uid !== superAdminUid) {
       console.warn(`[SECURITY ALERT] Unauthorized salon status update attempt by UID: ${superAdminUid}`);
       return res.status(403).json({ error: 'Yetkisiz erişim! Yalnızca Süper Admin bu işlemi yapabilir.' });
     }
 
     // 2. FETCH BUSINESS RECORD
-    const bizRes = await fetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`);
+    const bizRes = await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`);
     const biz = bizRes.ok ? await bizRes.json() : null;
 
     if (!biz) {
@@ -39,7 +37,7 @@ export default async function handler(req, res) {
     const newStatus = action === 'suspend' ? 'suspended' : 'active';
 
     // 3. UPDATE BUSINESS STATUS IN DB
-    const updateRes = await fetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`, {
+    const updateRes = await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -52,6 +50,7 @@ export default async function handler(req, res) {
     if (!updateRes.ok) {
       return res.status(500).json({ error: 'Salon durumu güncellenemedi' });
     }
+    await syncPublicBusiness(businessId);
 
     // 4. WRITE AUDIT LOG
     await writeAuditLog({
@@ -61,7 +60,7 @@ export default async function handler(req, res) {
       targetType: 'business',
       targetId: businessId,
       businessId,
-      metadata: { reason: reason || 'Platform yönetimi' }
+      metadata: { reason: reason || 'Platform yönetimi', before: { status: biz.status || null }, after: { status: newStatus } }
     });
 
     return res.status(200).json({

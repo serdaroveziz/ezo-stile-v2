@@ -1,5 +1,35 @@
-/* EZO STİLE v2 - Serverless Transactional Super Admin Application Approval Endpoint */
-const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+import { normalizeSalonTypes } from '../../../src/salon-discovery.js';
+/* UNELIVO - Serverless Transactional Super Admin Application Approval Endpoint */
+import { getAdminDatabase, requireRole } from '../../firebase-admin.js';
+import { buildPublicBusiness } from '../../public-business.js';
+import { createPublicSalonSlug } from '../../../src/public-businesses.js';
+import { normalizePermissions } from '../../../src/staff-permissions.js';
+
+export function validateOwnerPromotion(application, applicantProfile, businesses = {}) {
+  if (!application || application.status !== 'pending') {
+    const error = new Error('Başvuru zaten işlenmiş veya onaylanmış');
+    error.statusCode = 400;
+    throw error;
+  }
+  const applicantUid = String(application.applicantUid || '').trim();
+  if (!applicantUid || !applicantProfile || typeof applicantProfile !== 'object') {
+    const error = new Error('Başvuru sahibinin kullanıcı hesabı bulunamadı.');
+    error.statusCode = 409;
+    throw error;
+  }
+  const currentRole = String(applicantProfile.role || 'customer');
+  const currentBusinessId = String(applicantProfile.businessId || '').trim();
+  const alreadyOwned = Object.entries(businesses || {}).find(([, business]) => business && business.ownerUid === applicantUid);
+  const activeStaffLink = Object.entries(businesses || {}).find(([, business]) =>
+    Object.values((business && business.staff) || {}).some(staff => staff && staff.active !== false && (staff.userId === applicantUid || staff.uid === applicantUid))
+  );
+  if (currentRole !== 'customer' || currentBusinessId || alreadyOwned || activeStaffLink) {
+    const error = new Error('Başvuru sahibinin mevcut salon veya personel bağlantısı doğrulanamadı.');
+    error.statusCode = 409;
+    throw error;
+  }
+  return applicantUid;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,97 +37,74 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { appId, superAdminUid } = req.body || {};
+    const { appId } = req.body || {};
 
-    if (!appId || !superAdminUid) {
-      return res.status(400).json({ error: 'appId ve superAdminUid zorunludur' });
+    if (!appId) {
+      return res.status(400).json({ error: 'appId zorunludur' });
     }
 
-    // 1. STRICT BACKEND SUPER ADMIN VERIFICATION
-    const adminCheckRes = await fetch(`${FIREBASE_DB_URL}/users/${superAdminUid}.json`);
-    const adminUser = adminCheckRes.ok ? await adminCheckRes.json() : null;
-
-    if (!adminUser || adminUser.role !== 'super_admin') {
-      console.warn(`[SECURITY ALERT] Unauthorized approval attempt by UID: ${superAdminUid}`);
-      return res.status(403).json({ error: 'Yetkisiz erişim! Yalnızca Süper Admin bu işlemi yapabilir.' });
-    }
+    requireRole(req.auth, ['super_admin']);
+    const db = getAdminDatabase();
 
     // 2. FETCH APPLICATION
-    const appRes = await fetch(`${FIREBASE_DB_URL}/salon_applications/${appId}.json`);
-    const appData = appRes.ok ? await appRes.json() : null;
+    const appSnapshot = await db.ref(`salon_applications/${appId}`).get();
+    const appData = appSnapshot.exists() ? appSnapshot.val() : null;
 
     if (!appData) {
       return res.status(404).json({ error: 'Başvuru bulunamadı' });
     }
 
-    if (appData.status !== 'pending') {
-      return res.status(400).json({ error: 'Başvuru zaten işlenmiş veya onaylanmış' });
-    }
+    const applicantUid = String(appData.applicantUid || '').trim();
+    const [userSnapshot, businessesSnapshot] = await Promise.all([
+      applicantUid ? db.ref(`users/${applicantUid}`).get() : Promise.resolve(null),
+      db.ref('businesses').get()
+    ]);
+    const applicantProfile = userSnapshot && userSnapshot.exists() ? userSnapshot.val() : null;
+    const businesses = businessesSnapshot.exists() ? businessesSnapshot.val() : {};
+    validateOwnerPromotion(appData, applicantProfile, businesses);
 
     // 3. GENERATE UNIQUE BUSINESS ID
     const businessId = 'biz_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
 
     const businessRecord = {
       businessId,
+      publicSlug: createPublicSalonSlug(appData.salonName, businessId),
       name: appData.salonName,
+      salonTypes: normalizeSalonTypes(appData.salonTypes),
       phone: appData.phone,
       city: appData.city,
       district: appData.district || '',
-      address: appData.address,
-      instagram: appData.instagram || '',
-      photoUrl: appData.photoUrl || '',
+      address: String(appData.address||'').slice(0,300),
       bookingEnabled: false, // Requires 5-step onboarding wizard
-      ownerUid: appData.applicantUid,
+      discoveryEnabled: true,
+      status: 'active',
+      plan: 'FREE',
+      ownerUid: applicantUid,
       createdAt: new Date().toISOString()
     };
 
-    // 4. ATOMIC TRANSACTIONAL STEPS
-    // Step A: Create Business Node
-    const bizWrite = await fetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(businessRecord)
-    });
-
-    if (!bizWrite.ok) {
-      return res.status(500).json({ error: 'İşletme kaydı oluşturulamadı' });
-    }
-
-    // Step B: Upgrade Applicant User to Owner & Attach BusinessId
-    const userUpdate = await fetch(`${FIREBASE_DB_URL}/users/${appData.applicantUid}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        role: 'owner',
-        businessId,
-        permissions: { business_manage: true, staff_manage: true, finance_view: true }
-      })
-    });
-
-    if (!userUpdate.ok) { 
-      return res.status(500).json({ error: 'Kullanıcı rolü güncellenemedi' });
-    }
-
-    // Step C: Mark Application as Approved
-    await fetch(`${FIREBASE_DB_URL}/salon_applications/${appId}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status: 'approved',
-        businessId,
-        approvedAt: new Date().toISOString()
-      })
+    const approvedAt = new Date().toISOString();
+    const publicBusiness = buildPublicBusiness(businessId, businessRecord);
+    await db.ref().update({
+      [`businesses/${businessId}`]: businessRecord,
+      [`public_businesses/${businessId}`]: publicBusiness,
+      [`users/${applicantUid}/role`]: 'owner',
+      [`users/${applicantUid}/businessId`]: businessId,
+      [`users/${applicantUid}/permissions`]: normalizePermissions(['business.manage','staff.manage','finance.view']),
+      [`salon_applications/${appId}/status`]: 'approved',
+      [`salon_applications/${appId}/businessId`]: businessId,
+      [`salon_applications/${appId}/approvedAt`]: approvedAt
     });
 
     return res.status(200).json({
       success: true,
       businessId,
-      ownerUid: appData.applicantUid,
+      ownerUid: applicantUid,
       status: 'approved'
     });
 
   } catch (err) {
     console.error('Super Admin approval API error:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(err.statusCode || 500).json({ error: err.statusCode ? err.message : 'Internal Server Error' });
   }
 }

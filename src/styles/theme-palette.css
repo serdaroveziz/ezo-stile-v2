@@ -1,0 +1,231 @@
+/* Neutral colors retain their original dark fallbacks. */
+:root[data-theme="light"] {
+  --light-surface: #ffffff;
+  --light-ink: #171717;
+  --light-muted: #5f6368;
+  --light-accent: #b88924;
+  --light-accent-hover: #956f1d;
+  --light-border: #e2e2de;
+  --light-soft: #f7f7f5;
+  --light-info: #245b91;
+  --light-success: #17633f;
+  --light-danger: #a51d36;
+  --light-gold-secondary: #765500;
+  --light-accent-text: #765500;
+  --light-on-accent: #171717;
+  --light-warning: #9a4300;
+  --light-success-soft: #e9f4ed;
+  --light-danger-soft: #fbecef;
+  --light-warning-soft: #fff2df;
+  --light-info-soft: #eaf2fb;
+  --theme-panel-050609: var(--light-surface);
+  --theme-panel-0c0e13: var(--light-surface);
+  --theme-panel-141720: var(--light-surface);
+  --theme-ink-f7f7f5: var(--light-ink);
+  --theme-panel-040711: var(--light-surface);
+  --theme-panel-090e1f: var(--light-surface);
+  --theme-panel-10172e: var(--light-surface);
+  --theme-ink-f8fafc: var(--light-ink);
+  --theme-ink-94a3b8: var(--light-ink);
+  --theme-ink-ffffff: var(--light-ink);
+  --theme-panel-111827: var(--light-surface);
+  --theme-panel-151b2b: var(--light-surface);
+  --theme-panel-060a17: var(--light-surface);
+  --theme-panel-000000: var(--light-surface);
+  --theme-ink-fca5a5: var(--light-danger);
+  --theme-panel-05070c: var(--light-surface);
+  --theme-panel-0b0e15: var(--light-surface);
+  --theme-ink-9da6b4: var(--light-ink);
+  --theme-ink-d8dde5: var(--light-ink);
+  --theme-ink-8f98a8: var(--light-ink);
+  --theme-panel-171b25: var(--light-surface);
+  --theme-ink-87909e: var(--light-ink);
+  --theme-ink-eef1f5: var(--light-ink);
+  --theme-panel-111521: var(--light-surface);
+  --theme-ink-939cab: var(--light-ink);
+  --theme-ink-8a93a1: var(--light-ink);
+  --theme-panel-111110: var(--light-surface);
+  --theme-panel-191917: var(--light-surface);
+  --theme-ink-f5f1e8: var(--light-ink);
+  --theme-ink-aaa79e: var(--light-ink);
+  --theme-panel-0c0c0b: var(--light-surface);
+  --theme-panel-10100f: var(--light-surface);
+  --theme-panel-161613: var(--light-surface);
+  --theme-panel-11110f: var(--light-surface);
+  --theme-panel-070d13: var(--light-surface);
+  --theme-panel-101b25: var(--light-surface);
+  --theme-panel-172530: var(--light-surface);
+  --theme-panel-0e1821: var(--light-surface);
+  --theme-panel-14222e: var(--light-surface);
+  --theme-ink-aebbc8: var(--light-ink);
+  --theme-panel-12202b: var(--light-surface);
+  --theme-panel-18252d: var(--light-surface);
+  --theme-panel-0d151c: var(--light-surface);
+  --theme-panel-15232e: var(--light-surface);
+  --theme-panel-0d1720: var(--light-surface);
+  --theme-ink-a0e9c5: var(--light-ink);
+  --theme-ink-ffdea0: var(--light-ink);
+  --theme-panel-14222d: var(--light-surface);
+  --theme-ink-ed91b9: var(--light-ink);
+  --theme-ink-c0c8d2: var(--light-ink);
+  --theme-ink-acb8c4: var(--light-ink);
+  --theme-panel-0c151e: var(--light-surface);
+  --theme-ink-c2d7ed: var(--light-ink);
+  --theme-panel-452039: var(--light-surface);
+  --theme-ink-f0aed1: var(--light-ink);
+  --theme-panel-3e232b: var(--light-surface);
+  --theme-ink-efb3be: var(--light-ink);
+  --theme-panel-101c26: var(--light-surface);
+  --theme-panel-101a24: var(--light-surface);
+  --theme-panel-12202a: var(--light-surface);
+  --theme-panel-27333b: var(--light-surface);
+  --theme-ink-d0d8df: var(--light-ink);
+  --theme-panel-101b24: var(--light-surface);
+  --theme-panel-0d1821: var(--light-surface);
+  --theme-panel-080f15: var(--light-surface);
+  --theme-ink-f3f5f7: var(--light-ink);
+  --theme-ink-a0acb8: var(--light-ink);
+  --theme-panel-14212c: var(--light-surface);
+  --theme-ink-a8b6c3: var(--light-ink);
+  --theme-panel-13202a: var(--light-surface);
+  --theme-panel-0c1720: var(--light-surface);
+  --theme-ink-94a5b5: var(--light-ink);
+  --theme-ink-ffe0a1: var(--light-ink);
+  --theme-ink-bcf5da: var(--light-ink);
+  --theme-ink-ffc5cb: var(--light-ink);
+  --theme-ink-a9b6c3: var(--light-ink);
+  --theme-panel-111e28: var(--light-surface);
+  --theme-ink-b0bac4: var(--light-ink);
+  --theme-panel-0d1923: var(--light-surface);
+  --theme-panel-142431: var(--light-surface);
+  --theme-ink-edf2f6: var(--light-ink);
+  --theme-panel-080f16: var(--light-surface);
+  --theme-panel-101e29: var(--light-surface);
+  --theme-panel-0b151e: var(--light-surface);
+  --theme-panel-11212e: var(--light-surface);
+  --theme-panel-172633: var(--light-surface);
+  --theme-panel-050b12: var(--light-surface);
+  --theme-panel-0c1722: var(--light-surface);
+  --theme-panel-12202c: var(--light-surface);
+  --theme-ink-a5b2c0: var(--light-ink);
+  --theme-ink-f5f6f7: var(--light-ink);
+  --theme-panel-101d29: var(--light-surface);
+  --theme-panel-09121c: var(--light-surface);
+  --theme-panel-101b26: var(--light-surface);
+  --theme-ink-b3bfcb: var(--light-ink);
+  --theme-panel-19232c: var(--light-surface);
+  --theme-panel-080f17: var(--light-surface);
+  --theme-ink-f8e1b3: var(--light-ink);
+  --theme-ink-c1c7cc: var(--light-ink);
+  --theme-panel-19222a: var(--light-surface);
+  --theme-panel-0b121b: var(--light-surface);
+  --theme-ink-97a5b2: var(--light-ink);
+  --theme-ink-c5ced7: var(--light-ink);
+  --theme-ink-82909f: var(--light-ink);
+  --theme-panel-0b1520: var(--light-surface);
+  --theme-ink-f2f3f5: var(--light-ink);
+  --theme-panel-07111b: var(--light-surface);
+  --theme-panel-1f2937: var(--light-surface);
+  --theme-panel-111111: var(--light-surface);
+  --theme-panel-0b1020: var(--light-surface);
+}
+:root[data-theme="dark"] { color-scheme:dark; }
+:root[data-theme="light"] :is(.customer-panel,.owner-panel,.staff-reference,.super-admin-shell,.auth-entry,.public-storefront-page,select) { color-scheme:light; }
+:root[data-theme="light"] :is(.modal-card,.salon-detail-sticky-header,.header-bar,.bottom-nav,.staff-bottom-nav) { background:var(--bg-card)!important; color:var(--text-main); }
+
+:root[data-theme="light"] .customer-time-slot:not([aria-pressed="true"]) { color:var(--light-ink)!important; background:var(--light-surface)!important; }
+.global-theme-toggle { z-index:90; }
+@media(max-width:600px) { .global-theme-toggle__text { display:none; } .global-theme-toggle { width:36px; min-height:36px; padding:6px; justify-content:center; } }
+
+
+/* Shared semantic palette also overrides panel-local dark tokens. */
+:root[data-theme="light"],
+:root[data-theme="light"] :is(.customer-panel,.owner-panel,.staff-reference,.super-admin-shell,.auth-entry,.public-storefront-page,.salon-detail-surface,#modal-root,.modal-card) {
+  --bg: var(--light-soft); --bg-primary: var(--light-soft);
+  --surface: var(--light-surface); --surface-2: var(--light-soft);
+  --bg-card: var(--light-surface); --bg-card-hover: var(--light-soft);
+  --text: var(--light-ink); --text-main: var(--light-ink); --text-muted: var(--light-muted);
+  --gold: var(--light-accent-text); --gold-primary: var(--light-accent-text);
+  --gold-secondary: var(--light-gold-secondary); --gold-hover: var(--light-accent-hover);
+  --gold-gradient: var(--light-accent); --border-gold: var(--light-accent);
+  --border: var(--light-border); --border-color: var(--light-border);
+  --success: var(--light-success); --danger: var(--light-danger); --warning: var(--light-warning); --info: var(--light-info);
+  --accent: var(--light-accent); --accent-text: var(--light-accent-text); --on-accent: var(--light-on-accent);
+}
+:root[data-theme="light"] .btn-gold { color:var(--light-on-accent); background:var(--light-accent); }
+:root[data-theme="light"] :is(input,textarea,select)::placeholder { color:var(--light-muted); opacity:1; }
+:root[data-theme="light"] :is(button,input,select,textarea):disabled { opacity:1; color:var(--light-muted); background:var(--light-soft); border-color:var(--light-border); }
+:root[data-theme="light"] #modal-confirm-error { color:var(--light-danger)!important; }
+.operation-error { color:var(--danger); background:var(--bg-card); border:1px solid currentColor; border-radius:10px; padding:12px; margin-block:8px 14px; font-size:13px; overflow-wrap:anywhere; }
+.operation-error button { display:block; margin-block-start:8px; }
+.operation-toast { position:fixed; z-index:10010; inset-inline:16px; bottom:90px; margin-inline:auto; max-width:440px; padding:14px 18px; border-radius:12px; color:var(--text-main); background:var(--bg-card); border:1px solid var(--success); box-shadow:var(--shadow-soft); }
+
+:root[data-theme="light"] {
+  --theme-copy-4ade80: var(--light-success);
+  --theme-copy-dba72c: var(--light-accent-text);
+  --theme-copy-e5b83e: var(--light-accent-text);
+  --theme-copy-dbaa32: var(--light-accent-text);
+  --theme-copy-e0b13d: var(--light-accent-text);
+  --theme-copy-e1b441: var(--light-accent-text);
+  --theme-copy-dbae3a: var(--light-accent-text);
+  --theme-copy-707887: var(--light-ink);
+  --theme-copy-e3b541: var(--light-accent-text);
+  --theme-copy-e3b341: var(--light-accent-text);
+  --theme-copy-5bd59a: var(--light-success);
+  --theme-copy-ef7c86: var(--light-danger);
+  --theme-copy-b99136: var(--light-accent-text);
+  --theme-copy-dbae39: var(--light-accent-text);
+  --theme-copy-ef7a83: var(--light-danger);
+  --theme-copy-e1b43c: var(--light-accent-text);
+  --theme-copy-e1b340: var(--light-accent-text);
+  --theme-copy-ef7b84: var(--light-danger);
+  --theme-copy-e5bd50: var(--light-accent-text);
+  --theme-copy-e2b440: var(--light-accent-text);
+  --theme-copy-d9b14a: var(--light-accent-text);
+  --theme-copy-747d8c: var(--light-ink);
+  --theme-copy-e4c777: var(--light-accent-text);
+  --theme-copy-80c9ef: var(--light-info);
+  --theme-copy-77dcb1: var(--light-success);
+  --theme-copy-f1d28b: var(--light-accent-text);
+  --theme-copy-82ceee: var(--light-info);
+  --theme-copy-4dce97: var(--light-success);
+  --theme-copy-f0c368: var(--light-accent-text);
+  --theme-copy-f17981: var(--light-danger);
+  --theme-copy-f4ce7c: var(--light-accent-text);
+  --theme-copy-ffffff: var(--light-ink);
+  --theme-copy-e5a93b: var(--light-accent-text);
+  --theme-copy-4cd964: var(--light-success);
+  --theme-copy-22c55e: var(--light-success);
+  --theme-copy-f59e0b: var(--light-warning);
+  --theme-copy-ef4444: var(--light-danger);
+  --theme-copy-3b82f6: var(--light-info);
+  --theme-copy-eab308: var(--light-accent-text);
+  --theme-copy-f87171: var(--light-danger);
+  --theme-copy-60a5fa: var(--light-info);
+}
+:root[data-theme="light"] .btn-gold:not(:disabled) { color:var(--light-on-accent)!important; }
+:root[data-theme="light"] .btn-gold:disabled { color:var(--light-muted)!important; }
+
+:root[data-theme="light"] :is(button,input,select,textarea):disabled { opacity:1!important; }
+
+:root[data-theme="light"] :is(.badge,.status-badge,.staff-badge) { background:var(--light-soft); color:var(--light-ink); border-color:var(--light-border); }
+:root[data-theme="light"] :is(.badge-approved,.badge-active,.status-badge--success) { background:var(--light-success-soft); color:var(--light-success); }
+:root[data-theme="light"] :is(.badge-pending,.status-badge--pending) { background:var(--light-warning-soft); color:var(--light-warning); }
+:root[data-theme="light"] :is(.badge-rejected,.badge-cancelled,.status-badge--danger) { background:var(--light-danger-soft); color:var(--light-danger); }
+
+:root[data-theme="light"] .customer-avatar--fallback { color:#fff; }
+
+:root[data-theme="light"] body { background:var(--light-soft); }
+:root[data-theme="light"] .salon-detail-tabs button.is-active { background:var(--light-accent); color:var(--light-on-accent); }
+:root[data-theme="light"] .salon-detail-tabs button.is-active::after { background:var(--light-accent); box-shadow:none; }
+
+/* Light-only component states; preserve existing dark fallbacks. */
+:root[data-theme="light"] .btn-gold:not(:disabled):hover { background:var(--light-accent-hover); color:#fff!important; filter:none; }
+:root[data-theme="light"] :is(.customer-time-slot[aria-pressed="true"],.customer-booking-progress .is-reached span) { background:var(--light-accent)!important; color:var(--light-on-accent)!important; }
+:root[data-theme="light"] :is(.owner-modal-header,.owner-map-picker-actions) { background:var(--light-surface); }
+:root[data-theme="light"] :is(.input-field,select,textarea) { background-color:var(--light-surface); color:var(--light-ink); border-color:var(--light-border); }
+:root[data-theme="light"] :is(.input-field,select,textarea):focus { border-color:var(--light-accent-text); }
+:root[data-theme="light"] :is(.badge-completed,.badge-approved,.badge-active,.status-badge--success) { background:var(--light-success-soft); color:var(--light-success); border-color:currentColor; }
+:root[data-theme="light"] :is(.badge-pending,.status-badge--pending) { background:var(--light-warning-soft); color:var(--light-warning); border-color:currentColor; }
+:root[data-theme="light"] :is(.badge-rejected,.badge-cancelled,.badge-expired,.badge-no_show,.status-badge--danger) { background:var(--light-danger-soft); color:var(--light-danger); border-color:currentColor; }
+:root[data-theme="light"] :is(.badge-info,.status-badge--info) { background:var(--light-info-soft); color:var(--light-info); border-color:currentColor; }

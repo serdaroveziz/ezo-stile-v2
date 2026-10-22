@@ -1,166 +1,44 @@
-/* EZO STİLE v2 - Serverless Backend Role Resolution & Authentication API */
-const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+/* UNELIVO - Authenticated Firebase profile resolution */
+import { getAdminDatabase } from '../../firebase-admin.js';
+import { normalizePermissions } from '../../../src/staff-permissions.js';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
-
-  try {
-    const { uid, phone, password, isSessionRestore } = req.body || {};
-    const cleanPhone = phone ? String(phone).trim() : '';
-
-    // SUPER ADMIN CREDENTIAL BOOTSTRAP & DEDICATED RESOLVER (KUVVAT - 05538762588 & 05550000000)
-    const normPhone = cleanPhone.replace(/\D/g, '');
-    const isSuperAdminPhone = normPhone.includes('5538762588') || normPhone === '05538762588' || normPhone === '05550000000' || normPhone === '05320000000' || uid === 'usr_05538762588' || uid === 'usr_super_admin';
-
-    if (isSuperAdminPhone) {
-      const superUid = 'usr_05538762588';
-      const superAdminRecord = {
-        uid: superUid,
-        phone: cleanPhone || '05538762588',
-        name: 'Kuvvat',
-        displayName: 'Kuvvat',
-        role: 'super_admin',
-        password: password || '1405',
-        disabled: false,
-        updatedAt: new Date().toISOString()
-      };
-
-      await fetch(`${FIREBASE_DB_URL}/users/${superUid}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(superAdminRecord)
-      });
-
-      if (!isSessionRestore && password && password !== '1405' && password !== '123456') {
-        return res.status(401).json({ error: 'Süper Admin şifreniz hatalıdır.' });
-      }
-
-      return res.status(200).json({
-        success: true,
-        user: {
-          uid: superUid,
-          phone: superAdminRecord.phone,
-          name: 'Kuvvat',
-          displayName: 'Kuvvat',
-          role: 'super_admin'
-        }
-      });
-    }
-
-    // OWNER TEST ACCOUNT BOOTSTRAP IN DB (IF MISSING)
-    if (cleanPhone === '05550000002' || uid === 'usr_05550000002') {
-      const ownerUid = 'usr_05550000002';
-      const ownerRecord = {
-        uid: ownerUid,
-        phone: '05550000002',
-        name: 'Ahmet Patron',
-        displayName: 'Ahmet Patron',
-        role: 'owner',
-        businessId: 'biz_merkez_salon',
-        password: password || '123456'
-      };
-
-      await fetch(`${FIREBASE_DB_URL}/users/${ownerUid}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ownerRecord)
-      });
-
-      // Ensure Business Record exists in DB
-      const bizRes = await fetch(`${FIREBASE_DB_URL}/businesses/biz_merkez_salon.json`);
-      const bizData = bizRes.ok ? await bizRes.json() : null;
-      if (!bizData) {
-        await fetch(`${FIREBASE_DB_URL}/businesses/biz_merkez_salon.json`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            businessId: 'biz_merkez_salon',
-            name: 'EZO Merkez Salon',
-            ownerUid: ownerUid,
-            status: 'active',
-            bookingEnabled: true,
-            discoveryEnabled: true,
-            city: 'İstanbul',
-            district: 'Şişli'
-          })
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        user: {
-          uid: ownerUid,
-          phone: '05550000002',
-          name: 'Ahmet Patron',
-          role: 'owner',
-          businessId: 'biz_merkez_salon',
-          businessStatus: 'active'
-        }
-      });
-    }
-
-    // GENERAL USER ROLE RESOLUTION FROM DB
-    const targetUid = uid || (cleanPhone ? 'usr_' + cleanPhone.replace(/\D/g, '') : null);
-
-    if (!targetUid) {
-      return res.status(400).json({ error: 'UID veya Telefon numarası gereklidir.' });
-    }
-
-    const dbRes = await fetch(`${FIREBASE_DB_URL}/users/${targetUid}.json`);
-    const dbUser = dbRes.ok ? await dbRes.json() : null;
-
-    if (dbUser && dbUser.role) {
-      if (dbUser.disabled === true) {
-        return res.status(403).json({ error: 'Hesabınız geçici olarak devre dışı bırakılmıştır. Lütfen destek ekibi ile iletişime geçiniz.' });
-      }
-
-      const allowedRoles = ['super_admin', 'owner', 'manager', 'barber', 'receptionist', 'customer'];
-      const verifiedRole = allowedRoles.includes(dbUser.role) ? dbUser.role : 'customer';
-
-      if (!isSessionRestore && password && dbUser.password && password !== dbUser.password && password !== '123456') {
-        return res.status(401).json({ error: 'Telefon numaranız veya şifreniz hatalıdır.' });
-      }
-
-      return res.status(200).json({
-        success: true,
-        user: {
-          uid: targetUid,
-          phone: dbUser.phone || cleanPhone,
-          name: dbUser.displayName || dbUser.name || 'EZO Müşterisi',
-          displayName: dbUser.displayName || dbUser.name || 'EZO Müşterisi',
-          role: verifiedRole,
-          businessId: dbUser.businessId || null,
-          photoUrl: dbUser.photoUrl || null
-        }
-      });
-    }
-
-    // CREATE NEW CUSTOMER RECORD IN DB IF ABSENT
-    const newCustomer = {
-      uid: targetUid,
-      phone: cleanPhone || '',
-      name: 'Müşteri',
-      displayName: 'Müşteri',
-      role: 'customer',
-      password: password || '123456',
-      createdAt: new Date().toISOString()
-    };
-
-    await fetch(`${FIREBASE_DB_URL}/users/${targetUid}.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newCustomer)
-    });
-
-    return res.status(200).json({
-      success: true,
-      user: newCustomer
-    });
-
-  } catch (err) {
-    console.error('Role resolution API error:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
+  const authContext = req.auth;
+  if (!authContext || !authContext.uid) {
+    return res.status(401).json({ error: 'Oturum doğrulaması gerekli.' });
   }
+  const profile = authContext.profile;
+  if (!profile) return res.status(404).json({ error: 'Kullanıcı profili bulunamadı.' });
+  if (profile.disabled === true || profile.status === 'disabled') {
+    return res.status(403).json({ error: 'Hesabınız devre dışı bırakılmış.' });
+  }
+
+  const allowedRoles = ['super_admin', 'owner', 'manager', 'barber', 'receptionist', 'customer'];
+  const staffRoles = ['manager', 'barber', 'receptionist'];
+  const resolvedRole = allowedRoles.includes(profile.role) ? profile.role : 'customer';
+  const resolvedPermissions = profile.permissions;
+  const safeUser = {
+    uid: authContext.uid,
+    phone: profile.phone || '',
+    name: profile.displayName || profile.name || 'EZO Kullanıcısı',
+    displayName: profile.displayName || profile.name || 'EZO Kullanıcısı',
+    role: resolvedRole,
+    businessId: resolvedRole === 'customer' ? null : (profile.businessId || null),
+    permissions: normalizePermissions(resolvedPermissions,{ role: staffRoles.includes(resolvedRole) ? resolvedRole : null }),
+    aiCredits: profile.aiCredits || { economy: 3, premium: 1 },
+    language: profile.language || 'tr',
+    photoUrl: profile.photoUrl || null
+  };
+  if (profile.uid !== authContext.uid) {
+    await getAdminDatabase().ref(`users/${authContext.uid}/uid`).set(authContext.uid);
+  }
+  const diagnosticEnabled = process.env.AUTH_RESOLUTION_DEBUG === 'true' && process.env.VERCEL_ENV !== 'production';
+  const decision = authContext.resolution || { reason:'LEGACY_AUTH_CONTEXT', sourceRole:profile.role || null, sourceBusinessId:profile.businessId || null, businessExists:null, ownershipVerified:false, staffVerified:false, staffRole:null };
+  if (diagnosticEnabled) {
+    console.info('[AUTH_RESOLUTION]', JSON.stringify({ authUid:authContext.uid, sourceRole:decision.sourceRole, sourceBusinessId:decision.sourceBusinessId, businessExists:decision.businessExists, ownershipVerified:decision.ownershipVerified, staffVerified:decision.staffVerified, staffRole:decision.staffRole, finalRole:safeUser.role, finalBusinessId:safeUser.businessId, resolutionReason:decision.reason }));
+  }
+  return res.status(200).json({ success:true, user:safeUser, ...(diagnosticEnabled?{debug:{resolutionReason:decision.reason,ownershipVerified:decision.ownershipVerified,staffVerified:decision.staffVerified}}:{}) });
 }

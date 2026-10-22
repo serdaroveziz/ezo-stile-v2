@@ -1,5 +1,6 @@
-/* EZO STİLE v2 - Rewarded Ad Verification & Credit Endpoint */
+/* UNELIVO - Rewarded Ad Verification & Credit Endpoint */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+import { firebaseFetch } from '../../firebase-admin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
     }
 
     // SANDBOX SIMULATION OR VERIFIED SSV
-    const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
+    const userRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
     const user = userRes.ok ? await userRes.json() : null;
 
     if (!user) {
@@ -35,7 +36,7 @@ export default async function handler(req, res) {
     };
     const currentBonusEarned = user.bonusEarnedCredits || 0;
 
-    await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

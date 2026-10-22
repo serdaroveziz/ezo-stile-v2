@@ -17,7 +17,7 @@ function assert(condition, message) {
 }
 
 async function runPhase4Tests() {
-  const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+  const FIREBASE_DB_URL = require('./test-fixtures/firebase-memory.cjs').url;
   const testSuperAdminUid = 'usr_admin_p4_' + Date.now();
   const testOwnerUid = 'usr_owner_p4_' + Date.now();
   const testCustomerUid = 'usr_cust_p4_' + Date.now();

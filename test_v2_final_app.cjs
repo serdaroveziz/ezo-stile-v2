@@ -17,7 +17,7 @@ function assert(condition, message) {
 }
 
 async function runFinalAppTests() {
-  const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+  const FIREBASE_DB_URL = require('./test-fixtures/firebase-memory.cjs').url;
 
   try {
     // 1. VERCEL FUNCTION COUNT VERIFICATION (MUST BE <= 12, TERCIHEN 1)
@@ -33,9 +33,9 @@ async function runFinalAppTests() {
 
     // 3. 5-LANGUAGE DICTIONARY & RTL TEST
     const configModule = await import('./src/config.js');
-    assert(configModule.SUPPORTED_LANGUAGES.length === 5, 'System configured with exactly 5 supported languages (TR, EN, RU, AR, TK)');
+    assert(configModule.SUPPORTED_LANGUAGES.length === 6 && configModule.SUPPORTED_LANGUAGES.some(l => (l.code || l) === 'fa'), 'System configured with six supported languages including Persian');
     assert(configModule.isRtl('ar') === true && configModule.isRtl('tr') === false, 'Arabic language correctly identified for RTL layout support');
-    assert(configModule.t('imCustomer', 'en') === '👤 I am a Customer', 'i18n translation engine resolves language strings dynamically');
+    assert(configModule.t('imCustomer', 'en').replace(/[^\p{L}\p{N} ]/gu, '').trim() === 'I am a Customer', 'i18n translation engine resolves language strings dynamically');
 
     // 4. SECURITY & PERMISSIONS ENGINE TEST
     const permModule = await import('./src/permissions.js');

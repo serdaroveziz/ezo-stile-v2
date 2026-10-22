@@ -1,5 +1,7 @@
+import { requirePaymentSandbox } from '../../payment-sandbox.js';
+import { firebaseFetchChecked as firebaseFetch } from '../../firebase-admin.js';
 import crypto from 'crypto';
-/* EZO STİLE v2 - Android Google Play Billing Sandbox Verification Endpoint */
+/* UNELIVO - Android Google Play Billing Sandbox Verification Endpoint */
 import { getProductById } from '../../../src/config/products.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
@@ -8,6 +10,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
+
+  if (!requirePaymentSandbox(res)) return;
 
   try {
     const { userUid, purchaseToken, productId, businessId, isFakeToken } = req.body || {};
@@ -23,7 +27,7 @@ export default async function handler(req, res) {
 
     // 2. IDEMPOTENCY GUARD (REPLAY PREVENTION)
     const tokenKey = 'google_' + crypto.createHash('md5').update(purchaseToken).digest('hex');
-    const existingRes = await fetch(`${FIREBASE_DB_URL}/payments/${tokenKey}.json`);
+    const existingRes = await firebaseFetch(`${FIREBASE_DB_URL}/payments/${tokenKey}.json`);
     const existingPayment = existingRes.ok ? await existingRes.json() : null;
 
     if (existingPayment && (existingPayment.status === 'success' || existingPayment.status === 'refunded')) {
@@ -38,7 +42,7 @@ export default async function handler(req, res) {
 
     // 4. GRANT ENTITLEMENTS
     if (product.type === 'ai_credits') {
-      const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
+      const userRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
       const user = userRes.ok ? await userRes.json() : null;
       const currentCredits = (user && user.aiCredits) ? user.aiCredits : { economy: 3, premium: 1 };
       const targetType = product.creditType || 'economy';
@@ -48,15 +52,15 @@ export default async function handler(req, res) {
         [targetType]: (currentCredits[targetType] || 0) + product.credits
       };
 
-      await fetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
+      await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedCredits)
       });
     } else if (product.type === 'salon_subscription') {
-      const targetBizId = businessId || (await (await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`)).json()).businessId;
+      const targetBizId = businessId || (await (await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`)).json()).businessId;
       if (targetBizId) {
-        await fetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ plan: product.plan, planStatus: 'active', staffLimit: product.staffLimit })
@@ -78,7 +82,7 @@ export default async function handler(req, res) {
       createdAt: new Date().toISOString()
     };
 
-    await fetch(`${FIREBASE_DB_URL}/payments/${tokenKey}.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/payments/${tokenKey}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(paymentRecord)

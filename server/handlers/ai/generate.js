@@ -1,9 +1,10 @@
-/* EZO STİLE v2 - Production AI Generation Endpoint with Real Async Replicate Polling & Credit Guard */
+/* UNELIVO - Production AI Generation Endpoint with Real Async Replicate Polling & Credit Guard */
 import fs from 'fs';
 import path from 'path';
 import { resolveProductionAiModel } from '../../../src/ai/ai-router.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
+import { firebaseFetch } from '../../firebase-admin.js';
 
 function getEnvToken() {
   if (process.env.REPLICATE_API_TOKEN) return process.env.REPLICATE_API_TOKEN;
@@ -39,7 +40,7 @@ export default async function handler(req, res) {
     const modelConfig = resolveProductionAiModel('replicate');
 
     // 1. FETCH & VERIFY CREDIT BALANCE
-    const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
+    const userRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
     const user = userRes.ok ? await userRes.json() : null;
 
     if (!user) {
@@ -59,7 +60,7 @@ export default async function handler(req, res) {
       [targetCreditType]: currentBalance - 1
     };
 
-    await fetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedCredits)
@@ -153,7 +154,7 @@ export default async function handler(req, res) {
         createdAt: new Date().toISOString()
       };
 
-      await fetch(`${FIREBASE_DB_URL}/ai_generations/${generationId}.json`, {
+      await firebaseFetch(`${FIREBASE_DB_URL}/ai_generations/${generationId}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(failedRecord)
@@ -165,7 +166,7 @@ export default async function handler(req, res) {
         [targetCreditType]: updatedCredits[targetCreditType] + 1
       };
 
-      await fetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
+      await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(refundedCredits)
@@ -194,7 +195,7 @@ export default async function handler(req, res) {
       createdAt: new Date().toISOString()
     };
 
-    await fetch(`${FIREBASE_DB_URL}/ai_generations/${generationId}.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/ai_generations/${generationId}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(successRecord)

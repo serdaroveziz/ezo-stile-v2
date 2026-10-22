@@ -1,0 +1,8 @@
+{
+  "case_active_public": { "name": "Aktif Salon", "status": "active", "discoveryEnabled": true },
+  "case_active_hidden": { "name": "Gizli Salon", "status": "active", "discoveryEnabled": false },
+  "case_suspended": { "name": "Askıdaki Salon", "status": "suspended", "discoveryEnabled": true },
+  "case_missing_status": { "name": "Eski Salon", "discoveryEnabled": true },
+  "case_missing_discovery": { "name": "Eksik Keşfet", "status": "active" },
+  "case_legacy": { "name": "Legacy Salon" }
+}

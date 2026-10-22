@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict');
+(async()=>{
+ const {applyWorkspaceOperation,handleWorkspace}=await import('./server/handlers/salon/workspace.js');
+ const {agendaDates,agendaShift,renderOwnerAgenda}=await import('./src/ui/owner-agenda.js');
+ const {cashSummary,customerBalance,workspaceCsv,amountToMinor}=await import('./src/ui/owner-workspace.js');
+ assert.equal(amountToMinor('1,01'),101);assert.equal(amountToMinor('10.10'),1010);assert.throws(()=>amountToMinor('1.001'));assert.throws(()=>amountToMinor('1e3'));
+ const context={uid:'owner',appointments:[{aptId:'apt',customerUid:'u',businessId:'biz',serviceId:'cut',status:'completed'}],id:'id_1',now:'2026-10-15T12:00Z'};
+ let data={};let counter=0;const apply=body=>{data=applyWorkspaceOperation(data,{requestId:'req_'+(++counter),...body},{...context,id:'id_'+counter});return data};
+ apply({action:'customer',customerId:'crm_1',name:'Ali',phone:'05551112233',smsConsent:false});assert.equal(data.customers.crm_1.smsConsent.declared,false);
+ apply({action:'entry',kind:'charge',customerId:'crm_1',method:'cash',amountMinor:10000,description:'Hizmet'});
+ apply({action:'entry',kind:'receipt',customerId:'crm_1',method:'card',amountMinor:4000,description:'Tahsilat'});
+ apply({action:'entry',kind:'expense',method:'cash',amountMinor:1000,description:'Gider'});
+ assert.equal(customerBalance(data.entries,'crm_1'),6000);assert.equal(cashSummary(data.entries).receipts,4000);assert.equal(cashSummary(data.entries).expenses,1000);
+ const before=Object.keys(data.entries).length;data=applyWorkspaceOperation(data,{requestId:'req_4',action:'entry',kind:'receipt',method:'card',amountMinor:4000,description:'Tahsilat'},context);assert.equal(Object.keys(data.entries).length,before);
+ assert.throws(()=>apply({action:'entry',kind:'receipt',method:'cash',customerId:'foreign',amountMinor:200,description:'x'}),/Müşteri/);
+ assert.throws(()=>apply({action:'entry',kind:'receipt',method:'cash',amountMinor:-1,description:'x'}),/Tutar/);
+ apply({action:'package',customerId:'u',name:'Beş seans',total:5,serviceId:'cut'});const packageId=Object.keys(data.packages)[0];apply({action:'consume',packageId,appointmentId:'apt'});apply({action:'consume',packageId,appointmentId:'apt'});assert.equal(data.packages[packageId].used,1);
+ assert.throws(()=>apply({action:'consume',packageId,appointmentId:'other'}),/tamamlanmış/);
+ apply({action:'product',name:'Şampuan',stock:3});const productId=Object.keys(data.products)[0];apply({action:'stock',productId,delta:-2});assert.equal(data.products[productId].stock,1);assert.throws(()=>apply({action:'stock',productId,delta:-2}),/yetersiz/);
+ apply({action:'campaign',title:'İndirim',message:'Deneme',segment:'vip'});assert.equal(Object.values(data.campaigns)[0].status,'draft');assert(workspaceCsv([['=HYPERLINK("x")']]).includes("'=HYPERLINK"));
+ assert.equal(agendaDates('2026-10-15','week').length,7);assert.equal(agendaDates('2026-10-15','month').length,42);assert.equal(agendaShift('2026-01-31','month',1),'2026-02-01');
+ const business={services:{cut:{id:'cut',duration:30}},staff:{a:{id:'a',name:'A',services:['all']}},weeklySchedule:{start:'09:00',end:'18:00'}};
+ for(const mode of ['day','week','month']){const html=renderOwnerAgenda({business,businessId:'biz',appointments:[{aptId:'x',businessId:'biz',date:'2099-01-05',time:'10:00',staffId:'a',status:'approved',customerName:'<img onerror=x>'}],date:'2099-01-05',mode,staffId:'all',serviceId:'cut'});assert(!html.includes('<img'));assert(html.includes('Randevular'));}
+ let status,body,touched=0;const res={setHeader(){},status(s){status=s;return this},json(b){body=b}};const db={ref(){touched++;return{get:async()=>({exists:()=>true,val:()=>({ownerUid:'owner'})})}}};
+ await handleWorkspace({method:'POST',auth:{uid:'c',profile:{role:'customer',businessId:'biz'}},body:{}},res,db);assert.equal(status,403);assert.equal(touched,0);
+ await handleWorkspace({method:'POST',auth:{uid:'owner',profile:{role:'owner',businessId:'biz'}},body:{businessId:'other'}},res,db);assert.equal(status,403);assert.equal(touched,0);
+ await handleWorkspace({method:'POST',auth:{uid:'fake',profile:{role:'owner',businessId:'biz'}},body:{}},res,db);assert.equal(status,403);
+ assert.throws(()=>apply({requestId:'__proto__',action:'campaign',title:'x',message:'x'}),/kimliği/);
+ let persisted=null;const snap=v=>({exists:()=>v!==null,val:()=>v});const node={get:async()=>snap(persisted),transaction:async f=>{persisted=f(persisted);return {committed:true,snapshot:snap(persisted)}}};const liveDb={ref(path){if(path==='businesses/biz')return{get:async()=>snap({ownerUid:'owner'})};if(path==='salon_operations/biz')return node;if(path==='appointments')return{orderByChild(){return this},equalTo(){return this},get:async()=>snap({})};throw Error('Unexpected path '+path)}};const auth={uid:'owner',profile:{role:'owner',businessId:'biz'}};const payload={action:'entry',requestId:'roundtrip',kind:'receipt',method:'cash',amountMinor:1234,description:'API kayıt'};await handleWorkspace({method:'POST',auth,body:payload},res,liveDb);assert.equal(status,200);await handleWorkspace({method:'POST',auth,body:payload},res,liveDb);assert.equal(status,200);await handleWorkspace({method:'POST',auth,body:{action:'read'}},res,liveDb);assert.equal(status,200);assert.equal(Object.keys(body.data.entries).length,1);assert.equal(cashSummary(body.data.entries).receipts,1234);
+ console.log('WORKSPACE RUNTIME PASS: owner/tenant boundary, CRM, cash vs charges, balances, replay protection, package consumption, stock floor, draft-only campaigns, CSV injection, day/week/month agenda');
+})().catch(error=>{console.error(error);process.exitCode=1});

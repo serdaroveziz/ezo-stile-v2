@@ -1,4 +1,5 @@
-/* EZO STİLE v2 - Sandbox Payment Refund & Entitlements Revocation Endpoint */
+import { firebaseFetchChecked as firebaseFetch } from '../../firebase-admin.js';
+/* UNELIVO - Sandbox Payment Refund & Entitlements Revocation Endpoint */
 import { getProductById } from '../../../src/config/products.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
@@ -16,7 +17,7 @@ export default async function handler(req, res) {
     }
 
     // 1. SUPER ADMIN AUTHORIZATION GUARD
-    const adminRes = await fetch(`${FIREBASE_DB_URL}/users/${superAdminUid}.json`);
+    const adminRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${superAdminUid}.json`);
     const admin = adminRes.ok ? await adminRes.json() : null;
 
     if (!admin || admin.role !== 'super_admin') {
@@ -24,7 +25,7 @@ export default async function handler(req, res) {
     }
 
     // 2. FETCH PAYMENT RECORD
-    const paymentRes = await fetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`);
+    const paymentRes = await firebaseFetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`);
     const payment = paymentRes.ok ? await paymentRes.json() : null;
 
     if (!payment) {
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
 
     // 3. REVOKE ENTITLEMENTS SAFELY
     if (product && product.type === 'ai_credits') {
-      const userRes = await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
+      const userRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`);
       const user = userRes.ok ? await userRes.json() : null;
 
       if (user && user.aiCredits) {
@@ -56,7 +57,7 @@ export default async function handler(req, res) {
           [targetType]: revokedBalance
         };
 
-        await fetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}/aiCredits.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatedCredits)
@@ -79,7 +80,7 @@ export default async function handler(req, res) {
           createdAt: new Date().toISOString()
         };
 
-        await fetch(`${FIREBASE_DB_URL}/users/${userUid}/credit_ledger/${ledgerId}.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}/credit_ledger/${ledgerId}.json`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(refundLedger)
@@ -87,11 +88,11 @@ export default async function handler(req, res) {
       }
 
     } else if (product && product.type === 'salon_subscription') {
-      const targetBizId = businessId || (await (await fetch(`${FIREBASE_DB_URL}/users/${userUid}.json`)).json()).businessId;
+      const targetBizId = businessId || (await (await firebaseFetch(`${FIREBASE_DB_URL}/users/${userUid}.json`)).json()).businessId;
 
       if (targetBizId) {
         // Revert Plan back to FREE and staff limit to 1
-        await fetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -101,7 +102,7 @@ export default async function handler(req, res) {
           })
         });
 
-        await fetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}/subscription.json`, {
+        await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${targetBizId}/subscription.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -113,7 +114,7 @@ export default async function handler(req, res) {
     }
 
     // 4. TRANSITION PAYMENT STATE TO REFUNDED
-    await fetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
+    await firebaseFetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

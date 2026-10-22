@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*
+!.env.example
 
 # Local tunnel & scripts
 public_url.txt
@@ -16,3 +17,14 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+
+.vercel
+.env*
+!.env.example
+
+# Local audit artefacts, production data dumps and backups (never publish)
+outputs/
+work/
+*yedek*
+*.backup
+local-boot-check.html

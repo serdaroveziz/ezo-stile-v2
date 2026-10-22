@@ -1,5 +1,7 @@
-/* EZO STİLE v2 - Super Admin Discovery Visibility Control Endpoint */
+/* UNELIVO - Super Admin Discovery Visibility Control Endpoint */
 import { writeAuditLog } from '../audit/log.js';
+import { firebaseFetch } from '../../firebase-admin.js';
+import { syncPublicBusiness } from '../../public-business.js';
 
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
@@ -15,20 +17,22 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'businessId, hiddenFromDiscovery ve superAdminUid zorunludur' });
     }
 
-    // 1. VERIFY SUPER ADMIN
-    const adminCheckRes = await fetch(`${FIREBASE_DB_URL}/users/${superAdminUid}.json`);
-    const adminUser = adminCheckRes.ok ? await adminCheckRes.json() : null;
-
-    if (!adminUser || adminUser.role !== 'super_admin') {
+    if (!req.auth || !req.auth.profile || req.auth.profile.role !== 'super_admin' || req.auth.uid !== superAdminUid) {
       return res.status(403).json({ error: 'Yetkisiz erişim! Yalnızca Süper Admin keşfet görünürlüğünü değiştirebilir.' });
     }
 
+    const beforeRes = await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`);
+    const beforeBusiness = beforeRes.ok ? await beforeRes.json() : null;
+    if (!beforeBusiness) return res.status(404).json({ error: 'Salon bulunamadı.' });
+
     // 2. UPDATE BUSINESS RECORD
-    await fetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`, {
+    const updateRes = await firebaseFetch(`${FIREBASE_DB_URL}/businesses/${businessId}.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hiddenFromDiscovery: Boolean(hiddenFromDiscovery) })
+      body: JSON.stringify({ hiddenFromDiscovery: Boolean(hiddenFromDiscovery), discoveryEnabled: !Boolean(hiddenFromDiscovery), discoveryUpdatedAt: new Date().toISOString() })
     });
+    if (!updateRes.ok) return res.status(500).json({ error: 'Keşfet görünürlüğü güncellenemedi.' });
+    await syncPublicBusiness(businessId);
 
     // 3. AUDIT LOG
     await writeAuditLog({
@@ -37,7 +41,8 @@ export default async function handler(req, res) {
       action: hiddenFromDiscovery ? 'salon.hidden_from_discovery' : 'salon.restored_to_discovery',
       targetType: 'business',
       targetId: businessId,
-      businessId
+      businessId,
+      metadata: { before: { discoveryEnabled: beforeBusiness.discoveryEnabled, hiddenFromDiscovery: beforeBusiness.hiddenFromDiscovery }, after: { discoveryEnabled: !Boolean(hiddenFromDiscovery), hiddenFromDiscovery: Boolean(hiddenFromDiscovery) } }
     });
 
     return res.status(200).json({

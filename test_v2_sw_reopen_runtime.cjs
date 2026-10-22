@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const vm=require('node:vm');
+const handlers={};let claimed=0,skipped=0;
+const context={URL,console,self:{location:{origin:'https://demo.example'},addEventListener:(name,cb)=>{handlers[name]=cb},skipWaiting:()=>skipped++,clients:{claim:async()=>claimed++}},caches:{keys:async()=>['ezo-old'],delete:async()=>true},importScripts:()=>{}};
+vm.runInNewContext(fs.readFileSync('sw.js','utf8'),context);
+assert.equal(handlers.fetch,undefined,'Uncached network requests must use native browser networking');
+assert.equal(typeof handlers.notificationclick,'function');
+handlers.install({});assert.equal(skipped,1);
+let activation;handlers.activate({waitUntil:p=>activation=p});
+activation.then(()=>{assert.equal(claimed,1);assert(fs.readFileSync('index.html','utf8').includes('/sw.js?v=2.3.8-native-network'));console.log('SW REOPEN PASS: native navigation/assets/API, activation, push click preserved, registration version matches');}).catch(e=>{console.error(e);process.exitCode=1});

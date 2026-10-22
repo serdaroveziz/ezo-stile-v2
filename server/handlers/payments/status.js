@@ -1,4 +1,5 @@
-/* EZO STİLE v2 - Payment Status Query Endpoint with Security Isolation */
+import { firebaseFetchChecked as firebaseFetch } from '../../firebase-admin.js';
+/* UNELIVO - Payment Status Query Endpoint with Security Isolation */
 const FIREBASE_DB_URL = 'https://ezostile-barber-default-rtdb.europe-west1.firebasedatabase.app';
 
 export default async function handler(req, res) {
@@ -14,7 +15,7 @@ export default async function handler(req, res) {
     }
 
     // 1. FETCH PAYMENT RECORD
-    const paymentRes = await fetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`);
+    const paymentRes = await firebaseFetch(`${FIREBASE_DB_URL}/payments/${paymentId}.json`);
     const payment = paymentRes.ok ? await paymentRes.json() : null;
 
     if (!payment) {
@@ -22,7 +23,7 @@ export default async function handler(req, res) {
     }
 
     // 2. AUTHORIZATION GUARD FOR CALLER
-    const callerRes = await fetch(`${FIREBASE_DB_URL}/users/${callerUid}.json`);
+    const callerRes = await firebaseFetch(`${FIREBASE_DB_URL}/users/${callerUid}.json`);
     const caller = callerRes.ok ? await callerRes.json() : null;
 
     const isOwnerOfPayment = callerUid === payment.userUid;
