@@ -45,7 +45,9 @@ Tarih: 21 Ekim 2026 · Kapsam: `C:\Users\kuvvat\Documents\ezo-stile-v2` (yerel) 
 > | Okunurluk, patron (6 tema × 5 sekme) | Hatalı → **düzeltildi** (`f5ce983`) | Vurgu rengi üzerindeki sabit koyu yazı açık temalarda 1.2:1 idi; düzeltmeyle yeniden tarama 0 hata, yatay taşma yok |
 > | Çalışan manuel randevu yetkisi | **Karar verildi: her çalışan, yalnız kendi salonunda** | Kod zaten böyleydi; 3 test karara göre güncellendi. Müşteri ve başka salon personeli 403. Kural testi 159/159 |
 > | Vercel Deployment Protection | **Kaldırıldı** (kullanıcı kararı, 22 Ekim) | Preview ve `*.vercel.app` girişsiz açılıyor. Preview'lar canlı veritabanına bağlı; uygulama içi auth ve RTDB kuralları aynen geçerli |
-> | Çalışan ve süper admin ekranları | **Taranmadı** | O rollerde hesapla giriş gerekiyor |
+> | Okunurluk, çalışan/resepsiyon (6 tema × 4 sekme, 504 öğe) | **Çalışıyor** | 0 WCAG AA hatası, yatay taşma yok, alt menü ortalı (4 × 90 px) |
+> | Okunurluk, süper admin (6 tema × 5 sekme, 3.420 öğe) | **Çalışıyor** | 0 WCAG AA hatası, yatay taşma yok, alt menü ortalı (5 × 73 px) |
+> | Süper admin çıkış/yeniden giriş donması | Kısmen | Kök neden (çift `auth.js`) `95fb0d7` ile giderildi; çıkış-giriş akışı şifre gerektirdiği için elle test edilmedi |
 
 ## 0. Yönetici özeti
 
