@@ -160,7 +160,8 @@ export async function renderSuperAdminScreen(user, onTabChange) {
   if (renderSequence !== adminRenderSequence || !isSessionCurrent(user.uid, renderGeneration)) return;
   const allApts = Object.values(allAptsData);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Appointment dates are Istanbul calendar days; toISOString() is UTC and shows yesterday until 03:00.
+  const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date());
   const todayApts = allApts.filter(a => a && a.date === todayStr);
 
   const displayName = escapeAdminText(user.displayName || user.name || t('superAdminTitle'));
@@ -172,21 +173,10 @@ export async function renderSuperAdminScreen(user, onTabChange) {
   // ==========================================
   if (activeAdminTab === 'dashboard') {
     mainHtml = `
-      <div class="card card-gold animate-fade admin-welcome" style="padding: 18px; margin-bottom: 14px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <h3 style="font-size: 16px; font-weight: 800; color: var(--theme-ink-ffffff, #fff);"> ${t('superAdminTitle')}</h3>
-            <div style="font-size: 11px; color: var(--gold-primary);"> ${t('uiRemaining_189')} ${displayName}</div>
-          </div>
-          <span class="badge badge-approved" style="font-size: 10px;">${t('uiRemaining_190')}</span>
-        </div>
-      </div>
-
-
-      <div class="admin-shortcuts">
-        <button class="btn btn-secondary" onclick="window.switchAdminTab('salons')">${uiIcon('store')}<span>${t('salonsTabAdmin')}</span></button>
-        <button class="btn btn-secondary" onclick="window.switchAdminTab('applications', 'pending')">${uiIcon('inbox')}<span>${t('applicationsTabAdmin')}</span><span class="badge badge-pending">${pendingApps.length}</span></button>
-        <button class="btn btn-secondary" onclick="window.openAuditLogModal()">${uiIcon('file')}<span>${t('uiRemaining_238')}</span></button>
+      <!-- The header bar already shows the panel title; salons/applications are in the bottom nav
+           and the KPI cards below, and the audit log lives under Yönetim. -->
+      <div class="animate-fade admin-welcome" style="margin: 2px 2px 14px;">
+        <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main);">${t('uiRemaining_189')} ${displayName}</h3>
       </div>
       <!-- 6 INTERACTIVE KPI CARDS (REQS 3-9) -->
       <div class="admin-metrics" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
@@ -253,7 +243,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
             <div>
               <div style="font-size: 14px; font-weight: 800; color: var(--theme-ink-ffffff, #fff);"> ${uiIcon('store')} ${escapeAdminText(b.name || t('uiRemaining_198'))}</div>
               <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">
-                 ${escapeAdminText(b.district || t('ownerUi_075'))} / ${escapeAdminText(b.city || t('ownerUi_075'))} •  ${escapeAdminText(b.phone || t('uiRemaining_310'))}
+                 ${escapeAdminText([b.district, b.city].filter(Boolean).join(' / ') || t('ownerUi_075'))}${b.phone ? ' • ' + escapeAdminText(b.phone) : ''}
               </div>
               <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
                 ${adminLabel('plan')}: ${escapeAdminText(b.plan || 'FREE')} ${isGranted ? t('uiRemaining_199') : ''} • ${t('uiRemaining_286')} ${isDiscoveryHidden ? t('staffUi_16') : t('staffUi_63')}
@@ -321,7 +311,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
 
     const appsHtml = filteredApps.map(a => `
       <div class="card card-gold animate-fade" style="padding: 14px; margin-bottom: 10px;">
-        <div style="font-size: 14px; font-weight: 800; color: var(--theme-ink-ffffff, #fff);"> ${a.salonName}</div>
+        <div style="font-size: 14px; font-weight: 800; color: var(--theme-ink-ffffff, #fff);"> ${escapeAdminText(a.salonName)}</div>
         <div style="font-size: 11px; color: var(--gold-primary); margin-top: 2px;">
            Yetkili: ${escapeAdminText(a.ownerName || a.applicantName || a.displayName || t('ownerUi_075'))} •  ${escapeAdminText(a.phone || t('ownerUi_075'))} •  ${escapeAdminText([a.city, a.district].filter(value => value && value !== 'undefined').join(' / ') || t('ownerUi_075'))}
         </div>
@@ -336,7 +326,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
                ${t('ownerUi_079')}
             </button>
           </div>
-        ` : `<span class="badge ${a.status === 'approved' ? 'badge-approved' : 'badge-pending'}" style="margin-top: 8px;">${a.status}</span>`}
+        ` : `<span class="badge ${a.status === 'approved' ? 'badge-approved' : 'badge-pending'}" style="margin-top: 8px;">${escapeAdminText(a.status === 'approved' ? t('approved') : a.status === 'rejected' ? t('rejected') : a.status)}</span>`}
       </div>
     `).join('');
 
@@ -350,7 +340,7 @@ export async function renderSuperAdminScreen(user, onTabChange) {
           <button onclick="window.setAppFilter('rejected')" class="btn ${applicationFilterState === 'rejected' ? 'btn-gold' : 'btn-secondary'}" style="flex: 1; font-size: 11px; padding: 6px;">${t('uiRemaining_220')}${rejectedApps.length})</button>
         </div>
 
-        ${filteredApps.length === 0 ? `<div style="font-size: 11px; color: var(--text-muted);">${t('uiRemaining_221')}</div>` : appsHtml}
+        ${filteredApps.length === 0 ? `<div class="admin-empty" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 12px;text-align:center;color:var(--text-muted);font-size:12px;">${uiIcon('inbox')}<span>${t('uiRemaining_221')}</span></div>` : appsHtml}
       </div>
     `;
   }
@@ -372,15 +362,15 @@ export async function renderSuperAdminScreen(user, onTabChange) {
       const isDisabled = u.disabled === true;
       return `
         <div data-user-uid="${escapeAdminText(u.uid)}" class="card animate-fade" style="padding: 12px; margin-bottom: 8px; border-color: ${isDisabled ? '#ef4444' : 'var(--border-color)'};">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-size: 13px; font-weight: 800; color: var(--theme-ink-ffffff, #fff);"> ${u.displayName || u.name || t('uiRemaining_222')}</div>
-              <div style="font-size: 11px; color: var(--gold-primary);"> ${u.phone || t('uiRemaining_187')} • ${userRoleFilter === 'owner' ? t('ownerUi_011') : userRoleFilter === 'staff' ? t('staffUi_18') : t('staffUi_6')}</div>
-            </div>
-            <button onclick="window.toggleUserDisableAdmin('${u.uid}', ${!isDisabled})" class="btn btn-secondary" style="font-size: 10px; padding: 4px 8px; border-color: ${isDisabled ? '#22c55e' : '#ef4444'}; color: ${isDisabled ? 'var(--theme-copy-22c55e, #22c55e)' : 'var(--theme-copy-ef4444, #ef4444)'};">
+          <div style="min-width: 0;">
+            <div style="font-size: 13px; font-weight: 800; color: var(--theme-ink-ffffff, #fff); overflow-wrap: anywhere;"> ${escapeAdminText(u.displayName || u.name || t('uiRemaining_222'))}</div>
+            <div style="font-size: 11px; color: var(--gold-primary);"> ${escapeAdminText(u.phone || t('uiRemaining_187'))} • ${userRoleFilter === 'owner' ? t('ownerUi_011') : userRoleFilter === 'staff' ? t('staffUi_18') : t('staffUi_6')}</div>
+          </div>
+          <div class="admin-user-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;">
+            <button onclick="window.toggleUserDisableAdmin('${escapeAdminText(u.uid)}', ${!isDisabled})" class="btn btn-secondary" style="font-size: 11px; padding: 6px 8px; white-space: nowrap; border-color: ${isDisabled ? '#22c55e' : '#ef4444'}; color: ${isDisabled ? 'var(--theme-copy-22c55e, #22c55e)' : 'var(--theme-copy-ef4444, #ef4444)'};">
               ${isDisabled ? t('ownerUi_140') : t('uiRemaining_223')}
             </button>
-            <button onclick="window.deleteUserAdmin('${u.uid}')" class="btn btn-secondary" style="font-size: 10px; padding: 4px 8px; margin-left: 6px; border-color: #ef4444; color:var(--theme-copy-ef4444, #ef4444);">
+            <button onclick="window.deleteUserAdmin('${escapeAdminText(u.uid)}')" class="btn btn-secondary" style="font-size: 11px; padding: 6px 8px; white-space: nowrap; border-color: #ef4444; color:var(--theme-copy-ef4444, #ef4444);">
               ${t('superAdminDeleteUser')}
             </button>
           </div>

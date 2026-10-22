@@ -231,13 +231,13 @@ Kullanıcı bulunamadı.|User not found.|Пользователь не найд�
 Süper Admin Yönetim Menüsü|Super Admin Menu|Меню суперадминистратора|قائمة المسؤول العام|Baş administrator menýusy|منوی مدیر کل
 Ödemeler & Abonelikler|Payments & Subscriptions|Платежи и подписки|المدفوعات والاشتراكات|Tölegler we abunalar|پرداخت‌ها و اشتراک‌ها
 İncele →|Review →|Открыть →|مراجعة ←|Barla →|بررسی ←
-Ücretsiz Premium Grant Yönetimi|Free Premium Grant Management|Управление бесплатным Premium|إدارة منح Premium المجانية|Mugt Premium rugsat dolandyryşy|مدیریت هدیه Premium رایگان
+Ücretsiz Premium Tanımları|Free Premium Grants|Управление бесплатным Premium|إدارة منح Premium المجانية|Mugt Premium rugsat dolandyryşy|مدیریت هدیه Premium رایگان
 Aktif Kullanım:|Active Usage:|Активно:|الاستخدام النشط:|Işjeň ulanyş:|استفاده فعال:
 / 2 Salon|/ 2 Salons|/ 2 салона|/ صالونان|/ 2 salon|/ ۲ سالن
 Yönet →|Manage →|Управлять →|إدارة ←|Dolandyr →|مدیریت ←
-AI Telemetri & Provider Status|AI Telemetry & Provider Status|Телеметрия ИИ и провайдер|قياس الذكاء الاصطناعي وحالة المزود|AI telemetriýasy we üpjün ediji|تله‌متری هوش مصنوعی و وضعیت ارائه‌دهنده
+AI Kullanımı ve Sağlayıcı Durumu|AI Usage & Provider Status|Телеметрия ИИ и провайдер|قياس الذكاء الاصطناعي وحالة المزود|AI telemetriýasy we üpjün ediji|تله‌متری هوش مصنوعی و وضعیت ارائه‌دهنده
 Görüntüle →|View →|Открыть →|عرض ←|Gör →|مشاهده ←
-Platform Audit Log|Platform Audit Log|Журнал аудита платформы|سجل تدقيق المنصة|Platforma audit žurnaly|گزارش ممیزی پلتفرم
+Denetim Kayıtları|Audit Log|Журнал аудита платформы|سجل تدقيق المنصة|Platforma audit žurnaly|گزارش ممیزی پلتفرم
 Listele →|List →|Список →|قائمة ←|Sanawy görkez →|فهرست ←
 Destek Modu (Patron Gözüyle)|Support Mode (Owner View)|Режим поддержки (вид владельца)|وضع الدعم (عرض المالك)|Goldaw tertibi (eýe görnüşi)|حالت پشتیبانی (نمای مالک)
 Aç →|Open →|Открыть →|فتح ←|Aç →|باز کردن ←
