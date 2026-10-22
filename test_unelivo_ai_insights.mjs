@@ -50,12 +50,20 @@ for (const role of ['customer', 'barber', 'manager', 'receptionist']) check((awa
 check((await call(null, { action: 'ask', question: 'x?' })).status === 401, 'anonymous rejected');
 check((await call(owner, { action: 'ask', question: 'x' })).status === 400, 'too-short question rejected');
 check((await call(owner, { action: 'ask', question: 'ciro?' }, createInsightsHandler({ ...options, enabled: () => false }))).status === 503, 'disabled config returns 503');
-const limited = await call(owner, { action: 'ask', question: 'ciro?' }, createInsightsHandler({ ...options, quota: async () => { throw Object.assign(Error('Asistan kullanım sınırına ulaşıldı.'), { statusCode: 429 }); } }));
-check(limited.status === 429, 'quota limit is enforced');
+const { reserveAssistantQuota } = await import('./server/assistant-draft.js');
+const quotaDb = { store: {}, ref(path) { const store = this.store; return { transaction: async fn => { const next = fn(store[path] ?? null); if (next === undefined) return { committed: false }; store[path] = next; return { committed: true }; } }; } };
+const limited = await call(owner, { action: 'ask', question: 'ciro?' }, createInsightsHandler({ ...options, quota: async () => { for (let i = 0; i < 21; i++) await reserveAssistantQuota(quotaDb, 'owner_a', 1000); } }));
+check(limited.status === 429 && /sınır/.test(limited.result.error), 'quota limit is enforced with a readable message');
 const admin = await call({ uid: 'admin', profile: { role: 'super_admin' } }, { action: 'ask', question: 'Platform nasıl?' });
 const adminSent = JSON.stringify(seen.at(-1));
 check(admin.status === 200 && seen.at(-1).metrics.scope === 'platform' && !/cust_secret|Ayşe|5551112233|5550000000/.test(adminSent), 'super admin gets platform totals without personal data');
-const crashed = await call(owner, { action: 'ask', question: 'ciro?' }, createInsightsHandler({ ...options, answer: async () => { throw Error('provider down'); } }));
-check(crashed.status === 503 && !/provider down/.test(crashed.result.error), 'provider errors are not leaked');
+// Real gateway errors carry a statusCode (seen in the preview: 403 "requires a valid credit card").
+const gatewayError = Object.assign(Error('AI Gateway requires a valid credit card on file. Please visit https://vercel.com/...'), { statusCode: 403, name: 'GatewayAuthenticationError' });
+const crashed = await call(owner, { action: 'ask', question: 'ciro?' }, createInsightsHandler({ ...options, answer: async () => { throw gatewayError; } }));
+check(crashed.status === 503 && !/credit card|vercel\.com|Gateway/.test(crashed.result.error), 'provider errors (even with statusCode) are not leaked');
+const { createAssistantHandler } = await import('./server/handlers/ai/booking-assistant.js');
+const bookingDb = { ref() { return { get: async () => ({ val: () => ({ name: 'Salon A', ownerUid: 'owner_a', status: 'active', services: {}, staff: {} }) }), orderByChild() { return this; }, equalTo() { return this; } }; } };
+const booking = await call(owner, { action: 'chat', messages: [{ role: 'user', content: 'yarın kesim' }] }, createAssistantHandler({ database: () => bookingDb, interpret: async () => { throw gatewayError; }, quota: async () => {}, secret: () => 'x'.repeat(40), enabled: () => true, modelReady: () => true }));
+check(booking.status === 503 && !/credit card|vercel\.com|Gateway/.test(booking.result.error), 'booking assistant hides provider errors too');
 
 console.log(`UNELIVO AI INSIGHTS: ${passed}/${passed} PASS`);

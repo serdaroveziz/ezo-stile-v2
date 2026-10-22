@@ -1,12 +1,12 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
-const fail=()=>{throw Object.assign(Error('Randevu taslağı geçersiz veya süresi dolmuş. Yeniden hazırlayın.'),{statusCode:409})};
+const fail=()=>{throw Object.assign(Error('Randevu taslağı geçersiz veya süresi dolmuş. Yeniden hazırlayın.'),{statusCode:409,expose:true})};
 export function signAssistantDraft(payload,secret,now=Date.now()){
- if(!secret||secret.length<32)throw Object.assign(Error('Asistan onay anahtarı yapılandırılmadı.'),{statusCode:503});
+ if(!secret||secret.length<32)throw Object.assign(Error('Asistan onay anahtarı yapılandırılmadı.'),{statusCode:503,expose:true});
  const data=Buffer.from(JSON.stringify({...payload,draftId:randomUUID(),expiresAt:now+10*60*1000})).toString('base64url');
  return data+'.'+createHmac('sha256',secret).update(data).digest('base64url');
 }
 export function verifyAssistantDraft(token,secret,uid,now=Date.now()){
- if(!secret||secret.length<32)throw Object.assign(Error('Asistan yapılandırılmadı.'),{statusCode:503});
+ if(!secret||secret.length<32)throw Object.assign(Error('Asistan yapılandırılmadı.'),{statusCode:503,expose:true});
  if(typeof token!=='string'||token.length>6000)fail();const [data,sig,...extra]=token.split('.');if(!data||!sig||extra.length)fail();
  const expected=createHmac('sha256',secret).update(data).digest(),received=Buffer.from(sig,'base64url');if(expected.length!==received.length||!timingSafeEqual(expected,received))fail();
  let result;try{result=JSON.parse(Buffer.from(data,'base64url').toString('utf8'))}catch{fail()}
@@ -17,6 +17,6 @@ export async function reserveAssistantQuota(db,uid,now=Date.now()){
   const ref=db.ref('assistant_limits/'+key);
   await ref.transaction(current=>current||{start:now,count:0});
   const result=await ref.transaction(current=>{const value=current&&now-current.start<period?current:{start:now,count:0};if(value.count>=limit)return;return{start:value.start,count:value.count+1}});
-  if(!result.committed)throw Object.assign(Error('Asistan kullanım sınırına ulaşıldı. Normal randevu ekranından devam edebilirsiniz.'),{statusCode:429});
+  if(!result.committed)throw Object.assign(Error('Asistan kullanım sınırına ulaşıldı. Normal randevu ekranından devam edebilirsiniz.'),{statusCode:429,expose:true});
  }
 }

@@ -9,7 +9,7 @@ import { createBookingHandler } from '../booking/create.js';
 import { bookingDuration, istanbulNowParts, validBookingDate } from '../../booking-staff.js';
 const workRoles=['owner','barber','manager','receptionist'];
 const key=v=>typeof v==='string'&&/^biz_[a-z0-9_-]+$/i.test(v);
-const fail=(message,statusCode=400)=>{throw Object.assign(Error(message),{statusCode})};
+const fail=(message,statusCode=400)=>{throw Object.assign(Error(message),{statusCode,expose:true})};
 async function invoke(handler,req){let code=200,body;await handler(req,{setHeader(){},status(v){code=v;return this},json(v){body=v;return v}});if(code>=400)fail(body?.error||'Randevu işlemi tamamlanamadı.',code);return body;}
 function modelCatalog(business){return {name:String(business.name||'Salon').slice(0,100),services:Object.entries(business.services||{}).filter(([,s])=>s&&s.active!==false).slice(0,50).map(([id,s])=>({id,name:String(s.name||'Hizmet').slice(0,100)})),staff:Object.entries(business.staff||{}).filter(([,s])=>s&&s.active!==false).slice(0,50).map(([id,s])=>({id:s.id||id,name:String(s.displayName||s.name||'Çalışan').slice(0,100)}))};}
 export function createAssistantHandler({database=getAdminDatabase,interpret=interpretBookingMessage,quota=reserveAssistantQuota,secret=()=>process.env.UNELIVO_ASSISTANT_SECRET,enabled=()=>process.env.UNELIVO_ASSISTANT_ENABLED==='true',modelReady=()=>Boolean(process.env.UNELIVO_ASSISTANT_MODEL&&(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN||process.env.VERCEL==='1')),createBooking=null}={}){
@@ -67,7 +67,7 @@ export function createAssistantHandler({database=getAdminDatabase,interpret=inte
    const booking={businessId,serviceId:state.serviceId,staffId:state.staffId,date:state.date,time:state.time,isManual:manual,customerName:manual?state.customerName:(profile.name||profile.displayName||'Müşteri'),customerPhone:manual?state.customerPhone:profile.phone,...(!manual?{customerUid:auth.uid}:{})};
    const token=signAssistantDraft({uid:auth.uid,role:profile.role,booking,price,duration},secret());
    return res.status(200).json({message:'Henüz kayıt oluşturulmadı. Bilgileri kontrol edip Onayla düğmesine basın.',state,draft:{token,businessName:String(business.name||'Salon'),serviceName:serviceEntry.name,staffName:state.staffId==='staff-any'?'Fark Etmez':catalog.staff.find(s=>s.id===state.staffId).name,date:state.date,time:state.time,price,duration,customerName:booking.customerName,customerPhone:booking.customerPhone}});
-  }catch(error){return res.status(error.statusCode||503).json({error:error.statusCode?error.message:'Asistan bağlantısı şu an kullanılamıyor. Normal randevu ekranından devam edebilirsiniz.'});}
+  }catch(error){if(!error.expose)console.error('Booking assistant failed:',error?.name||error);return res.status(error.expose?error.statusCode:503).json({error:error.expose?error.message:'Asistan bağlantısı şu an kullanılamıyor. Normal randevu ekranından devam edebilirsiniz.'});}
  };
 }
 export default createAssistantHandler();

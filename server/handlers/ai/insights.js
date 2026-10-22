@@ -6,7 +6,8 @@ import { computeSalonMetrics, computePlatformMetrics } from '../../insights-metr
 
 // UNELIVO AI for owners (own salon) and the super admin (platform totals).
 // Read-only: the model receives server-computed aggregates and the user's question, nothing else.
-const fail = (message, statusCode = 400) => { throw Object.assign(Error(message), { statusCode }); };
+// expose marks our own user-facing messages; provider/SDK errors also carry statusCode and must stay generic.
+const fail = (message, statusCode = 400) => { throw Object.assign(Error(message), { statusCode, expose: true }); };
 
 export async function answerFromMetrics({ question, history, metrics, role }) {
   const model = process.env.UNELIVO_ASSISTANT_MODEL;
@@ -61,7 +62,8 @@ export function createInsightsHandler({ database = getAdminDatabase, answer = an
       if (!message) fail('Yanıt üretilemedi; lütfen tekrar deneyin.', 502);
       return res.status(200).json({ message, basedOn: { scope: metrics.scope, today: metrics.today } });
     } catch (error) {
-      return res.status(error.statusCode || 503).json({ error: error.statusCode ? error.message : 'UNELIVO AI şu an yanıt veremiyor. Biraz sonra tekrar deneyin.' });
+      if (!error.expose) console.error('UNELIVO AI insights failed:', error?.name || error);
+      return res.status(error.expose ? error.statusCode : 503).json({ error: error.expose ? error.message : 'UNELIVO AI şu an yanıt veremiyor. Biraz sonra tekrar deneyin.' });
     }
   };
 }
