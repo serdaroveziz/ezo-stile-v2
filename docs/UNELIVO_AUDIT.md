@@ -47,7 +47,7 @@ Tarih: 21 Ekim 2026 · Kapsam: `C:\Users\kuvvat\Documents\ezo-stile-v2` (yerel) 
 > | Vercel Deployment Protection | **Kaldırıldı** (kullanıcı kararı, 22 Ekim) | Preview ve `*.vercel.app` girişsiz açılıyor. Preview'lar canlı veritabanına bağlı; uygulama içi auth ve RTDB kuralları aynen geçerli |
 > | Okunurluk, çalışan/resepsiyon (6 tema × 4 sekme, 504 öğe) | **Çalışıyor** | 0 WCAG AA hatası, yatay taşma yok, alt menü ortalı (4 × 90 px) |
 > | Okunurluk, süper admin (6 tema × 5 sekme, 3.420 öğe) | **Çalışıyor** | 0 WCAG AA hatası, yatay taşma yok, alt menü ortalı (5 × 73 px) |
-> | Süper admin çıkış/yeniden giriş donması | Kısmen | Kök neden (çift `auth.js`) `95fb0d7` ile giderildi; çıkış-giriş akışı şifre gerektirdiği için elle test edilmedi |
+> | Süper admin çıkış/yeniden giriş donması | **Çalışıyor** | Kök neden (çift `auth.js`) `95fb0d7` ile giderildi. Preview'da doğrulandı: aynı sayfada çalışan hesabından çıkış → süper admin girişi donmadan açıldı; ardından F5 ile panel ~2,2 sn'de geri geldi |
 
 ## 0. Yönetici özeti
 
