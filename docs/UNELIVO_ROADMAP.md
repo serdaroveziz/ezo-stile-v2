@@ -20,14 +20,14 @@ Engel: `519e435` commit'i `outputs/` ve `work/` klasörlerini (canlı veri dök�
 | P0-6 | Rezervasyon ölçeklenmesi: transaction'ı `booking_locks/{businessId}/{date}` sürüm düğümüne daralt. Eşzamanlı 20 istek testi (emülatör) | Şema eklemesi → **onay gerekir** |
 | P0-7 | Mola ve izin yönetimi: `staff/update-schedule` `breaks` alanını korusun, ayrıca `staff/update-time-off` API'si ve kompakt arayüz (eski karmaşık doluluk takvimi geri getirilmeyecek) | **Kısmen.** API mola koruma + doğrulama tamam (`9983cdf`). Arayüz ve izin API'si sırada |
 | P0-8 | Manuel randevuda telefon eşleme: `users` tam okuma yerine `orderByChild('phone').equalTo(...)` | Sırada. Önce canlı `users/*/phone` biçimlerinin salt-okuma denetimi (onayla) |
-| P0-12 | Vercel Deployment Protection: `all_except_custom_domains` → yalnızca preview'ları koru (`preview`) ya da preview'lar için paylaşılabilir bypass bağlantısı. Telefonda giriş ekranı sorununu çözer | Hesap ayarı → **onay gerekir** |
+| P0-12 | Vercel Deployment Protection kaldırıldı; preview'lar telefonda girişsiz açılıyor | **Tamamlandı** (22 Ekim, kullanıcı kararı) |
 | P0-13 | API router loglaması (yalnızca yöntem + rota) ve `req.query.path` | **Tamamlandı** (`4c53073`) |
 | P0-14 | Repo hijyeni: `outputs/`, `work/`, yedekler takipten çıktı, `.env.example` izleniyor | **Tamamlandı** (`d61f192`). Geçmiş temizliği §0'da |
 | P0-9 | Süper admin: yorum moderasyonu + şikâyet kuyruğu | Sırada |
 | P0-10 | Salon Marka Kiti: logodan renk önerisi, marka rengi / yazı kontrast uyarısı | Sırada |
 | P0-11 | `ai/analyze`: sahte sonucu kaldır ya da "örnek" diye açıkça etiketle | **Karar gerekir** |
 
-Karar bekleyen konu: **çalışanlar manuel randevu oluşturabilsin mi?** Şu an herkes oluşturabiliyor. Spesifikasyon ise "yetkiliyse" diyor. Bu karar üç başarısız testi doğrudan belirliyor (`rules_emulator`, `staff_system_final`, `mobile_calendar`). "Yetkiliyse" seçilirse: `hasStaffPermission` içindeki koşulsuz `appointments.create` istisnası kalkar, `berber` varsayılan izinlerine eklenip eklenmeyeceğine karar verilir, `staff_operations` testindeki "base capability" beklentisi güncellenir.
+**Karar verildi (22 Ekim 2026):** her aktif çalışan kendi salonunda manuel randevu oluşturabilir; müşteriler ve başka salonların personeli engellenir. Testler buna göre güncellendi.
 
 ## P1 — İşletme özellikleri
 

@@ -34,6 +34,19 @@ Tarih: 21 Ekim 2026 · Kapsam: `C:\Users\kuvvat\Documents\ezo-stile-v2` (yerel) 
 >
 > Test sonuçlarının tamamı §5b'de.
 
+> **Aşama 2 (22 Ekim 2026).** Preview'da gerçek hesaplarla (müşteri ve patron) mobil boyutta gezildi ve ölçüldü.
+>
+> | Konu | Durum | Not |
+> |---|---|---|
+> | F5 / yeniden girişte "Yükleniyor…" donması | Hatalı → **düzeltildi** (`95fb0d7`) | `index.html` modülleri `?v=` ile yüklüyordu; tarayıcı `auth.js`'i iki kez yükledi, oturum bir kopyada kaldı. **`main` (canlı) da etkileniyor.** |
+> | Müşteri alt menüsü sola kayık | Hatalı → **düzeltildi** (`53e47da`) | 4 öğe için 5 sütunlu ızgara |
+> | "45 dk)", bölünen filtre etiketleri, tekrarlanan il/ilçe, salon sayfası renkleri | Hatalı → **düzeltildi** (`53e47da`, `583bfca`) | |
+> | Okunurluk, müşteri (6 tema × 4 sekme, 558 öğe) | **Çalışıyor** | 0 WCAG AA hatası |
+> | Okunurluk, patron (6 tema × 5 sekme) | Hatalı → **düzeltildi** (`f5ce983`) | Vurgu rengi üzerindeki sabit koyu yazı açık temalarda 1.2:1 idi; düzeltmeyle yeniden tarama 0 hata, yatay taşma yok |
+> | Çalışan manuel randevu yetkisi | **Karar verildi: her çalışan, yalnız kendi salonunda** | Kod zaten böyleydi; 3 test karara göre güncellendi. Müşteri ve başka salon personeli 403. Kural testi 159/159 |
+> | Vercel Deployment Protection | **Kaldırıldı** (kullanıcı kararı, 22 Ekim) | Preview ve `*.vercel.app` girişsiz açılıyor. Preview'lar canlı veritabanına bağlı; uygulama içi auth ve RTDB kuralları aynen geçerli |
+> | Çalışan ve süper admin ekranları | **Taranmadı** | O rollerde hesapla giriş gerekiyor |
+
 ## 0. Yönetici özeti
 
 1. **En büyük risk kod değil, Git.** GitHub'daki son commit `ee72e64` (v2.2.0). Yerel klasör de bu commit'te duruyor (`clean-core` dalı), ama üstünde **commit edilmemiş ~69 değiştirilmiş + ~164 yeni dosya** var. Takvim, çakışma düzeltmeleri, çalışan paneli, marka kiti, rezervasyon asistanı, kurallar dahil son haftaların bütün işi yalnızca bu bilgisayarda. Disk arızası ya da yanlış bir kopyalama bunların hepsini siler. Bu yüzden **ilk adım commit + push** olmalı (bkz. ROADMAP §0).
